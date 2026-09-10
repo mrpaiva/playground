@@ -1,5 +1,9 @@
 # Terminal Unicode Width Fix — Validation (iteration 2)
 
+## Validation
+
+**Result**: ✅ PASS (manual UAT pending user confirmation — declared manual by the spec)
+
 **Date**: 2026-09-10
 **Spec**: `.specs/features/terminal-unicode-width/spec.md` (11 requirements, UNIC-01..11)
 **Diff range**: `main..HEAD` = `f08908d` (docs(specs)) + `ada3a69` (fix(terminal)) + `d196df5` (fix(terminal): allowProposedApi), branch `feature/terminal-unicode-width`
