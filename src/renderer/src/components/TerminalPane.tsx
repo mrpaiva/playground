@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { JSX } from 'react'
-import { Unicode11Addon } from '@xterm/addon-unicode11'
+import { UnicodeGraphemesAddon } from '@xterm/addon-unicode-graphemes'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal, type ITheme } from '@xterm/xterm'
 import { api } from '../lib/api'
@@ -81,20 +81,22 @@ export function TerminalPane({ sessionId }: TerminalPaneProps): JSX.Element {
       fontFamily: "'Cascadia Mono', Consolas, 'JetBrains Mono', monospace",
       fontSize: 13,
       theme: readTheme(),
-      // Unicode 11 needs the experimental unicode handling API (UNIC-01..11):
-      // without this, term.unicode throws on access and the terminal never
-      // opens (verifier probe, 2026-09-10).
+      // Unicode width/grapheme handling needs the experimental unicode API
+      // (UNIC-01..13): without this, term.unicode throws on access and the
+      // terminal never opens (verifier probe, 2026-09-10).
       allowProposedApi: true
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
-    // Unicode 11 width rules (UNIC-01..11): xterm 6.0.0 measures cells with
-    // Unicode 6 tables by default, which count modern icons/emojis (width 2)
-    // as single cells — text overlaps, selection reflow shifts lines, and
-    // wide glyphs leave ghost residue on the viewport borders. The addon
-    // registers the v11 provider; activeVersion flips the terminal onto it.
-    term.loadAddon(new Unicode11Addon())
-    term.unicode.activeVersion = '11'
+    // Unicode 15 widths + grapheme clustering (UNIC-01..13). xterm 6.0.0
+    // measures cells with Unicode 6 tables by default, and even the Unicode 11
+    // tables measure code points in isolation — an emoji-presentation sequence
+    // like U+27A1 U+FE0F reserves 1 cell while the font paints a 2-cell emoji,
+    // pulling the following text left and reflowing the line on selection.
+    // The addon registers the v15/v15-graphemes providers and activates
+    // '15-graphemes' itself, folding VS16/ZWJ/regional sequences into one
+    // grapheme with the right width.
+    term.loadAddon(new UnicodeGraphemesAddon())
     term.open(container)
     fit.fit()
 
