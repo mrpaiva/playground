@@ -80,7 +80,11 @@ export function TerminalPane({ sessionId }: TerminalPaneProps): JSX.Element {
       // maximized, correct narrow; the only variable was the font).
       fontFamily: "'Cascadia Mono', Consolas, 'JetBrains Mono', monospace",
       fontSize: 13,
-      theme: readTheme()
+      theme: readTheme(),
+      // Unicode 11 needs the experimental unicode handling API (UNIC-01..11):
+      // without this, term.unicode throws on access and the terminal never
+      // opens (verifier probe, 2026-09-10).
+      allowProposedApi: true
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
