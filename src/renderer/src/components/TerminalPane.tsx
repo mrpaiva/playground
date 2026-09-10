@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { JSX } from 'react'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal, type ITheme } from '@xterm/xterm'
 import { api } from '../lib/api'
@@ -83,6 +84,13 @@ export function TerminalPane({ sessionId }: TerminalPaneProps): JSX.Element {
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
+    // Unicode 11 width rules (UNIC-01..11): xterm 6.0.0 measures cells with
+    // Unicode 6 tables by default, which count modern icons/emojis (width 2)
+    // as single cells — text overlaps, selection reflow shifts lines, and
+    // wide glyphs leave ghost residue on the viewport borders. The addon
+    // registers the v11 provider; activeVersion flips the terminal onto it.
+    term.loadAddon(new Unicode11Addon())
+    term.unicode.activeVersion = '11'
     term.open(container)
     fit.fit()
 
