@@ -82,14 +82,14 @@ Restart the app and reopen settings: the field still reads `jdoe`.
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| DEVA-01 | P1: Dev alias editable in settings | - | Pending |
-| DEVA-02 | P1: Dev alias editable in settings | - | Pending |
-| DEVA-03 | P1: Dev alias editable in settings | - | Pending |
-| DEVA-04 | P1: Dev alias editable in settings | - | Pending |
-| DEVA-05 | P1: Dev alias editable in settings | - | Pending |
-| DEVA-06 | Edge cases | - | Pending |
-| DEVA-07 | Edge cases | - | Pending |
-| DEVA-08 | Edge cases | - | Pending |
+| DEVA-01 | P1: Dev alias editable in settings | - | Implementing |
+| DEVA-02 | P1: Dev alias editable in settings | - | Implementing |
+| DEVA-03 | P1: Dev alias editable in settings | - | Implementing |
+| DEVA-04 | P1: Dev alias editable in settings | - | Implementing |
+| DEVA-05 | P1: Dev alias editable in settings | - | Implementing |
+| DEVA-06 | Edge cases | - | Implementing |
+| DEVA-07 | Edge cases | - | Implementing |
+| DEVA-08 | Edge cases | - | Implementing |
 
 **ID format:** `DEVA-[NUMBER]`
 
