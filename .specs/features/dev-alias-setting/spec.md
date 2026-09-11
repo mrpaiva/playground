@@ -16,9 +16,9 @@ the empty segment, and every start-work branch is cut without its developer segm
 
 ## Goals
 
-- [ ] The developer alias is editable in the settings dialog and survives a restart
-- [ ] A saved alias reaches the next start-work branch prefill with no restart
-- [ ] Hand-editing `config.json` stops being the only way to set the alias
+- [x] The developer alias is editable in the settings dialog and survives a restart
+- [x] A saved alias reaches the next start-work branch prefill with no restart
+- [x] Hand-editing `config.json` stops being the only way to set the alias
 
 ## Out of Scope
 
@@ -82,14 +82,14 @@ Restart the app and reopen settings: the field still reads `jdoe`.
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| DEVA-01 | P1: Dev alias editable in settings | - | Implementing |
-| DEVA-02 | P1: Dev alias editable in settings | - | Implementing |
-| DEVA-03 | P1: Dev alias editable in settings | - | Implementing |
-| DEVA-04 | P1: Dev alias editable in settings | - | Implementing |
-| DEVA-05 | P1: Dev alias editable in settings | - | Implementing |
-| DEVA-06 | Edge cases | - | Implementing |
-| DEVA-07 | Edge cases | - | Implementing |
-| DEVA-08 | Edge cases | - | Implementing |
+| DEVA-01 | P1: Dev alias editable in settings | - | Verified |
+| DEVA-02 | P1: Dev alias editable in settings | - | Verified |
+| DEVA-03 | P1: Dev alias editable in settings | - | Verified |
+| DEVA-04 | P1: Dev alias editable in settings | - | Verified |
+| DEVA-05 | P1: Dev alias editable in settings | - | Verified |
+| DEVA-06 | Edge cases | - | Verified |
+| DEVA-07 | Edge cases | - | Verified |
+| DEVA-08 | Edge cases | - | Verified |
 
 **ID format:** `DEVA-[NUMBER]`
 
@@ -101,6 +101,6 @@ Restart the app and reopen settings: the field still reads `jdoe`.
 
 ## Success Criteria
 
-- [ ] The alias set in the dialog survives an app restart
-- [ ] A start-work branch prefill contains the alias segment with no hand-edit of `config.json`
-- [ ] Saving the dialog leaves org, project and both templates unchanged
+- [x] The alias set in the dialog survives an app restart
+- [x] A start-work branch prefill contains the alias segment with no hand-edit of `config.json`
+- [x] Saving the dialog leaves org, project and both templates unchanged
