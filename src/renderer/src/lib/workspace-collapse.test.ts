@@ -21,10 +21,7 @@ describe('isCollapsed', () => {
 
 describe('toggleCollapsedId', () => {
   it('appends an absent id (WSCL-01)', () => {
-    expect(toggleCollapsedId(['c:\\repo-a'], 'c:\\repo-b')).toEqual([
-      'c:\\repo-a',
-      'c:\\repo-b'
-    ])
+    expect(toggleCollapsedId(['c:\\repo-a'], 'c:\\repo-b')).toEqual(['c:\\repo-a', 'c:\\repo-b'])
   })
 
   it('removes a present id and preserves the remaining ids (WSCL-01)', () => {

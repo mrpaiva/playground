@@ -111,7 +111,7 @@ T2 -> T4
 
 ### T3: Make the workspace chevron a collapse toggle
 
-**Status**: Pending
+**Status**: ✅ Complete
 
 **What**: Turn the decorative chevron on each workspace row (`Sidebar.tsx:172`) into a real `<button>` with `aria-expanded`, and gate the workspace children on the collapsed state: repos and the "no git repos" note are hidden while collapsed, the "folder not found" note stays visible (WSCL-02, WSCL-03, WSCL-04, WSCL-08, WSCL-11).
 **Where**: `src/renderer/src/components/Sidebar.tsx`
