@@ -131,6 +131,11 @@ export function SettingsDialog({
   // org doubles as the loading flag: fields render once config:get resolves.
   const loaded = org !== null
   const formValid = form !== null && form.name.trim() !== '' && form.command.trim() !== ''
+  // The alias only matters when an effective template uses {dev}; a blank
+  // template falls back to a default that does not (DEVA-09/10).
+  const devAliasRelevant =
+    (template.trim() || DEFAULT_BRANCH_TEMPLATE).includes('{dev}') ||
+    (worktreeTemplate.trim() || DEFAULT_WORKTREE_TEMPLATE).includes('{dev}')
 
   return (
     <div className="dialog-backdrop" onClick={onClose}>
@@ -201,20 +206,22 @@ export function SettingsDialog({
                 onChange={(event) => setWorktreeTemplate(event.target.value)}
               />
             </div>
-            <div>
-              <div className="dialog-field-label">
-                Dev alias{' '}
-                <span className="dialog-label-note">
-                  · fills the {'{dev}'} placeholder of the branch template
-                </span>
+            {devAliasRelevant && (
+              <div>
+                <div className="dialog-field-label">
+                  Dev alias{' '}
+                  <span className="dialog-label-note">
+                    · fills the {'{dev}'} placeholder of the branch template
+                  </span>
+                </div>
+                <input
+                  className="dialog-input"
+                  value={devAlias}
+                  spellCheck={false}
+                  onChange={(event) => setDevAlias(event.target.value)}
+                />
               </div>
-              <input
-                className="dialog-input"
-                value={devAlias}
-                spellCheck={false}
-                onChange={(event) => setDevAlias(event.target.value)}
-              />
-            </div>
+            )}
 
             <div>
               <div className="dialog-field-label">Coding agents</div>

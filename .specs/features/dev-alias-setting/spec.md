@@ -63,6 +63,7 @@ that start-work branches carry my `{dev}` segment without me hand-editing `confi
 3. WHEN the save resolves THEN the app SHALL use the saved alias for the next start-work prefill without a restart.  <!-- event-driven -->
 4. The Dev alias field SHALL carry a label stating that it fills the `{dev}` placeholder of the branch template.  <!-- ubiquitous -->
 5. WHILE the Dev alias field is empty the `{dev}` placeholder SHALL render empty and its branch segment SHALL be dropped.  <!-- state-driven -->
+6. WHILE neither the branch template nor the worktree template contains `{dev}` THEN the Dev alias field SHALL be hidden.  <!-- state-driven -->
 
 **Independent Test**: Set the alias to `jdoe`, save, close the dialog, start work on a
 pinned task — the prefilled branch reads `user/jdoe/<us-id>-<us-slug>/<task-id>-<task-slug>`.
@@ -75,6 +76,8 @@ Restart the app and reopen settings: the field still reads `jdoe`.
 - IF `ado.devAlias` is absent from a `config.json` written by an older build THEN the field SHALL render as empty rather than `undefined`.  <!-- unwanted-behavior -->
 - IF the user enters only whitespace THEN the app SHALL persist an empty string.  <!-- unwanted-behavior -->
 - IF the `config:patch` call rejects THEN the app SHALL log the failure and leave the dialog open, matching the existing save-failure path.  <!-- unwanted-behavior -->
+- IF both templates are blank THEN the field SHALL be hidden (the defaults `{type}/{id}-{slug}` / `{repo}-{branch}` carry no `{dev}`).  <!-- unwanted-behavior -->
+- IF only the worktree template contains `{dev}` THEN the field SHALL be visible.  <!-- unwanted-behavior -->
 
 ---
 
@@ -90,12 +93,14 @@ Restart the app and reopen settings: the field still reads `jdoe`.
 | DEVA-06 | Edge cases | - | Verified |
 | DEVA-07 | Edge cases | - | Verified |
 | DEVA-08 | Edge cases | - | Verified |
+| DEVA-09 | P1: Dev alias editable in settings | - | Verified |
+| DEVA-10 | Edge cases | - | Verified |
 
 **ID format:** `DEVA-[NUMBER]`
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 8 total, 0 mapped to tasks (Tasks phase skipped for this scope), 0 unmapped
+**Coverage:** 10 total, 0 mapped to tasks (Tasks phase skipped for this scope), 0 unmapped
 
 ---
 

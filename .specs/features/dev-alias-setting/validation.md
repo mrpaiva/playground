@@ -130,13 +130,65 @@ scenario left for interactive UAT if the orchestrator opts in).
 
 ---
 
+## Incremental Validation — DEVA-09 / DEVA-10 (2026-09-10)
+
+**Scope**: AC 6 added to P1 (`spec.md:66`) + two edge cases (`spec.md:79-80`); implementation sits in the **working tree on top of `915e78e` (HEAD) and is uncommitted** — `git diff 915e78e..HEAD` is empty, so the verified surface is the working-tree `git diff` (`SettingsDialog.tsx` only; the `spec.md` AC/edge-case/traceability lines are the author's spec update).
+
+### Spec-Anchored Acceptance Criteria (incremental)
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | Evidence (`file:line` + assertion) | Result |
+| ------------------------- | -------------------- | ---------------------------------- | ------ |
+| DEVA-09 — WHILE neither the branch template nor the worktree template contains `{dev}` THEN the Dev alias field SHALL be hidden | Neither effective template has `{dev}` → field not rendered | `SettingsDialog.tsx:136-138` — `devAliasRelevant = (template.trim() \|\| DEFAULT_BRANCH_TEMPLATE).includes('{dev}') \|\| (worktreeTemplate.trim() \|\| DEFAULT_WORKTREE_TEMPLATE).includes('{dev}')`; guard `:209` `{devAliasRelevant && (` … `:224` `)}` | ✅ PASS (H + sensor) |
+| DEVA-10(a) — IF both templates are blank THEN hidden | Blank → defaults `{type}/{id}-{slug}` (`tasks.ts:1`) / `{repo}-{branch}` (`worktrees.ts:4`), neither carries `{dev}` → hidden | `SettingsDialog.tsx:137-138` fallback; sensor cases 3-4; blank-as-default is the runtime semantics (`tasks.ts:32`, `worktrees.ts:32`) and the dialog's own labels (`SettingsDialog.tsx:183,198`) | ✅ PASS |
+| DEVA-10(b) — IF only the worktree template contains `{dev}` THEN visible | Worktree term true → `\|\|` yields visible | `SettingsDialog.tsx:138` + `:209`; sensor cases 5-6; M1/M2/M3 flip exactly this case | ✅ PASS |
+| (implied) only the branch template contains `{dev}` → visible | Branch term true → visible | `SettingsDialog.tsx:137`; sensor cases 7-8; M1 flips it | ✅ PASS |
+| (implied) `\|\|` vs `&&` correctness | Hidden iff NEITHER → visible when EITHER → OR | `SettingsDialog.tsx:137-138`; M1 (`\|\|`→`&&`) killed by 4 case flips | ✅ PASS |
+
+**Status**: ✅ 5/5 incremental checks matched (2 pinned ACs + 2 implied + operator check), 0 gaps.
+
+**Spec-precision analysis (blank-template reading)**: the literal reading ("neither *configured* template contains `{dev}`") and the effective reading ("blank falls back to the default") coincide for every current input — a blank field contains no `{dev}`, and neither `DEFAULT_BRANCH_TEMPLATE` (`tasks.ts:1`) nor `DEFAULT_WORKTREE_TEMPLATE` (`worktrees.ts:4`) contains it. They would diverge only in a hypothetical future where a default gains `{dev}` (literal → hidden, effective → visible). The spec's own DEVA-10(a) reasons explicitly from the defaults ("the defaults `{type}/{id}-{slug}` / `{repo}-{branch}` carry no `{dev}`", `spec.md:79`), and both runtime consumers already treat blank as default (`tasks.ts:32`, `worktrees.ts:32`), so the effective reading is the one the spec implies — **confirmed, not a gap**. M4 (fallback dropped) is the empirical form of this equivalence: outcomes unchanged because the fallback is unobservable under current defaults.
+
+**Informational (not a gap)**: `worktreeNameFor` substitutes only `{repo}`/`{branch}`/`{id}` (`worktrees.ts:33-35`), so a `{dev}` in the worktree template renders literally (sanitized) and is not fed by the alias; DEVA-09/10(b) nonetheless make the field visible in that case — the spec's explicit choice (`spec.md:80`), followed by the implementation.
+
+### Discrimination Sensor (incremental)
+
+Scratch: `D:\temp\verifier-deva-09\sensor.mjs` — reads the real `SettingsDialog.tsx` read-only, extracts the live expression by regex, evaluates 9 spec cases and 4 mutants; the real tree was never written. Renderer components have no test seam by convention (`TESTING.md:42`), so the sensor discriminates the condition logic directly against the spec cases.
+
+| Mutation | File:line | Description | Killed? |
+| -------- | --------- | ----------- | ------- |
+| M1 | `SettingsDialog.tsx:137-138` | top-level `\|\|` → `&&` | ✅ Killed — 4 flips (DEVA-10b ×2, branch-only ×2) |
+| M2 | `SettingsDialog.tsx:138` | worktree term reads `template` instead of `worktreeTemplate` | ✅ Killed — DEVA-10b ×2 flip |
+| M3 | `SettingsDialog.tsx:137-138` | worktree term dropped | ✅ Killed — DEVA-10b ×2 flip |
+| M4 | `SettingsDialog.tsx:137-138` | fallback dropped (`template` raw, no `DEFAULT_*`) | ⚪ Survived as **equivalent mutant** — all 9 spec outcomes unchanged because current defaults carry no `{dev}` (see spec-precision analysis). Unobservable via DEVA-09/10, not a test-strength gap; no fix task |
+
+**Sensor depth**: lightweight (default tier)
+**Result**: 3/4 killed + 1 equivalent — logic discriminating for every spec-observable branch; no committed test added (renderer convention), same coverage model as DEVA-01..08.
+
+**Isolation verified**: scratch deleted (`D:\temp\verifier-deva-09` → absent); real-tree porcelain after sensor + gate identical to baseline (`M .specs/.../spec.md`, `M SettingsDialog.tsx`, the 3 pre-existing untracked `.specs/features/*/` folders).
+
+### Gate Check (incremental, real tree)
+
+- **Commands**: `npm run typecheck` (green) + `npx vitest run --maxWorkers=2`
+- **Result**: 44 files passed, 667 passed / 0 failed / 0 skipped — unchanged from the pre-change count; the change is renderer-only and imported by no test.
+
+### Requirement Traceability Update (incremental)
+
+| Requirement | Previous Status | New Status |
+| ----------- | --------------- | ---------- |
+| DEVA-09 | Implementing | ✅ Verified (hand-verified + sensor) |
+| DEVA-10 | Implementing | ✅ Verified (hand-verified + sensor) |
+
+---
+
 ## Summary
 
 **Overall**: ✅ Ready
 
-**Spec-anchored check**: 8/8 ACs matched spec outcome, 0 spec-precision gaps
-**Sensor**: 2/4 killed — 2 survivors confined to the renderer component, a documented
-convention gap (TESTING.md:42), not a test defect
+**Spec-anchored check**: 10/10 ACs matched spec outcome (8 original + DEVA-09/DEVA-10
+incremental), 0 spec-precision gaps — the blank-template reading is confirmed against
+the effective-template semantics (incremental section)
+**Sensor**: original 2/4 killed (2 documented renderer-convention survivors);
+incremental 3/4 killed + 1 equivalent mutant (fallback unobservable under current defaults)
 **Gate**: 667 passed, 0 failed; typecheck green
 
 **What works**: alias populates with `?? ''` guard; save trims and persists in the
