@@ -81,17 +81,17 @@ expanded. Unfold the first and its repos come back.
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| WSCL-01 | P1: Fold a workspace from its chevron | - | Pending |
-| WSCL-02 | P1: Fold a workspace from its chevron | - | Pending |
-| WSCL-03 | P1: Fold a workspace from its chevron | - | Pending |
-| WSCL-04 | P1: Fold a workspace from its chevron | - | Pending |
-| WSCL-05 | P1: Fold a workspace from its chevron | - | Pending |
-| WSCL-06 | P1: Fold a workspace from its chevron | - | Pending |
-| WSCL-07 | P1: Fold a workspace from its chevron | - | Pending |
-| WSCL-08 | Edge cases | - | Pending |
-| WSCL-09 | Edge cases | - | Pending |
-| WSCL-10 | Edge cases | - | Pending |
-| WSCL-11 | Edge cases | - | Pending |
+| WSCL-01 | P1: Fold a workspace from its chevron | - | ✅ Verified |
+| WSCL-02 | P1: Fold a workspace from its chevron | - | ✅ Verified |
+| WSCL-03 | P1: Fold a workspace from its chevron | - | ✅ Verified |
+| WSCL-04 | P1: Fold a workspace from its chevron | - | ✅ Verified |
+| WSCL-05 | P1: Fold a workspace from its chevron | - | ✅ Verified |
+| WSCL-06 | P1: Fold a workspace from its chevron | - | ✅ Verified |
+| WSCL-07 | P1: Fold a workspace from its chevron | - | ✅ Verified |
+| WSCL-08 | Edge cases | - | ✅ Verified |
+| WSCL-09 | Edge cases | - | ✅ Verified |
+| WSCL-10 | Edge cases | - | ✅ Verified |
+| WSCL-11 | Edge cases | - | ✅ Verified |
 
 **ID format:** `WSCL-[NUMBER]`
 
