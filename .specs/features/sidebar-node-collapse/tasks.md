@@ -81,7 +81,7 @@ T2 -> T4
 
 ### T2: Add workspace-collapse helpers with unit tests
 
-**Status**: Pending
+**Status**: ✅ Complete
 
 **What**: Pure, testable collapse-state helpers: `isCollapsed(ids, id)` (absent = expanded, WSCL-06), `toggleCollapsedId(ids, id)` (add when absent, remove when present, WSCL-01), `dropCollapsedId(ids, id)` (remove on workspace deletion, WSCL-09). Co-located unit tests in `workspace-collapse.test.ts`.
 **Where**: `src/renderer/src/lib/workspace-collapse.ts` (new)
