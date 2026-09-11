@@ -28,7 +28,7 @@ the empty segment, and every start-work branch is cut without its developer segm
 | Per-workspace `devAlias` override | Already excluded by `branch-template-nested`: the alias is the same across repos |
 | Deriving the alias from the ADO identity | Already decided in `branch-template-nested`: the branch alias is not derivable from the ADO account (the email differs) |
 | Validating the alias against git ref rules | See assumptions: the branch stays editable in the dialog and git rejects a truly invalid ref at creation |
-| ~~`SettingsDialog.commitForm` dropping `undoByte` when an agent is edited (`SettingsDialog.tsx:90-97`)~~ **RESOLVED 2026-09-10 (owner): rides this branch** | A real pre-existing defect in the same dialog, found while specifying this feature. Owner decided it ships here as a two-line preservation fix alongside the alias field |
+| ~~`SettingsDialog.commitForm` dropping `undoByte` when an agent is edited (`SettingsDialog.tsx:90-97`)~~ **RESOLVED 2026-09-10 (owner): follow-up after PR #83 merges** | A real pre-existing defect in the same dialog, found while specifying this feature. First decided to ride this branch, then **reverted**: `AgentDef.undoByte` exists only in PR #83 (`terminal-copy-undo-fixes`, open upstream) — the fix cannot compile against this branch's `main` base. Once #83 merges it is a one-line preservation fix in `commitForm` |
 
 ---
 
