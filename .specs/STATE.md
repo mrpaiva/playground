@@ -33,12 +33,13 @@ Handoff snapshot.
 `feature/dev-alias-setting` (based on `origin/main` `ed8d510`). PR not opened yet — push
 needs an explicit go-ahead (fork workflow).**
 
-0. **`dev-alias-setting` (DEVA-01..08) — EXECUTED, independent Verifier PASS 8/8.** 3
-   commits (`84e3601` docs spec, `3c432b6` docs defer undoByte, `3e82229` feat). **Dev
+0. **`dev-alias-setting` (DEVA-01..10) — EXECUTED, independent Verifier PASS 10/10.** 5
+   commits (`84e3601` docs spec, `3c432b6` docs defer undoByte, `3e82229` feat,
+   `915e78e` docs validation, `c675198` feat visibility). **Dev
    alias** field in the ADO block of `SettingsDialog`: state populated from
    `ado.devAlias ?? ''` (`SettingsDialog.tsx:73`), saved in the **same** `config:patch`
    as org/project/templates with `devAlias.trim()` (`:121`), label "fills the {dev}
-   placeholder" (`:205-210`); `App.tsx:373` already re-threads it in `onSaved` (zero new
+   placeholder" (`:210-224`); `App.tsx:373` already re-threads it in `onSaved` (zero new
    plumbing, DEVA-03). Gate: **667 tests / 44 files** (main baseline — the 706 from the
    previous handoff were the develop tree with PR #83/84 unmerged), typecheck clean, lint
    0 errors / 19 warnings (main baseline, measured on a throwaway worktree). Verifier:
@@ -48,6 +49,10 @@ needs an explicit go-ahead (fork workflow).**
    convention, a documented gap, not a defect; optional future seam = extract the
    save-patch builder into `src/shared`. Report:
    `.specs/features/dev-alias-setting/validation.md`.
+   **Post-review increment (owner, `c675198`):** the Dev alias field is now **hidden
+   unless** an effective template (branch or worktree, blank = default) contains
+   `{dev}` (DEVA-09/10); re-verified PASS by an independent Verifier (5/5 checks,
+   sensor 3/4 killed, 1 equivalent mutant).
    **Owner decision (AD-017):** the pre-existing `commitForm` `undoByte`-drop defect was
    first included, then **REVERTED** from this branch — `AgentDef.undoByte` exists only in
    PR #83 (open upstream); on the `main` base it does not compile (TS2353). **Follow-up
