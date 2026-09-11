@@ -142,7 +142,7 @@ T2 -> T4
 
 ### T4: Wire workspace collapse state into the app config
 
-**Status**: Pending
+**Status**: ✅ Complete
 
 **What**: `App.tsx` derives `collapsedIds` from `ui.collapsedWorkspaces` (absent = empty), toggles it via `toggleCollapsedId` through the existing `update()`/`config:patch` path, drops the id on workspace removal, and passes props to the sidebar (WSCL-01, WSCL-05, WSCL-07, WSCL-09, WSCL-10).
 **Where**: `src/renderer/src/App.tsx`
