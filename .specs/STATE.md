@@ -30,11 +30,48 @@ Handoff snapshot.
 
 ## Handoff
 
-**Status (current, 2026-09-10): `dev-alias-setting` EXECUTED + verified (PASS) on branch
-`feature/dev-alias-setting` (based on `origin/main` `ed8d510`). PR not opened yet — push
-needs an explicit go-ahead (fork workflow).**
+**Status (current, 2026-09-13): `agents-rail-v2` EXECUTED + independent Verifier PASS on
+branch `feature/agents-rail-v2` (based on `origin/main` `83e67ce`, the PR #86 merge). Nothing
+uncommitted. PR not opened — push needs an explicit go-ahead.**
 
-0. **`dev-alias-setting` (DEVA-01..10) — EXECUTED, independent Verifier PASS 10/10.** 5
+**OWNER GATES OUTSTANDING for `agents-rail-v2`** — the feature is code-complete and unit-gated,
+but 8 of its 28 ACs are *code-verified pending an owner-run gate* (the AD-016 precedent). Before
+this ships, hand-run against a live dev app (`npm run dev -- -- --remote-debugging-port=9222`):
+`node scripts/smoke-rail-v2.mjs`, `node scripts/smoke-agent-config.mjs`, `node scripts/smoke-agents.mjs`
+— all three are unexecuted. `smoke-rail-v2.mjs` needs a registered workspace holding a task-tagged
+worktree (`user/<you>/<id>-<slug>`) and it wipes existing sessions for a clean slate. Then a
+two-theme visual pass at 344px covering RAIL-26 (2-line title clamp), RAIL-27 (unknown-agent tile)
+and how `opencode` vs `Ad-hoc` read at 22×22 — both resolve to `--amber` since PR #85 added
+`opencode` to `SEEDED_AGENTS`, a pre-existing collision this feature surfaces but does not fix.
+
+**UNRELATED WORK PARKED IN A STASH:** `stash@{0}` ("wip(reconciler-core)") holds the AD-017
+Reconciler line for `.specs/STATE.md` plus the untracked `.specs/features/reconciler-core/`
+spec/design/context. It was set aside when this feature branched so it would not be swept into a
+rail commit. **Its AD-017 collides with the `dev-alias-setting` AD-017 already merged on `main`
+— renumber it (AD-019 or later) when it lands.** `git stash pop` on `docs/state-v1-release-note`
+restores it.
+
+0. **`agents-rail-v2` (RAIL-01..28) — EXECUTED, independent Verifier PASS.** Branch
+   `feature/agents-rail-v2`, 12 commits (`9bc144d..789468b`). Grouping is derived at render time
+   in a new pure module `src/renderer/src/lib/rail-groups.ts` (`buildRailGroups`, `statusClass`,
+   `flatRows`, `adjacentRowId`); `SessionRail.tsx` was rewritten to render that model and derives
+   nothing — a grep for `deriveAttribution|linkedPinFor|taskIdFromBranch|sort(|stripAnsi` in the
+   component returns nothing. **748 tests (712 baseline + 36), 747 passing**, the single failure
+   being the known local `worktree-manager` mixed-dirt `rmSync` case. Lint 0 errors / 18
+   pre-existing warnings. `npm run build:win` green. **Mutation sensor 6/6 killed** (both
+   precedence orders reversed, ordinal suffixing dropped, `adjacentRowId` wrapping instead of
+   clamping, header taken from the last session instead of the first, and a `.sort()` injected so
+   status changes reorder) — each killed by the test carrying the matching `RAIL-NN`, so the kills
+   are attributable rather than incidental. Unlike AD-015/AD-016, **author ≠ verifier was actually
+   met**: batch workers and the Verifier were separate agents. See `validation.md`.
+   Three owner decisions are recorded as confirmed spec assumptions: the `shell`/`agentLive`
+   sub-status stays out of scope (it was never built — `SessionStatus` is still `running|stopped`),
+   duplicate agent names inside a group get a per-group ordinal suffix, and the ACs are gated by
+   the extracted pure module rather than a new jsdom harness. One `SPEC_DEVIATION` at
+   `SessionRail.tsx:264`: rows are `div role="option"`, not `<button>`, because a row contains its
+   own action buttons. **AD-018** records that RAIL-12 retires AGCF-08 AC-2 only.
+
+1. **`dev-alias-setting` (DEVA-01..10) — EXECUTED, independent Verifier PASS 10/10.** 5
    commits (`84e3601` docs spec, `3c432b6` docs defer undoByte, `3e82229` feat,
    `915e78e` docs validation, `c675198` feat visibility). **Dev
    alias** field in the ADO block of `SettingsDialog`: state populated from
