@@ -282,7 +282,7 @@ T5 → T8
 
 ---
 
-### T7: Repair the agents smoke card count
+### T7: Repair the agents smoke card count ✅
 
 **What**: Retarget the `.session-card` count to the v2 group-card and row classes.
 **Where**: `scripts/smoke-agents.mjs`
@@ -297,9 +297,9 @@ T5 → T8
 
 **Done when**:
 
-- [ ] Line ~198 counts v2 rows (one per session) instead of `.session-card`, so the assertion keeps its original meaning
-- [ ] The `.session-rail` / `.session-rail-new` checks are untouched
-- [ ] Gate check passes: `npm run lint`
+- [x] Line ~198 counts v2 rows (one per session) instead of `.session-card`, so the assertion keeps its original meaning
+- [x] The `.session-rail` / `.session-rail-new` checks are untouched
+- [x] Gate check passes: `npm run lint`
 
 **Tests**: manual (CDP smoke — matrix says manual only; requires a live dev app)
 **Gate**: quick

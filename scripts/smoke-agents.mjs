@@ -194,9 +194,11 @@ check(
   'stopped one session, the other keeps running (independence)',
   s1?.status === 'stopped' && s2?.status === 'running'
 )
-// The App subscribes to session:status → the rail repaints live.
-const cards = await evaluate(ws, `document.querySelectorAll('.session-card').length`)
-check('rail reflects the sessions live', cards >= 2, `${cards} cards`)
+// The App subscribes to session:status → the rail repaints live. Rail v2 renders
+// one `.rail-row` per session (grouped under task cards), which is what the v1
+// `.session-card` count meant before the regroup.
+const rows = await evaluate(ws, `document.querySelectorAll('.rail-row').length`)
+check('rail reflects the sessions live', rows >= 2, `${rows} rows`)
 
 // Cleanup: stop + remove both so the dev config returns to clean.
 await evaluate(
