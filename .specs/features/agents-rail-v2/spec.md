@@ -223,8 +223,8 @@ boundary, press `Enter` — the terminal swaps to that session and the row repor
 | RAIL-18 | P1: Grouped rail | Design | Pending |
 | RAIL-19 | P2: Keyboard & a11y | T1 | Implementing |
 | RAIL-20 | P2: Keyboard & a11y | T1 | Implementing |
-| RAIL-21 | P2: Keyboard & a11y | Design | Pending |
-| RAIL-22 | P2: Keyboard & a11y | Design | Pending |
+| RAIL-21 | P2: Keyboard & a11y | T2 | Implementing |
+| RAIL-22 | P2: Keyboard & a11y | T2 | Implementing |
 | RAIL-23 | P2: Keyboard & a11y | Design | Pending |
 | RAIL-24 | P2: Keyboard & a11y | Design | Pending |
 | RAIL-25 | Edge cases | T1 | Implementing |

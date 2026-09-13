@@ -217,3 +217,24 @@ function resolveRows(group: PendingGroup): RailRow[] {
     }
   })
 }
+
+/** Every row in visual order, group boundaries flattened away — the order the
+ *  keyboard walks (RAIL-21, RAIL-22). */
+export function flatRows(groups: RailGroup[]): RailRow[] {
+  return groups.flatMap((group) => group.rows)
+}
+
+/**
+ * The id of the row `delta` steps from `fromId` in visual order. Clamps at both
+ * ends — the first row's previous is itself and the last row's next is itself,
+ * so a keypress never jumps the viewport end-to-end (RAIL-21, RAIL-22). An id
+ * that is no longer in the model returns null and the caller no-ops.
+ */
+export function adjacentRowId(groups: RailGroup[], fromId: string, delta: 1 | -1): string | null {
+  const rows = flatRows(groups)
+  const index = rows.findIndex((row) => row.id === fromId)
+  if (index === -1) return null
+  const next = index + delta
+  if (next < 0 || next >= rows.length) return fromId
+  return rows[next].id
+}

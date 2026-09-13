@@ -132,7 +132,7 @@ T5 → T8
 
 ---
 
-### T2: Add keyboard traversal order
+### T2: Add keyboard traversal order ✅
 
 **What**: Add `flatRows()` and `adjacentRowId()` to the module — visual-order flattening and clamped neighbour lookup.
 **Where**: `src/renderer/src/lib/rail-groups.ts` (modify)
@@ -147,12 +147,12 @@ T5 → T8
 
 **Done when**:
 
-- [ ] `flatRows()` returns every row in visual order, crossing group boundaries
-- [ ] `adjacentRowId(groups, fromId, +1|-1)` clamps at both ends — returns the same id, never wrapping (RAIL-21, RAIL-22)
-- [ ] An unknown `fromId` returns `null` rather than throwing
-- [ ] Unit tests cover traversal across ≥3 groups, both clamp ends, and the unknown-id path
-- [ ] Gate check passes: `npx vitest run src/renderer/src/lib/rail-groups.test.ts`
-- [ ] Test count: 712 + N total, no new failing test name
+- [x] `flatRows()` returns every row in visual order, crossing group boundaries
+- [x] `adjacentRowId(groups, fromId, +1|-1)` clamps at both ends — returns the same id, never wrapping (RAIL-21, RAIL-22)
+- [x] An unknown `fromId` returns `null` rather than throwing
+- [x] Unit tests cover traversal across ≥3 groups, both clamp ends, and the unknown-id path
+- [x] Gate check passes: `npx vitest run src/renderer/src/lib/rail-groups.test.ts`
+- [x] Test count: 712 + N total, no new failing test name
 
 **Tests**: unit
 **Gate**: full

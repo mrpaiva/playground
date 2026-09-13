@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { SessionView } from '../../../shared/config'
 import type { PinnedTaskView, WorkItemDetails } from '../../../shared/tasks'
 import type { WorkspaceNode } from '../../../shared/tree'
-import { buildRailGroups, statusClass, type OrphanGroup, type TaskGroup } from './rail-groups'
+import {
+  adjacentRowId,
+  buildRailGroups,
+  flatRows,
+  statusClass,
+  type OrphanGroup,
+  type TaskGroup
+} from './rail-groups'
 
 /** Branches are nested on purpose: taskIdFromBranch reads only the LAST segment. */
 const WT_A = { path: 'C:/code/Code-24173', branch: 'user/otavio/24173-fix-login' }
@@ -418,5 +425,58 @@ describe('statusClass', () => {
     expect(statusClass('running')).toBe('running')
     expect(statusClass('stopped')).toBe('stopped')
     expect(statusClass('path missing')).toBe('missing')
+  })
+})
+
+describe('flatRows and adjacentRowId', () => {
+  /** Three groups in visual order: a two-row task group between two orphans. */
+  function threeGroups(): ReturnType<typeof buildRailGroups> {
+    return buildRailGroups(
+      [
+        session({ id: 'top', cwd: 'C:/detached-top' }),
+        session({ id: 'a' }),
+        session({ id: 'b' }),
+        session({ id: 'bottom', cwd: 'C:/detached-bottom' })
+      ],
+      tree(WT_A),
+      pinned
+    )
+  }
+
+  it('flattens every row in visual order across group boundaries (RAIL-21)', () => {
+    expect(flatRows(threeGroups()).map((r) => r.id)).toEqual(['top', 'a', 'b', 'bottom'])
+  })
+
+  it('returns no rows for an empty model (RAIL-25)', () => {
+    expect(flatRows([])).toEqual([])
+  })
+
+  it('moves down across a group boundary (RAIL-21)', () => {
+    const groups = threeGroups()
+
+    expect(adjacentRowId(groups, 'top', 1)).toBe('a')
+    expect(adjacentRowId(groups, 'b', 1)).toBe('bottom')
+  })
+
+  it('leaves focus on the last row when there is no next row (RAIL-21)', () => {
+    expect(adjacentRowId(threeGroups(), 'bottom', 1)).toBe('bottom')
+  })
+
+  it('moves up across a group boundary (RAIL-22)', () => {
+    const groups = threeGroups()
+
+    expect(adjacentRowId(groups, 'a', -1)).toBe('top')
+    expect(adjacentRowId(groups, 'bottom', -1)).toBe('b')
+  })
+
+  it('leaves focus on the first row when there is no previous row (RAIL-22)', () => {
+    expect(adjacentRowId(threeGroups(), 'top', -1)).toBe('top')
+  })
+
+  it('returns null for a row id the model no longer holds (RAIL-21, RAIL-22)', () => {
+    const groups = threeGroups()
+
+    expect(adjacentRowId(groups, 'removed', 1)).toBeNull()
+    expect(adjacentRowId(groups, 'removed', -1)).toBeNull()
   })
 })
