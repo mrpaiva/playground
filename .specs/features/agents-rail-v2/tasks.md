@@ -338,7 +338,7 @@ T5 → T8
 
 ---
 
-### T9: Record AD-018 for the retired preview AC
+### T9: Record AD-018 for the retired preview AC ✅
 
 **What**: Append AD-018 to `.specs/STATE.md` `## Decisions`, superseding **AGCF-08 AC-2 only**, and mark AGCF-08's status in the `agent-config` spec accordingly.
 **Where**: `.specs/STATE.md`
@@ -353,11 +353,11 @@ T5 → T8
 
 **Done when**:
 
-- [ ] AD-018 states that RAIL-12 removes the rail's last-output preview, superseding AGCF-08 **AC-2 only**
-- [ ] It records explicitly that AGCF-08 ACs 1, 3 and 4 remain true and remain covered by `session-manager.test.ts:332-353`, and that `lastOutput` stays on `SessionView`
-- [ ] It notes the number is `AD-018` because `origin/main` already carries `AD-017` (`dev-alias-setting`), and flags that the stashed reconciler `AD-017` needs renumbering independently
-- [ ] `python3 <skill-dir>/scripts/validate_state.py agents-rail-v2` is **not** run here — it gates the Verifier's report at feature close, not this task
-- [ ] Gate check passes: `npm test`
+- [x] AD-018 states that RAIL-12 removes the rail's last-output preview, superseding AGCF-08 **AC-2 only**
+- [x] It records explicitly that AGCF-08 ACs 1, 3 and 4 remain true and remain covered by `session-manager.test.ts:332-353`, and that `lastOutput` stays on `SessionView`
+- [x] It notes the number is `AD-018` because `origin/main` already carries `AD-017` (`dev-alias-setting`), and flags that the stashed reconciler `AD-017` needs renumbering independently
+- [x] `python3 <skill-dir>/scripts/validate_state.py agents-rail-v2` is **not** run here — it gates the Verifier's report at feature close, not this task
+- [x] Gate check passes: `npm test`
 
 **Tests**: none (project memory — matrix says structural validators only)
 **Gate**: quick
