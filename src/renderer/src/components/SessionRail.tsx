@@ -1,11 +1,14 @@
-import type { JSX, MouseEvent } from 'react'
+import type { JSX, KeyboardEvent, MouseEvent } from 'react'
+import { useRef, useState } from 'react'
 import type { AgentDef } from '../../../shared/agents'
 import type { SessionView } from '../../../shared/config'
 import type { PinnedTaskView } from '../../../shared/tasks'
 import type { WorkspaceNode } from '../../../shared/tree'
 import { agentTileStyle } from '../lib/agent-color'
 import {
+  adjacentRowId,
   buildRailGroups,
+  flatRows,
   statusClass,
   type RailGroup,
   type RailRow,
@@ -48,6 +51,40 @@ export function SessionRail({
 }: SessionRailProps): JSX.Element {
   const runningCount = sessions.filter((s) => s.status === 'running').length
   const groups = buildRailGroups(sessions, tree, tasks)
+  const rows = flatRows(groups)
+  const [focusedId, setFocusedId] = useState<string | null>(null)
+  const rowRefs = useRef(new Map<string, HTMLDivElement>())
+
+  // Roving tabIndex: the focused row is the rail's single tab stop. It follows
+  // the selection until an arrow key moves it, and falls back to the first row.
+  const held = (id: string | null): boolean => id !== null && rows.some((row) => row.id === id)
+  const tabStopId = held(focusedId)
+    ? focusedId
+    : held(selectedId)
+      ? selectedId
+      : (rows[0]?.id ?? null)
+
+  const registerRow = (id: string, node: HTMLDivElement | null): void => {
+    if (node) rowRefs.current.set(id, node)
+    else rowRefs.current.delete(id)
+  }
+
+  // Arrows move focus only — the active session, and therefore the TerminalPane
+  // mount, is untouched until Enter or Space (RAIL-21, RAIL-22, RAIL-23).
+  const onRowKeyDown = (event: KeyboardEvent<HTMLDivElement>, id: string): void => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const next = adjacentRowId(groups, id, event.key === 'ArrowDown' ? 1 : -1)
+      if (next === null) return
+      setFocusedId(next)
+      rowRefs.current.get(next)?.focus()
+      return
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onSelect(id)
+    }
+  }
 
   return (
     <aside className="session-rail">
@@ -66,7 +103,7 @@ export function SessionRail({
           <span>{runningCount} live sessions — each is a real OS process consuming resources.</span>
         </div>
       )}
-      <div className="session-rail-list">
+      <div className="session-rail-list" role="listbox" aria-label="Agent sessions">
         {groups.length === 0 ? (
           <div className="session-rail-empty">No sessions yet.</div>
         ) : (
@@ -76,6 +113,9 @@ export function SessionRail({
               group={group}
               agents={agents}
               selectedId={selectedId}
+              tabStopId={tabStopId}
+              registerRow={registerRow}
+              onRowKeyDown={onRowKeyDown}
               onSelect={onSelect}
               onStop={onStop}
               onRespawn={onRespawn}
@@ -92,6 +132,9 @@ interface TaskGroupCardProps {
   group: RailGroup
   agents: AgentDef[]
   selectedId: string | null
+  tabStopId: string | null
+  registerRow: (id: string, node: HTMLDivElement | null) => void
+  onRowKeyDown: (event: KeyboardEvent<HTMLDivElement>, id: string) => void
   onSelect: (id: string) => void
   onStop: (id: string) => void
   onRespawn: (id: string) => void
@@ -104,6 +147,9 @@ function TaskGroupCard({
   group,
   agents,
   selectedId,
+  tabStopId,
+  registerRow,
+  onRowKeyDown,
   onSelect,
   onStop,
   onRespawn,
@@ -112,7 +158,11 @@ function TaskGroupCard({
   const holdsSelection = group.rows.some((row) => row.id === selectedId)
 
   return (
-    <div className={`rail-group${holdsSelection ? ' selected' : ''}`}>
+    <div
+      className={`rail-group${holdsSelection ? ' selected' : ''}`}
+      role="group"
+      aria-label={group.ariaLabel}
+    >
       {group.kind === 'task' ? (
         <div className="rail-group-header" title={group.branch}>
           <div className="rail-group-head-row">
@@ -152,6 +202,9 @@ function TaskGroupCard({
             row={row}
             agents={agents}
             selected={row.id === selectedId}
+            tabStop={row.id === tabStopId}
+            registerRow={registerRow}
+            onRowKeyDown={onRowKeyDown}
             onSelect={onSelect}
             onStop={onStop}
             onRespawn={onRespawn}
@@ -167,6 +220,9 @@ interface SessionRowProps {
   row: RailRow
   agents: AgentDef[]
   selected: boolean
+  tabStop: boolean
+  registerRow: (id: string, node: HTMLDivElement | null) => void
+  onRowKeyDown: (event: KeyboardEvent<HTMLDivElement>, id: string) => void
   onSelect: (id: string) => void
   onStop: (id: string) => void
   onRespawn: (id: string) => void
@@ -184,6 +240,9 @@ function SessionRow({
   row,
   agents,
   selected,
+  tabStop,
+  registerRow,
+  onRowKeyDown,
   onSelect,
   onStop,
   onRespawn,
@@ -202,11 +261,21 @@ function SessionRow({
     fn()
   }
 
+  // SPEC_DEVIATION: design.md types the row as `<button role="option">`; it is a
+  // div instead.
+  // Reason: the row contains the action buttons, and a button inside a button is
+  // invalid HTML. Handoff §6 offers `role="option"` as the sanctioned alternative,
+  // and the roles, focus and selection semantics the ACs name are unchanged.
   return (
     <div
       className={`rail-row${selected ? ' selected' : ''}`}
+      role="option"
+      aria-selected={selected}
+      tabIndex={tabStop ? 0 : -1}
+      ref={(node) => registerRow(row.id, node)}
       title={row.tooltip}
       onClick={() => onSelect(row.id)}
+      onKeyDown={(event) => onRowKeyDown(event, row.id)}
     >
       <span className="rail-row-tile" style={agentTileStyle(agents, row.session.agent)}>
         {row.session.agent.charAt(0)}
@@ -220,7 +289,8 @@ function SessionRow({
             key={action}
             type="button"
             className={`rail-row-btn${action === 'remove' ? ' red' : ''}`}
-            title={`${ACTION_ICON[action].verb} ${row.label}`}
+            title={`${ACTION_ICON[action].verb} ${row.label} session`}
+            aria-label={`${ACTION_ICON[action].verb} ${row.label} session`}
             onClick={(e) => act(e, () => handlers[action](row.id))}
           >
             <Icon name={ACTION_ICON[action].name} size={ACTION_ICON[action].size} />

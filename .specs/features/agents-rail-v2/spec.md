@@ -221,12 +221,12 @@ boundary, press `Enter` — the terminal swaps to that session and the row repor
 | RAIL-16 | P1: Grouped rail | T1, T3 | Implementing |
 | RAIL-17 | P1: Grouped rail | T3 | Implementing |
 | RAIL-18 | P1: Grouped rail | T3 | Implementing |
-| RAIL-19 | P2: Keyboard & a11y | T1 | Implementing |
-| RAIL-20 | P2: Keyboard & a11y | T1 | Implementing |
-| RAIL-21 | P2: Keyboard & a11y | T2 | Implementing |
-| RAIL-22 | P2: Keyboard & a11y | T2 | Implementing |
-| RAIL-23 | P2: Keyboard & a11y | Design | Pending |
-| RAIL-24 | P2: Keyboard & a11y | Design | Pending |
+| RAIL-19 | P2: Keyboard & a11y | T1, T4 | Implementing |
+| RAIL-20 | P2: Keyboard & a11y | T1, T4 | Implementing |
+| RAIL-21 | P2: Keyboard & a11y | T2, T4 | Implementing |
+| RAIL-22 | P2: Keyboard & a11y | T2, T4 | Implementing |
+| RAIL-23 | P2: Keyboard & a11y | T4 | Implementing |
+| RAIL-24 | P2: Keyboard & a11y | T4 | Implementing |
 | RAIL-25 | Edge cases | T1, T3 | Implementing |
 | RAIL-26 | Edge cases | - | Pending |
 | RAIL-27 | Edge cases | - | Pending |

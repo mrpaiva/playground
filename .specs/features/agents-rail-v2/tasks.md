@@ -193,7 +193,7 @@ T5 → T8
 
 ---
 
-### T4: Add listbox semantics and arrow-key navigation
+### T4: Add listbox semantics and arrow-key navigation ✅
 
 **What**: Add the accessibility and focus layer — `listbox`/`group`/`option` roles, `aria-selected`, `aria-label`s on icon-only buttons, roving `tabIndex`, `ArrowUp`/`ArrowDown` via `adjacentRowId`, `Enter`/`Space` to select.
 **Where**: `src/renderer/src/components/SessionRail.tsx` (modify)
@@ -208,14 +208,14 @@ T5 → T8
 
 **Done when**:
 
-- [ ] Scroll body is `role="listbox"` with an `aria-label`; groups are `role="group"` carrying the model's `ariaLabel`; rows are `role="option"` (RAIL-19)
-- [ ] Exactly one row carries `aria-selected="true"` (RAIL-20)
-- [ ] Roving `tabIndex`: one row at `0`, all others `-1`
-- [ ] `ArrowUp`/`ArrowDown` move **focus only** — the active session and therefore the `TerminalPane` mount do not change (RAIL-21, RAIL-22)
-- [ ] `Enter`/`Space` select the focused row (RAIL-23)
-- [ ] Every icon-only action button has an `aria-label` naming action and agent (RAIL-24)
-- [ ] Gate check passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 712 + N total, no new failing test name
+- [x] Scroll body is `role="listbox"` with an `aria-label`; groups are `role="group"` carrying the model's `ariaLabel`; rows are `role="option"` (RAIL-19)
+- [x] Exactly one row carries `aria-selected="true"` (RAIL-20)
+- [x] Roving `tabIndex`: one row at `0`, all others `-1`
+- [x] `ArrowUp`/`ArrowDown` move **focus only** — the active session and therefore the `TerminalPane` mount do not change (RAIL-21, RAIL-22)
+- [x] `Enter`/`Space` select the focused row (RAIL-23)
+- [x] Every icon-only action button has an `aria-label` naming action and agent (RAIL-24)
+- [x] Gate check passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 712 + N total, no new failing test name
 
 **Tests**: none (renderer component — matrix says build gate + smoke/visual)
 **Gate**: full
