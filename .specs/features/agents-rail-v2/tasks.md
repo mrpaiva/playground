@@ -308,7 +308,7 @@ T5 → T8
 
 ---
 
-### T8: Add the rail v2 CDP smoke script
+### T8: Add the rail v2 CDP smoke script ✅
 
 **What**: New smoke script proving what unit tests structurally cannot — real grouping in the DOM, click-to-select, action-button isolation, and arrow-key traversal across a group boundary.
 **Where**: `scripts/smoke-rail-v2.mjs`
@@ -323,13 +323,13 @@ T5 → T8
 
 **Done when**:
 
-- [ ] Seeds two sessions on one cwd plus one detached session, then asserts **one** two-row group and **one** single-row orphan group
-- [ ] Asserts clicking a row selects it and outlines its group (RAIL-18)
-- [ ] Asserts clicking a row's action button does **not** change the selected session (RAIL-17)
-- [ ] Asserts `ArrowDown` across a group boundary moves focus without changing `aria-selected`, and `Enter` then selects (RAIL-23)
-- [ ] Asserts every action button carries a non-empty `aria-label` (RAIL-24)
-- [ ] Header comment lists what is NOT automatable here and must be hand-verified (the two-theme visual pass, RAIL-26/27)
-- [ ] Gate check passes: `npm run lint`
+- [x] Seeds two sessions on one cwd plus one detached session, then asserts **one** two-row group and **one** single-row orphan group
+- [x] Asserts clicking a row selects it and outlines its group (RAIL-18)
+- [x] Asserts clicking a row's action button does **not** change the selected session (RAIL-17)
+- [x] Asserts `ArrowDown` across a group boundary moves focus without changing `aria-selected`, and `Enter` then selects (RAIL-23)
+- [x] Asserts every action button carries a non-empty `aria-label` (RAIL-24)
+- [x] Header comment lists what is NOT automatable here and must be hand-verified (the two-theme visual pass, RAIL-26/27)
+- [x] Gate check passes: `npm run lint`
 
 **Tests**: manual (CDP smoke — matrix says manual only; requires a live dev app)
 **Gate**: quick
