@@ -240,7 +240,7 @@ T5 → T8
 **Done when**:
 
 - [x] Every measurement matches `design/handoff/DESIGN_HANDOFF_AGENTS_RAIL_V2.md` §4.1-§4.4 (radii, padding, gaps, type sizes, `color-mix` percentages)
-- [x] Lines 1-95 (rail, header, new button, warning, list, empty) are unchanged (handoff §3)
+- [x] The rail, header, new-button, warning and empty-state rules are unchanged (handoff §3 "unchanged header + concurrency warning"); the scroll body takes §3's `padding: 11px 12px 16px` / `gap: 9px` *(corrected after T5 — see `fix(agents)` commit)*
 - [x] Active row tint and group accent border match RAIL-18 exactly
 - [x] Task title clamps at 2 lines and no rule can horizontally overflow the 344px rail (RAIL-26)
 - [x] The base `.rail-row-tile` carries a default accent tint so an unknown agent renders correctly when `agentTileStyle` returns `undefined` (RAIL-27)
