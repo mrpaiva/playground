@@ -163,8 +163,10 @@ listbox semantics are a correctness obligation, not the reason to ship.
 **Acceptance Criteria**:
 
 1. The system SHALL expose the rail scroll body as `role="listbox"`, each group
-   as `role="group"` with `aria-label` `#<taskId> <task title>` (the branch for
-   an orphan group), and each row as `role="option"`. <!-- RAIL-19, ubiquitous -->
+   as `role="group"` with `aria-label` `#<taskId> <task title>` (for an orphan
+   group, **the same label RAIL-09/10/11 define for that orphan's reason** — the
+   `cwd` folder leaf when detached, the branch otherwise), and each row as
+   `role="option"`. <!-- RAIL-19, ubiquitous -->
 2. The system SHALL set `aria-selected="true"` on the active session's row and
    `aria-selected="false"` on every other row. <!-- RAIL-20, ubiquitous -->
 3. WHEN `ArrowDown` is pressed on a focused row THEN the system SHALL move focus

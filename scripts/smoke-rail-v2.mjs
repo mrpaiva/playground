@@ -9,7 +9,8 @@
  *   4. clicking a row's action button fires the action and does NOT change the
  *      selected session (RAIL-17)
  *   5. ArrowDown across a group boundary moves focus only — aria-selected is
- *      unchanged — and Enter then selects the focused row (RAIL-21, RAIL-23)
+ *      unchanged — Enter then selects; ArrowUp returns focus across the same
+ *      boundary and Space selects (RAIL-21, RAIL-22, RAIL-23)
  *
  * NOT automatable here (hand-verify):
  *   - the two-theme visual pass: pills, 22x22 tiles, status dots, hover and the
@@ -267,6 +268,7 @@ const selection = JSON.parse(
        }
        const target = window.__rail.row('Claude 1')
        target.click()
+       const rows = [...document.querySelectorAll('.rail-row')]
        const group = target.closest('.rail-group')
        return JSON.stringify({
          selected: window.__rail.selected(),
@@ -274,7 +276,13 @@ const selection = JSON.parse(
          rowClass: target.classList.contains('selected'),
          groupClass: group.classList.contains('selected'),
          rowTinted: getComputedStyle(target).backgroundColor !== before.row,
-         groupOutlined: getComputedStyle(group).borderColor !== before.group
+         groupOutlined: getComputedStyle(group).borderColor !== before.group,
+         // RAIL-20's negative half: without these, an implementation that sets
+         // aria-selected="true" on EVERY row passes every other assertion here.
+         trueCount: rows.filter((r) => r.getAttribute('aria-selected') === 'true').length,
+         othersAllFalse: rows
+           .filter((r) => r !== target)
+           .every((r) => r.getAttribute('aria-selected') === 'false')
        })
      })()`
   )
@@ -290,6 +298,11 @@ check(
   'the selected row is tinted and its group card outlined (RAIL-18)',
   selection.groupClass === true && selection.rowTinted === true && selection.groupOutlined === true,
   `row tint ${selection.rowTinted}, group border ${selection.groupOutlined}`
+)
+check(
+  'exactly one row reports aria-selected=true, every other reports false (RAIL-20)',
+  selection.trueCount === 1 && selection.othersAllFalse === true,
+  `true count ${selection.trueCount}, others all false: ${selection.othersAllFalse}`
 )
 
 // --- 4. RAIL-17: an action button acts without changing the selection ---
@@ -338,11 +351,21 @@ const traversal = JSON.parse(
        const moved = focused === window.__rail.row('Codex')
        const selectedAfterArrow = window.__rail.selected()
        window.__rail.key(focused, 'Enter')
+       const selectedAfterEnter = window.__rail.selected()
+       // RAIL-22: ArrowUp is the mirror branch; exercise it rather than trusting
+       // that it shares ArrowDown's code path.
+       window.__rail.key(document.activeElement, 'ArrowUp')
+       const backFocused = document.activeElement
+       const movedBack = backFocused === last
+       // RAIL-23 names Enter AND Space; only Enter was pressed above.
+       window.__rail.key(backFocused, ' ')
        return JSON.stringify({
          moved,
          crossedGroups: last.closest('.rail-group') !== focused.closest('.rail-group'),
          selectedAfterArrow,
-         selectedAfterEnter: window.__rail.selected()
+         selectedAfterEnter,
+         movedBack,
+         selectedAfterSpace: window.__rail.selected()
        })
      })()`
   )
@@ -358,6 +381,16 @@ check(
   'Enter selects the focused row (RAIL-23)',
   traversal.selectedAfterEnter === 'Codex',
   `selected: ${traversal.selectedAfterEnter}`
+)
+check(
+  'ArrowUp moves focus back across the group boundary (RAIL-22)',
+  traversal.movedBack === true,
+  `focus returned to Claude 2: ${traversal.movedBack}`
+)
+check(
+  'Space selects the focused row (RAIL-23)',
+  traversal.selectedAfterSpace === 'Claude 2',
+  `selected: ${traversal.selectedAfterSpace}`
 )
 
 // --- Cleanup: stop + remove every smoke session ---
