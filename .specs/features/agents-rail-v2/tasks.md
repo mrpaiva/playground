@@ -224,7 +224,7 @@ T5 → T8
 
 ---
 
-### T5: Restyle the rail to the v2 specs
+### T5: Restyle the rail to the v2 specs ✅
 
 **What**: Rewrite the card/row rules to handoff §4 — group card, header pills, 22×22 tile, row hover/active tint, status dot with pulse, 24×24 action buttons, 2-line title clamp. Keeps the rail/header/warning/empty rules.
 **Where**: `src/renderer/src/components/SessionRail.css`
@@ -239,13 +239,13 @@ T5 → T8
 
 **Done when**:
 
-- [ ] Every measurement matches `design/handoff/DESIGN_HANDOFF_AGENTS_RAIL_V2.md` §4.1-§4.4 (radii, padding, gaps, type sizes, `color-mix` percentages)
-- [ ] Lines 1-95 (rail, header, new button, warning, list, empty) are unchanged (handoff §3)
-- [ ] Active row tint and group accent border match RAIL-18 exactly
-- [ ] Task title clamps at 2 lines and no rule can horizontally overflow the 344px rail (RAIL-26)
-- [ ] The base `.rail-row-tile` carries a default accent tint so an unknown agent renders correctly when `agentTileStyle` returns `undefined` (RAIL-27)
-- [ ] `npm run build:win` completes
-- [ ] Gate check passes: `npm run build:win`
+- [x] Every measurement matches `design/handoff/DESIGN_HANDOFF_AGENTS_RAIL_V2.md` §4.1-§4.4 (radii, padding, gaps, type sizes, `color-mix` percentages)
+- [x] Lines 1-95 (rail, header, new button, warning, list, empty) are unchanged (handoff §3)
+- [x] Active row tint and group accent border match RAIL-18 exactly
+- [x] Task title clamps at 2 lines and no rule can horizontally overflow the 344px rail (RAIL-26)
+- [x] The base `.rail-row-tile` carries a default accent tint so an unknown agent renders correctly when `agentTileStyle` returns `undefined` (RAIL-27)
+- [x] `npm run build:win` completes
+- [x] Gate check passes: `npm run build:win`
 
 **Tests**: none (stylesheet — matrix says build gate + visual pass)
 **Gate**: build
