@@ -161,7 +161,7 @@ T5 → T8
 
 ---
 
-### T3: Rewrite the rail as a group renderer
+### T3: Rewrite the rail as a group renderer ✅
 
 **What**: Replace `SessionCard` with `TaskGroupCard` + `SessionRow`, rendering the T1 model — three header variants, compact rows, per-state actions, selection tint. Removes the worktree name, branch line and last-output preview.
 **Where**: `src/renderer/src/components/SessionRail.tsx`
@@ -176,15 +176,15 @@ T5 → T8
 
 **Done when**:
 
-- [ ] The component derives **nothing** — no label, status, tooltip, aria-label or ordering logic survives in the `.tsx` (design §Architecture "seam rule")
-- [ ] Props are unchanged, so `AgentsView.tsx` needs no edit
-- [ ] All three header variants render: task+details, task-without-details, orphan (RAIL-07, RAIL-08, RAIL-09/10/11)
-- [ ] Every action handler calls `stopPropagation()` (RAIL-17)
-- [ ] The `stripAnsi` import and the preview block are gone (RAIL-12)
-- [ ] Rail header, New-session button, concurrency warning and empty state are untouched (RAIL-25)
-- [ ] `npm run typecheck` and `npm run lint` are clean, warning count no worse than the 18-warning baseline
-- [ ] Gate check passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 712 + N total, no new failing test name
+- [x] The component derives **nothing** — no label, status, tooltip, aria-label or ordering logic survives in the `.tsx` (design §Architecture "seam rule")
+- [x] Props are unchanged, so `AgentsView.tsx` needs no edit
+- [x] All three header variants render: task+details, task-without-details, orphan (RAIL-07, RAIL-08, RAIL-09/10/11)
+- [x] Every action handler calls `stopPropagation()` (RAIL-17)
+- [x] The `stripAnsi` import and the preview block are gone (RAIL-12)
+- [x] Rail header, New-session button, concurrency warning and empty state are untouched (RAIL-25)
+- [x] `npm run typecheck` and `npm run lint` are clean, warning count no worse than the 18-warning baseline
+- [x] Gate check passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 712 + N total, no new failing test name
 
 **Tests**: none (renderer component — matrix says build gate + smoke/visual)
 **Gate**: full
