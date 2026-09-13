@@ -254,7 +254,7 @@ T5 → T8
 
 ---
 
-### T6: Repair the agent-config smoke assertions
+### T6: Repair the agent-config smoke assertions ✅
 
 **What**: Retarget the tile-tint check to the v2 row tile, and **retire** the `.session-card-preview` check whose behaviour RAIL-12 removes — replacing it with an assertion that no preview element exists.
 **Where**: `scripts/smoke-agent-config.mjs`
@@ -269,11 +269,11 @@ T5 → T8
 
 **Done when**:
 
-- [ ] Line ~239's `.session-card-tile` check targets the v2 row tile class and still asserts an inline `color-mix` tint (AGCF-07 preserved)
-- [ ] Line ~251's preview check is **inverted, not deleted** — it now asserts zero preview elements, with a comment citing RAIL-12 and AD-018 as the reason
-- [ ] The AGCF-06 concurrency-banner and `.session-rail-new` checks are untouched
-- [ ] The file's header comment records that step 7 now proves a removal
-- [ ] Gate check passes: `npm run lint`
+- [x] Line ~239's `.session-card-tile` check targets the v2 row tile class and still asserts an inline `color-mix` tint (AGCF-07 preserved)
+- [x] Line ~251's preview check is **inverted, not deleted** — it now asserts zero preview elements, with a comment citing RAIL-12 and AD-018 as the reason
+- [x] The AGCF-06 concurrency-banner and `.session-rail-new` checks are untouched
+- [x] The file's header comment records that step 7 now proves a removal
+- [x] Gate check passes: `npm run lint`
 
 **Tests**: manual (CDP smoke — matrix says manual only; requires a live dev app)
 **Gate**: quick

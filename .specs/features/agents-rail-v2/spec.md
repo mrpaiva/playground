@@ -214,7 +214,7 @@ boundary, press `Enter` — the terminal swaps to that session and the row repor
 | RAIL-09 | P1: Grouped rail | T1, T3 | Implementing |
 | RAIL-10 | P1: Grouped rail | T1, T3 | Implementing |
 | RAIL-11 | P1: Grouped rail | T1, T3 | Implementing |
-| RAIL-12 | P1: Grouped rail | T3 | Implementing |
+| RAIL-12 | P1: Grouped rail | T3, T6 | Implementing |
 | RAIL-13 | P1: Grouped rail | T1 | Implementing |
 | RAIL-14 | P1: Grouped rail | T1 | Implementing |
 | RAIL-15 | P1: Grouped rail | T1 | Implementing |
