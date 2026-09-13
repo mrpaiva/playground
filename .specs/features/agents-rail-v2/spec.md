@@ -203,34 +203,34 @@ boundary, press `Enter` — the terminal swaps to that session and the row repor
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| RAIL-01 | P1: Grouped rail | Design | Pending |
-| RAIL-02 | P1: Grouped rail | Design | Pending |
-| RAIL-03 | P1: Grouped rail | Design | Pending |
-| RAIL-04 | P1: Grouped rail | Design | Pending |
-| RAIL-05 | P1: Grouped rail | Design | Pending |
-| RAIL-06 | P1: Grouped rail | Design | Pending |
-| RAIL-07 | P1: Grouped rail | Design | Pending |
-| RAIL-08 | P1: Grouped rail | Design | Pending |
-| RAIL-09 | P1: Grouped rail | Design | Pending |
-| RAIL-10 | P1: Grouped rail | Design | Pending |
-| RAIL-11 | P1: Grouped rail | Design | Pending |
+| RAIL-01 | P1: Grouped rail | T1 | Implementing |
+| RAIL-02 | P1: Grouped rail | T1 | Implementing |
+| RAIL-03 | P1: Grouped rail | T1 | Implementing |
+| RAIL-04 | P1: Grouped rail | T1 | Implementing |
+| RAIL-05 | P1: Grouped rail | T1 | Implementing |
+| RAIL-06 | P1: Grouped rail | T1 | Implementing |
+| RAIL-07 | P1: Grouped rail | T1 | Implementing |
+| RAIL-08 | P1: Grouped rail | T1 | Implementing |
+| RAIL-09 | P1: Grouped rail | T1 | Implementing |
+| RAIL-10 | P1: Grouped rail | T1 | Implementing |
+| RAIL-11 | P1: Grouped rail | T1 | Implementing |
 | RAIL-12 | P1: Grouped rail | Design | Pending |
-| RAIL-13 | P1: Grouped rail | Design | Pending |
-| RAIL-14 | P1: Grouped rail | Design | Pending |
-| RAIL-15 | P1: Grouped rail | Design | Pending |
-| RAIL-16 | P1: Grouped rail | Design | Pending |
+| RAIL-13 | P1: Grouped rail | T1 | Implementing |
+| RAIL-14 | P1: Grouped rail | T1 | Implementing |
+| RAIL-15 | P1: Grouped rail | T1 | Implementing |
+| RAIL-16 | P1: Grouped rail | T1 | Implementing |
 | RAIL-17 | P1: Grouped rail | Design | Pending |
 | RAIL-18 | P1: Grouped rail | Design | Pending |
-| RAIL-19 | P2: Keyboard & a11y | Design | Pending |
-| RAIL-20 | P2: Keyboard & a11y | Design | Pending |
+| RAIL-19 | P2: Keyboard & a11y | T1 | Implementing |
+| RAIL-20 | P2: Keyboard & a11y | T1 | Implementing |
 | RAIL-21 | P2: Keyboard & a11y | Design | Pending |
 | RAIL-22 | P2: Keyboard & a11y | Design | Pending |
 | RAIL-23 | P2: Keyboard & a11y | Design | Pending |
 | RAIL-24 | P2: Keyboard & a11y | Design | Pending |
-| RAIL-25 | Edge cases | - | Pending |
+| RAIL-25 | Edge cases | T1 | Implementing |
 | RAIL-26 | Edge cases | - | Pending |
 | RAIL-27 | Edge cases | - | Pending |
-| RAIL-28 | Edge cases | - | Pending |
+| RAIL-28 | Edge cases | T1 | Implementing |
 
 **ID format:** `RAIL-[NUMBER]`
 

@@ -98,7 +98,7 @@ T5 → T8
 
 ## Task Breakdown
 
-### T1: Build the rail view model
+### T1: Build the rail view model ✅
 
 **What**: Create `rail-groups.ts` with the `RailGroup`/`RailRow` types, `buildRailGroups()` and `statusClass()` — the complete view model (groups, headers, orphan classification, row labels, statuses, tooltips, action sets, aria-labels).
 **Where**: `src/renderer/src/lib/rail-groups.ts`
@@ -113,17 +113,17 @@ T5 → T8
 
 **Done when**:
 
-- [ ] `buildRailGroups(sessions, tree, tasks)` returns **fully-resolved** rows — no optional `label`/`status`/`tooltip`/`actions` fields left for a later task to tighten (lesson **L-001**)
-- [ ] Group key is `task:<id>` when a task resolves, else `session:<id>`; orphans never merge (RAIL-02, RAIL-06)
-- [ ] Group order and row order come from a single in-order walk of `sessions` with **no sort call anywhere in the module** (RAIL-04, RAIL-05)
-- [ ] Header data is fixed from each group's **first** session's worktree (RAIL-03)
-- [ ] Orphan reason precedence is `missing` > `detached` > `untagged` (RAIL-09/10/11)
-- [ ] Row status precedence is `running` > `path missing` > `stopped` (RAIL-14)
-- [ ] Ordinal suffixes apply per group, only to agent names appearing ≥2 times in that group (RAIL-13)
-- [ ] No React import; the module is callable from a plain `.test.ts`
-- [ ] Unit tests cover every requirement ID above, 1:1, plus the edge cases RAIL-25 and RAIL-28; branch fixtures use nested names (`user/otavio/24173-slug`) because `taskIdFromBranch` reads only the last segment
-- [ ] Gate check passes: `npx vitest run src/renderer/src/lib/rail-groups.test.ts`
-- [ ] Test count: 712 + N total, no new failing test name
+- [x] `buildRailGroups(sessions, tree, tasks)` returns **fully-resolved** rows — no optional `label`/`status`/`tooltip`/`actions` fields left for a later task to tighten (lesson **L-001**)
+- [x] Group key is `task:<id>` when a task resolves, else `session:<id>`; orphans never merge (RAIL-02, RAIL-06)
+- [x] Group order and row order come from a single in-order walk of `sessions` with **no sort call anywhere in the module** (RAIL-04, RAIL-05)
+- [x] Header data is fixed from each group's **first** session's worktree (RAIL-03)
+- [x] Orphan reason precedence is `missing` > `detached` > `untagged` (RAIL-09/10/11)
+- [x] Row status precedence is `running` > `path missing` > `stopped` (RAIL-14)
+- [x] Ordinal suffixes apply per group, only to agent names appearing ≥2 times in that group (RAIL-13)
+- [x] No React import; the module is callable from a plain `.test.ts`
+- [x] Unit tests cover every requirement ID above, 1:1, plus the edge cases RAIL-25 and RAIL-28; branch fixtures use nested names (`user/otavio/24173-slug`) because `taskIdFromBranch` reads only the last segment
+- [x] Gate check passes: `npx vitest run src/renderer/src/lib/rail-groups.test.ts`
+- [x] Test count: 712 + N total, no new failing test name
 
 **Tests**: unit
 **Gate**: quick
