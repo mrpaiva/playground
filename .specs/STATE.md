@@ -25,15 +25,58 @@ Handoff snapshot.
 | AD-015 | 2026-07-31 | **The post-create hook command can be declared OUTSIDE the repo, amending AD-013 decision 1 (which is extended, not reversed).** Three owner decisions: (1) the out-of-repo home is the existing **`<workspace>\.app\config.json`**, under a new `postCreateCommands` map **keyed by repo folder name** — not app-global settings, not a third config file; (2) **the repo still wins** — `<repo>\.app\config.json`'s `postCreateCommand` takes precedence and the workspace entry is the fallback, so WPC-01/WPC-06 keep holding verbatim and no existing behaviour changes; (3) **per-repo keys only** — no `"*"` default and no bare workspace-level string, so a newly cloned repo runs nothing until it is named. **Architecture:** a `resolvePostCreateCommand(repoPath)` composer in `repo-config.ts` wraps the two readers and is wired into `withPostCreateHook`'s `readCommand` — **the signature is unchanged**, because `scanRepos` only ever finds a repo as a *direct child* of its workspace (`repo-scanner.ts`), so the workspace is `dirname(repoPath)` and the key is `basename(repoPath)`. Derivation is purely **lexical**: no lookup against `AppConfig.workspaces`. Key matching is exact first, then a *unique* case-insensitive match (Windows folder names are case-insensitive, AD-005), with ≥2 variants and no exact match resolving to **no command plus one log** rather than an arbitrary winner. | The motivation is concrete: `m:\Triade\source\Code` is a shared team repo, so AD-013's in-repo file meant either a permanent `?? .app/` in `git status` or a PR into the team repo to record one developer's local automation. The workspace file already exists as a concept and is already hand-authored for `branchTemplate`/`worktreeTemplate`, so nothing new has to be discovered; app-global settings were rejected because they are per-machine, invisible to teammates and would need a settings-dialog surface to be editable at all. Repo-wins keeps the change additive — every pre-existing test passes unmodified. Per-repo keys were chosen over a workspace default because silently inheriting a command is the opposite of what moving the declaration out of the repo is for. Lexical derivation avoids coupling a pure file reader to app state, and it degrades safely: a `repoPath` that is not a workspace child simply finds no key. **Side benefit, recorded:** the workspace-level declaration does **not** carry AD-013's accepted untrusted-repo-content risk, because you author it yourself. Spec/validation: `.specs/features/worktree-hook-workspace-config/` (HWC-01..14). |
 | AD-016 | 2026-08-28 | **A Visual Studio 2026 launcher ships alongside the 2022 one, and Visual Studio discovery becomes per-edition rather than per-install.** Four owner decisions: (1) 2026 launches **elevated**, mirroring VSAD's path exactly rather than introducing a non-elevated variant; (2) a **new `--pink` token** distinguishes it, because the board footer renders launchers as icon-only 15px buttons where two amber shields are indistinguishable; (3) both VS cards **always render**, install-agnostic, with a missing VS surfacing the existing toast; (4) the 2026 vswhere query is **GA-only** — no `-prerelease`. **Architecture:** a `VS_EDITIONS` map keyed by `ShortcutTool` gives each version its own vswhere range (`[17.0,18.0)` / `[18.0,19.0)`), passed as an **argument** through `resolveDevenv`/`openVisualStudio` rather than held as module state, and the three failure messages are templated off the edition label — which reproduces the 2022 wording character-for-character, so all six pre-existing VSAD tests pass with the test file byte-unmodified. | The ranges were **measured, not assumed**: VS 2026 reports catalog version `18.4.2` and installs under a *version-numbered* root (`\Microsoft Visual Studio\18\`), not a year-named one like 2022's `\2022\` — so nothing may key off the folder name and `productPath` is the only supported source. Disjoint ranges are what make coexistence deterministic instead of order-dependent; there is deliberately no shared "latest VS" resolution. `-prerelease` was rejected because on a machine with both stable and Insiders, `-latest -prerelease` can resolve Insiders and silently launch the wrong VS; an Insiders-only machine reporting "not installed" is the accepted trade-off. **Finding worth keeping:** the verification sensor caught that parameterizing a hard-coded value into a lookup table leaves the *wiring* untested — mutating `launch()` to send both VS tools to the 2022 edition left the whole suite green, meaning the 2026 card could have silently opened 2022. Fixed by asserting routing through the vanished-path guard, which returns before any spawn and so names the resolved edition without popping UAC. Spec/context/tasks/validation: `.specs/features/vs2026-admin-shortcut/` (VS26-01..05). |
 | AD-017 | 2026-09-10 | **The `dev-alias-setting` feature ships only the settings field; the pre-existing `commitForm` `undoByte`-drop defect is deferred to a follow-up after PR #83 merges.** | `AgentDef.undoByte` exists only in PR #83 (`terminal-copy-undo-fixes`, open upstream) — the one-line preservation fix cannot compile against the `main` base (TS2353, measured). The branch stays clean and based on `main` per the fork workflow; the defect is recorded in the spec Out of Scope with the follow-up. |
+| AD-018 | 2026-09-13 | **The rail's last-output preview is removed, retiring AGCF-08 AC-2 only.** `agents-rail-v2` RAIL-12 states that a session row renders the agent tile, name, short status, status dot and actions and **nothing else** — no worktree name, no branch line, no `lastOutput` tail. That directly supersedes AGCF-08 AC-2 ("a stopped card SHALL show up to 2 trailing lines of lastOutput"), which no longer describes any shipped surface. AGCF-08 **ACs 1, 3 and 4 stand unchanged** — they are `SessionManager` facts (a stopped session exposes the tail; respawn clears it; a restored session has none), still true and still covered by `src/main/session-manager.test.ts:332-353`. **`lastOutput` stays on `SessionView`** and on the IPC contract; nothing is removed from the data model. The smoke evidence is inverted rather than deleted: `scripts/smoke-agent-config.mjs` step 7 now asserts the data still exists AND that the rail renders zero preview elements. | Handoff §5 drops the preview from the rail, so a prior feature's spec would otherwise keep describing behaviour that no longer exists. Superseding one AC instead of the whole requirement keeps the three still-tested `SessionManager` guarantees intact. **Numbered 018 because `origin/main` already carries `AD-017` (`dev-alias-setting`, 2026-09-10)** — the reconciler `AD-017` sitting in the stash collides with it and must be renumbered independently, out of this feature's scope. |
 
 
 ## Handoff
 
-**Status (current, 2026-09-10): `dev-alias-setting` EXECUTED + verified (PASS) on branch
-`feature/dev-alias-setting` (based on `origin/main` `ed8d510`). PR not opened yet — push
-needs an explicit go-ahead (fork workflow).**
+**Status (current, 2026-09-13): `agents-rail-v2` EXECUTED + independent Verifier PASS on
+branch `feature/agents-rail-v2` (based on `origin/main` `83e67ce`, the PR #86 merge). Nothing
+uncommitted. PR not opened — push needs an explicit go-ahead.**
 
-0. **`dev-alias-setting` (DEVA-01..10) — EXECUTED, independent Verifier PASS 10/10.** 5
+**OWNER SMOKE GATES RUN 2026-09-14 — ALL PASS.** `smoke-rail-v2.mjs` **16/16**,
+`smoke-agents.mjs` **16/16**, `smoke-agent-config.mjs` pass. 6 of the 8 class-2 ACs (RAIL-17, 18,
+20, 23, 24 + the rendering halves of 07/08/11/12) now carry executed evidence. Two first-run
+failures were both harness defects, not rail defects, and are fixed: the smoke read `aria-selected`
+before React re-rendered (`f3f330d`), and a pre-existing stale assertion counted `.ns-agent-chip`
+as 3 when that selector also matches the Ad-hoc chip and `SEEDED_AGENTS` has grown to four
+(`3453f42`, unrelated to this feature). Seed was `user/otavio/20754-monitor-acesso/23688-patch-14.0.3`
+→ `#23688`, which incidentally confirmed PR #81's last-segment `taskIdFromBranch` end-to-end.
+
+**STILL OUTSTANDING — the two-theme visual pass.** `RAIL-26` (long task title clamps at 2 lines,
+no horizontal overflow at 344px) and `RAIL-27` (a session whose stored agent matches no registry
+entry still renders a tinted tile) are **not decidable by any script** and remain code-verified
+only. The same pass should report how `opencode` and `Ad-hoc` read at 22×22 now both resolve to
+`--amber` — a pre-existing collision this feature surfaces but does not fix.
+
+**UNRELATED WORK PARKED IN A STASH:** `stash@{0}` ("wip(reconciler-core)") holds the AD-017
+Reconciler line for `.specs/STATE.md` plus the untracked `.specs/features/reconciler-core/`
+spec/design/context. It was set aside when this feature branched so it would not be swept into a
+rail commit. **Its AD-017 collides with the `dev-alias-setting` AD-017 already merged on `main`
+— renumber it (AD-019 or later) when it lands.** `git stash pop` on `docs/state-v1-release-note`
+restores it.
+
+0. **`agents-rail-v2` (RAIL-01..28) — EXECUTED, independent Verifier PASS.** Branch
+   `feature/agents-rail-v2`, 12 commits (`9bc144d..789468b`). Grouping is derived at render time
+   in a new pure module `src/renderer/src/lib/rail-groups.ts` (`buildRailGroups`, `statusClass`,
+   `flatRows`, `adjacentRowId`); `SessionRail.tsx` was rewritten to render that model and derives
+   nothing — a grep for `deriveAttribution|linkedPinFor|taskIdFromBranch|sort(|stripAnsi` in the
+   component returns nothing. **748 tests (712 baseline + 36), 747 passing**, the single failure
+   being the known local `worktree-manager` mixed-dirt `rmSync` case. Lint 0 errors / 18
+   pre-existing warnings. `npm run build:win` green. **Mutation sensor 6/6 killed** (both
+   precedence orders reversed, ordinal suffixing dropped, `adjacentRowId` wrapping instead of
+   clamping, header taken from the last session instead of the first, and a `.sort()` injected so
+   status changes reorder) — each killed by the test carrying the matching `RAIL-NN`, so the kills
+   are attributable rather than incidental. Unlike AD-015/AD-016, **author ≠ verifier was actually
+   met**: batch workers and the Verifier were separate agents. See `validation.md`.
+   Three owner decisions are recorded as confirmed spec assumptions: the `shell`/`agentLive`
+   sub-status stays out of scope (it was never built — `SessionStatus` is still `running|stopped`),
+   duplicate agent names inside a group get a per-group ordinal suffix, and the ACs are gated by
+   the extracted pure module rather than a new jsdom harness. One `SPEC_DEVIATION` at
+   `SessionRail.tsx:264`: rows are `div role="option"`, not `<button>`, because a row contains its
+   own action buttons. **AD-018** records that RAIL-12 retires AGCF-08 AC-2 only.
+
+1. **`dev-alias-setting` (DEVA-01..10) — EXECUTED, independent Verifier PASS 10/10.** 5
    commits (`84e3601` docs spec, `3c432b6` docs defer undoByte, `3e82229` feat,
    `915e78e` docs validation, `c675198` feat visibility). **Dev
    alias** field in the ADO block of `SettingsDialog`: state populated from
