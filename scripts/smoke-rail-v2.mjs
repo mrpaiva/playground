@@ -122,7 +122,8 @@ await evaluate(
          const r = document.querySelector('.rail-row[aria-selected="true"]')
          return r ? text(r, '.rail-row-label') : null
        },
-       key: (el, k) => el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }))
+       key: (el, k) =>
+         el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }))
      }
      return true
    })()`
@@ -339,8 +340,13 @@ check(
   `selected: ${afterAction.selected}`
 )
 
-// --- 5. RAIL-21/23: ArrowDown crosses the group boundary, Enter selects ---
-const traversal = JSON.parse(
+// --- 5. RAIL-21/22/23: arrows move focus, Enter and Space select ---
+// Each key press and the DOM read that judges it are SEPARATE evaluate calls.
+// A React state update committed inside a keydown handler is not reflected in
+// the DOM until React re-renders; reading aria-selected in the same synchronous
+// block as the dispatch reads the pre-update DOM and reports a false FAIL.
+// Focus moves are a direct DOM side effect, so those may be read immediately.
+const arrowDown = JSON.parse(
   await evaluate(
     ws,
     `(() => {
@@ -348,49 +354,53 @@ const traversal = JSON.parse(
        last.focus()
        window.__rail.key(last, 'ArrowDown')
        const focused = document.activeElement
-       const moved = focused === window.__rail.row('Codex')
-       const selectedAfterArrow = window.__rail.selected()
-       window.__rail.key(focused, 'Enter')
-       const selectedAfterEnter = window.__rail.selected()
-       // RAIL-22: ArrowUp is the mirror branch; exercise it rather than trusting
-       // that it shares ArrowDown's code path.
-       window.__rail.key(document.activeElement, 'ArrowUp')
-       const backFocused = document.activeElement
-       const movedBack = backFocused === last
-       // RAIL-23 names Enter AND Space; only Enter was pressed above.
-       window.__rail.key(backFocused, ' ')
        return JSON.stringify({
-         moved,
-         crossedGroups: last.closest('.rail-group') !== focused.closest('.rail-group'),
-         selectedAfterArrow,
-         selectedAfterEnter,
-         movedBack,
-         selectedAfterSpace: window.__rail.selected()
+         moved: focused === window.__rail.row('Codex'),
+         crossedGroups: last.closest('.rail-group') !== focused.closest('.rail-group')
        })
      })()`
   )
 )
+await sleep(250)
+const selectedAfterArrow = await evaluate(ws, `window.__rail.selected()`)
 check(
   'ArrowDown moves focus across a group boundary without selecting (RAIL-21)',
-  traversal.moved === true &&
-    traversal.crossedGroups === true &&
-    traversal.selectedAfterArrow === 'Claude 1',
-  `focus moved ${traversal.moved}, still selected: ${traversal.selectedAfterArrow}`
+  arrowDown.moved === true && arrowDown.crossedGroups === true && selectedAfterArrow === 'Claude 1',
+  `focus moved ${arrowDown.moved}, still selected: ${selectedAfterArrow}`
 )
+
+await evaluate(ws, `window.__rail.key(document.activeElement, 'Enter')`)
+await sleep(250)
+const selectedAfterEnter = await evaluate(ws, `window.__rail.selected()`)
 check(
   'Enter selects the focused row (RAIL-23)',
-  traversal.selectedAfterEnter === 'Codex',
-  `selected: ${traversal.selectedAfterEnter}`
+  selectedAfterEnter === 'Codex',
+  `selected: ${selectedAfterEnter}`
+)
+
+// RAIL-22: ArrowUp is the mirror branch; press it rather than trust that it
+// shares ArrowDown's code path.
+const movedBack = await evaluate(
+  ws,
+  `(() => {
+     window.__rail.key(document.activeElement, 'ArrowUp')
+     return document.activeElement === window.__rail.row('Claude 2')
+   })()`
 )
 check(
   'ArrowUp moves focus back across the group boundary (RAIL-22)',
-  traversal.movedBack === true,
-  `focus returned to Claude 2: ${traversal.movedBack}`
+  movedBack === true,
+  `focus returned to Claude 2: ${movedBack}`
 )
+
+// RAIL-23 names Enter AND Space.
+await evaluate(ws, `window.__rail.key(document.activeElement, ' ')`)
+await sleep(250)
+const selectedAfterSpace = await evaluate(ws, `window.__rail.selected()`)
 check(
   'Space selects the focused row (RAIL-23)',
-  traversal.selectedAfterSpace === 'Claude 2',
-  `selected: ${traversal.selectedAfterSpace}`
+  selectedAfterSpace === 'Claude 2',
+  `selected: ${selectedAfterSpace}`
 )
 
 // --- Cleanup: stop + remove every smoke session ---
