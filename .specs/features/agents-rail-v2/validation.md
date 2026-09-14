@@ -19,12 +19,17 @@ verified by executed tests; `VS26-01/04` code-verified pending owner-run gates).
 | Class | Gate | Meaning of a ✅ here |
 | ----- | ---- | ------------------- |
 | **1 — executed** | `rail-groups.test.ts`, 36 tests, run and green | Verified. The asserted value was checked against the spec-defined outcome, and the discrimination sensor proves the assertion kills a real fault. |
-| **2 — owner-run** | `scripts/smoke-rail-v2.mjs` (CDP, **not executed** — needs a live dev app and a registered task-tagged worktree) + a two-theme visual pass | **Code-verified, pending owner-run gate.** The implementation was read line-by-line against the handoff and the spec value matches, but no execution evidence exists yet. Not a pass; not a failure. |
+| **2 — owner-run** | `scripts/smoke-rail-v2.mjs` (CDP) + a two-theme visual pass | **RESOLVED for the smoke half on 2026-09-14 — see Owner-Run Gate Results below.** The scripts were executed by the owner against a live dev app and pass. The visual half (RAIL-26, RAIL-27) is still outstanding. |
 
 **Split**: **20 of 28 have class-1 executed-test evidence** (RAIL-01..16, 19, 21,
-22, 25, 28 — several of these also carry a class-2 rendering half). **8 are
+22, 25, 28 — several of these also carry a class-2 rendering half). **8 were
 class-2 only** (RAIL-17, 18, 20, 23, 24, 26, 27, and the rendering half of
 RAIL-07/08/11/12).
+
+**As of 2026-09-14, 6 of those 8 now carry executed smoke evidence** (RAIL-17,
+18, 20, 23, 24, plus the rendering halves of RAIL-07/08/11/12). **2 remain
+open**: RAIL-26 and RAIL-27, which no script can decide — they need the
+two-theme visual pass.
 
 ---
 
@@ -105,8 +110,58 @@ Abbreviations: `RG` = `src/renderer/src/lib/rail-groups.ts`,
 | **RAIL-28** last session of a group removed → card goes, remaining order unchanged | `['session:z','task:24173','session:m']` → `['session:z','session:m']` | `RGT:407-408` both `toEqual`; `RGT:418-419` the converse — a group with several sessions survives losing one, keeping `['a']` | 1 | ✅ PASS |
 
 **Status**: ✅ All 28 criteria have located evidence. **0 criteria uncovered.**
-20 carry executed-test evidence; 8 are class-2 only and are marked
-*code-verified, pending owner-run gate*. **1 spec-precision gap** (SP-1, below).
+20 carry executed unit-test evidence; a further 6 gained executed smoke
+evidence on 2026-09-14 (see Owner-Run Gate Results). **RAIL-26 and RAIL-27
+remain code-verified only** — the visual pass has not been run. **1
+spec-precision gap** (SP-1, below), closed in `789468b`.
+
+> The 🟡 markers in the tables above were written before the owner-run gate and
+> are superseded for every AC named in Owner-Run Gate Results. They are left in
+> place rather than rewritten so the report still shows what was and was not
+> known at Verifier time.
+
+---
+
+## Owner-Run Gate Results
+
+Executed by the owner on 2026-09-14 against a live dev app
+(`npm run dev -- -- --remote-debugging-port=9222`). These are the class-2 gates
+the Verifier could not run.
+
+| Script | Result | Covers |
+| ------ | ------ | ------ |
+| `scripts/smoke-rail-v2.mjs` | **16/16 ✅** | RAIL-02, 06, 09 (real DOM grouping), 17, 18, 20, 21, 22, 23, 24 |
+| `scripts/smoke-agents.mjs` | **16/16 ✅** | rail renders one row per session (RAIL-12 render half) |
+| `scripts/smoke-agent-config.mjs` | **✅** | AGCF-07 tile tint on `.rail-row-tile`; AGCF-08 inverted — zero preview elements in the rail (RAIL-12, AD-018) |
+
+**Seed used**: `user/otavio/20754-monitor-acesso/23688-patch-14.0.3` → `#23688`.
+Worth recording: the task ID resolves from the **last** branch segment, so the
+`20754` in the parent segment correctly loses to `23688` — an unplanned
+end-to-end confirmation of the `taskIdFromBranch` change from PR #81.
+
+### Two failures on the first run, both harness defects, both fixed
+
+1. **RAIL-23 (Enter and Space did not select)** — `f3f330d`. Not a rail defect.
+   The traversal block pressed five keys and asserted all of them inside one
+   synchronous IIFE, reading `aria-selected` before React re-rendered. Every
+   check reading a synchronous DOM side effect passed (both focus moves); only
+   the two reading React state failed. Each press and its judging read are now
+   separate evaluations. Re-run: **16/16**.
+2. **`New Session dialog shows 3 seeded agents`** — `3453f42`. **Pre-existing,
+   unrelated to this feature.** `.ns-agent-chip` also matches the Ad-hoc chip
+   (`NewSessionDialog.tsx:136`), so the selector counts registry agents + 1; the
+   hardcoded `3` had been wrong since that chip gained the class, and
+   `SEEDED_AGENTS` has since grown to four. Now derived from `config:get`.
+
+### Still outstanding
+
+**RAIL-26** (a long task title clamps at 2 lines with no horizontal overflow at
+344px) and **RAIL-27** (a session whose stored agent matches no registry entry
+still renders a tinted tile) are **not decidable by any script** — computed
+`-webkit-line-clamp` does not prove how the title reads, and RAIL-27 needs a
+hand-edited config. Both remain code-verified only. The same pass should report
+how `opencode` and `Ad-hoc` read at 22×22 now that both resolve to `--amber`
+(pre-existing collision, surfaced but not fixed by this feature).
 
 ---
 

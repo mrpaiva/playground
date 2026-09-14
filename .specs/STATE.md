@@ -34,15 +34,20 @@ Handoff snapshot.
 branch `feature/agents-rail-v2` (based on `origin/main` `83e67ce`, the PR #86 merge). Nothing
 uncommitted. PR not opened — push needs an explicit go-ahead.**
 
-**OWNER GATES OUTSTANDING for `agents-rail-v2`** — the feature is code-complete and unit-gated,
-but 8 of its 28 ACs are *code-verified pending an owner-run gate* (the AD-016 precedent). Before
-this ships, hand-run against a live dev app (`npm run dev -- -- --remote-debugging-port=9222`):
-`node scripts/smoke-rail-v2.mjs`, `node scripts/smoke-agent-config.mjs`, `node scripts/smoke-agents.mjs`
-— all three are unexecuted. `smoke-rail-v2.mjs` needs a registered workspace holding a task-tagged
-worktree (`user/<you>/<id>-<slug>`) and it wipes existing sessions for a clean slate. Then a
-two-theme visual pass at 344px covering RAIL-26 (2-line title clamp), RAIL-27 (unknown-agent tile)
-and how `opencode` vs `Ad-hoc` read at 22×22 — both resolve to `--amber` since PR #85 added
-`opencode` to `SEEDED_AGENTS`, a pre-existing collision this feature surfaces but does not fix.
+**OWNER SMOKE GATES RUN 2026-09-14 — ALL PASS.** `smoke-rail-v2.mjs` **16/16**,
+`smoke-agents.mjs` **16/16**, `smoke-agent-config.mjs` pass. 6 of the 8 class-2 ACs (RAIL-17, 18,
+20, 23, 24 + the rendering halves of 07/08/11/12) now carry executed evidence. Two first-run
+failures were both harness defects, not rail defects, and are fixed: the smoke read `aria-selected`
+before React re-rendered (`f3f330d`), and a pre-existing stale assertion counted `.ns-agent-chip`
+as 3 when that selector also matches the Ad-hoc chip and `SEEDED_AGENTS` has grown to four
+(`3453f42`, unrelated to this feature). Seed was `user/otavio/20754-monitor-acesso/23688-patch-14.0.3`
+→ `#23688`, which incidentally confirmed PR #81's last-segment `taskIdFromBranch` end-to-end.
+
+**STILL OUTSTANDING — the two-theme visual pass.** `RAIL-26` (long task title clamps at 2 lines,
+no horizontal overflow at 344px) and `RAIL-27` (a session whose stored agent matches no registry
+entry still renders a tinted tile) are **not decidable by any script** and remain code-verified
+only. The same pass should report how `opencode` and `Ad-hoc` read at 22×22 now both resolve to
+`--amber` — a pre-existing collision this feature surfaces but does not fix.
 
 **UNRELATED WORK PARKED IN A STASH:** `stash@{0}` ("wip(reconciler-core)") holds the AD-017
 Reconciler line for `.specs/STATE.md` plus the untracked `.specs/features/reconciler-core/`
