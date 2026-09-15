@@ -243,7 +243,9 @@ T10 → T11
 
 ---
 
-### T6: Loopback hook endpoint
+### T6: Loopback hook endpoint ✅ COMPLETE
+
+**Status**: Done — `activity-hook-server.ts` + 13 integration tests against a real listener. Full gate green: 849 tests. The suite caught a real defect: a second `stop()` rejected with "Server is not running", which both app quit paths would hit, so `stop()` is now idempotent.
 
 **What**: Implement the `127.0.0.1` HTTP server that authenticates each hook POST by session token, dispatches the payload, and always answers 2xx with an empty body.
 **Where**: `src/main/activity-hook-server.ts`
