@@ -193,47 +193,47 @@ an Explore subagent out it shows `1 subagent`; after a forced rate limit it show
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| ACTV-01 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-02 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-03 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-04 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-05 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-06 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-07 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-08 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-09 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-10 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-11 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-12 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-13 | P1: Session knows what its agent is doing | Design | Pending |
-| ACTV-14 | P2: Legible on row and header | Design | Pending |
-| ACTV-15 | P2: Legible on row and header | Design | Pending |
-| ACTV-16 | P2: Legible on row and header | Design | Pending |
-| ACTV-17 | P2: Legible on row and header | Design | Pending |
-| ACTV-18 | P2: Legible on row and header | Design | Pending |
-| ACTV-19 | P2: Legible on row and header | Design | Pending |
-| ACTV-20 | P2: Legible on row and header | Design | Pending |
-| ACTV-21 | P2: Legible on row and header | Design | Pending |
-| ACTV-22 | P2: Legible on row and header | Design | Pending |
-| ACTV-23 | P2: Legible on row and header | Design | Pending |
-| ACTV-24 | P3: Detail | Design | Pending |
-| ACTV-25 | P3: Detail | Design | Pending |
-| ACTV-26 | P3: Detail | Design | Pending |
-| ACTV-27 | P3: Detail | Design | Pending |
-| ACTV-28 | Edge cases | Design | Pending |
-| ACTV-29 | Edge cases | Design | Pending |
-| ACTV-30 | Edge cases | Design | Pending |
-| ACTV-31 | Edge cases | Design | Pending |
-| ACTV-32 | Edge cases | Design | Pending |
-| ACTV-33 | Edge cases | Design | Pending |
-| ACTV-34 | Edge cases | Design | Pending |
-| ACTV-35 | Edge cases | Design | Pending |
+| ACTV-01 | P1: Session knows what its agent is doing | T7 | Implementing |
+| ACTV-02 | P1: Session knows what its agent is doing | T7 | Implementing |
+| ACTV-03 | P1: Session knows what its agent is doing | T7 | Implementing |
+| ACTV-04 | P1: Session knows what its agent is doing | T6 | Implementing |
+| ACTV-05 | P1: Session knows what its agent is doing | T7 | Implementing |
+| ACTV-06 | P1: Session knows what its agent is doing | T7 | Implementing |
+| ACTV-07 | P1: Session knows what its agent is doing | T10 | Implementing |
+| ACTV-08 | P1: Session knows what its agent is doing | T7 | Implementing |
+| ACTV-09 | P1: Session knows what its agent is doing | T7 | Implementing |
+| ACTV-10 | P1: Session knows what its agent is doing | T6 | Implementing |
+| ACTV-11 | P1: Session knows what its agent is doing | T5 | Implementing |
+| ACTV-12 | P1: Session knows what its agent is doing | T7 | Implementing |
+| ACTV-13 | P1: Session knows what its agent is doing | T7 | Implementing |
+| ACTV-14 | P2: Legible on row and header | T10 | Implementing |
+| ACTV-15 | P2: Legible on row and header | T10 | Implementing |
+| ACTV-16 | P2: Legible on row and header | T10 | Implementing |
+| ACTV-17 | P2: Legible on row and header | T10 | Implementing |
+| ACTV-18 | P2: Legible on row and header | T10 | Implementing |
+| ACTV-19 | P2: Legible on row and header | T9 | Implementing |
+| ACTV-20 | P2: Legible on row and header | T10 | Implementing |
+| ACTV-21 | P2: Legible on row and header | T10 | Implementing |
+| ACTV-22 | P2: Legible on row and header | T9 | Implementing |
+| ACTV-23 | P2: Legible on row and header | T9 | Implementing |
+| ACTV-24 | P3: Detail | T9 | Implementing |
+| ACTV-25 | P3: Detail | T9 | Implementing |
+| ACTV-26 | P3: Detail | T9 | Implementing |
+| ACTV-27 | P3: Detail | T10 | Implementing |
+| ACTV-28 | Edge cases | T3 | Implementing |
+| ACTV-29 | Edge cases | T7 | Implementing |
+| ACTV-30 | Edge cases | T7 | Implementing |
+| ACTV-31 | Edge cases | T7 | Implementing |
+| ACTV-32 | Edge cases | T6 | Implementing |
+| ACTV-33 | Edge cases | T4 | Implementing |
+| ACTV-34 | Edge cases | T3 | Implementing |
+| ACTV-35 | Edge cases | T3 | Implementing |
 
 **ID format:** `ACTV-[NUMBER]`
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 35 total, 0 mapped to tasks (Tasks not yet run), 0 unmapped
+**Coverage:** 35 total, 35 mapped to tasks, 0 unmapped
 
 ---
 
