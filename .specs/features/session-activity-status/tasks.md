@@ -306,7 +306,9 @@ T10 → T11
 
 ---
 
-### T8: App wiring
+### T8: App wiring ✅ COMPLETE (hand-verify rides T11)
+
+**Status**: Done — hook server created on app ready, settings file written to `userData/agent-hooks/claude-settings.json` once the port is bound, `onEvent` routed to `SessionManager`, listener closed on `window-all-closed`. **Phase 3 build gate green**: typecheck + lint clean, 864 tests, `electron-vite build` OK. Carries one `SPEC_DEVIATION` (server binds asynchronously after construction instead of before, with the reason in the code). The dev hand-verification is the T11 smoke, which the owner runs.
 
 **What**: Start the hook server on app ready, write the generated settings file into `userData`, hand `SessionManager` its hooks dependency, subscribe `onEvent`, and stop the server on quit.
 **Where**: `src/main/index.ts`
