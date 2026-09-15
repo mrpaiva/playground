@@ -89,7 +89,9 @@ T10 → T11
 
 ## Task Breakdown
 
-### T1: Move `commandKey` to shared
+### T1: Move `commandKey` to shared ✅ COMPLETE
+
+**Status**: Done — `src/shared/command-key.ts` + 11 tests; `terminal-keys.ts` imports it and holds no copy. Quick gate green (50 tests across the two files, `terminal-keys.test.ts` unmodified). Suite 748 → 759.
 
 **What**: Move the private `commandKey` helper out of the renderer into `src/shared/command-key.ts`, export it, and import it back into `terminal-keys.ts` so both processes resolve an agent command the same way.
 **Where**: `src/shared/command-key.ts`
