@@ -274,7 +274,9 @@ T10 → T11
 
 ---
 
-### T7: SessionManager injection, tokens and routing
+### T7: SessionManager injection, tokens and routing ✅ COMPLETE
+
+**Status**: Done — `hooks` dep (optional, so an app with no server keeps today's behaviour), per-run token, `handleHookEvent`, the keystroke rule in `input`, revoke+clear in `#finalize`, `activity` on the view. +15 tests. Full gate green: 864 tests.
 
 **What**: Inject the hook settings and token when spawning a Claude session, route hook events and keystrokes into the machine, emit `session:activity` on change, and drop everything when the session stops.
 **Where**: `src/main/session-manager.ts`
