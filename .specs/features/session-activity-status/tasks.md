@@ -337,7 +337,9 @@ T10 → T11
 
 ---
 
-### T9: Rail view model
+### T9: Rail view model ✅ COMPLETE
+
+**Status**: Done — `RowStatus` grew by the seven activity labels, `rowStatus` reads the activity, `rowActions` gives every running label `['stop']`, the tooltip carries tool/subagents/error, and `headerCounts` is new. +23 tests (59 in the file); every pre-existing rail-groups test passes unmodified. Quick gate green; lint clean.
 
 **What**: Extend the pure rail model: activity-derived row statuses, the detail suffix on the tooltip, and the header counts.
 **Where**: `src/renderer/src/lib/rail-groups.ts`
