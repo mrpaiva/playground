@@ -182,7 +182,9 @@ T10 → T11
 
 ---
 
-### T4: Keystroke classifier
+### T4: Keystroke classifier ✅ COMPLETE
+
+**Status**: Done — `keystroke.ts` (`isKeystroke`) + 17 tests. Quick gate green; lint clean. Suite 811 → 828. The decisive case is a mouse report arriving with a real character in one chunk, which must still count as typing.
 
 **What**: Implement `isKeystroke(data)`, which tells the user typing apart from the mouse and focus reports Claude Code's mouse tracking puts on the same input channel.
 **Where**: `src/main/keystroke.ts`
