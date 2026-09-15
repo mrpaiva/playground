@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { JSX, KeyboardEvent } from 'react'
 import type { AgentDef } from '../../../shared/agents'
 import { undoByteFor } from '../lib/terminal-keys'
-import type { SessionView } from '../../../shared/config'
+import type { ActivityState, SessionView } from '../../../shared/config'
 import type { PinnedTaskView } from '../../../shared/tasks'
 import type { WorkspaceNode } from '../../../shared/tree'
 import { agentTileStyle } from '../lib/agent-color'
@@ -92,6 +92,52 @@ export function AgentsView({
   )
 }
 
+/** Pill colour: green while the agent works, pink while it is blocked on the
+ *  user, red on a failed turn, amber once it has exited to the shell (ACTV-27). */
+function detailPillClass(session: SessionView): string {
+  if (session.status !== 'running') return 'faint'
+  switch (session.activity?.state) {
+    case 'needs-approval':
+    case 'needs-input':
+      return 'pink'
+    case 'error':
+      return 'red'
+    case 'exited':
+      return 'amber'
+    case 'waiting':
+      return 'blue'
+    default:
+      return 'green'
+  }
+}
+
+/** The state, plus what it is doing: `working · Bash · 2 subagents`. */
+function detailPillText(session: SessionView): string {
+  if (session.status !== 'running') return 'stopped'
+  const activity = session.activity
+  if (!activity) return 'running'
+  const label = ACTIVITY_LABEL[activity.state]
+  const detail = [
+    activity.tool,
+    activity.subagents > 0
+      ? `${activity.subagents} subagent${activity.subagents === 1 ? '' : 's'}`
+      : undefined,
+    activity.error
+  ].filter(Boolean)
+  return [label, ...detail].join(' · ')
+}
+
+/** Detail-pane wording. Fuller than the rail's short labels, per the handoff. */
+const ACTIVITY_LABEL: Record<ActivityState, string> = {
+  working: 'working',
+  compacting: 'compacting',
+  waiting: 'waiting for you',
+  'needs-approval': 'needs approval',
+  'needs-input': 'needs input',
+  error: 'turn failed',
+  exited: 'agent exited · shell'
+}
+
 interface SessionDetailProps {
   session: SessionView
   tree: WorkspaceNode[]
@@ -171,8 +217,8 @@ function SessionDetail({
           )}
           <span className="agents-detail-cwd">{session.cwd}</span>
         </div>
-        <span className={`agents-detail-pill ${running ? 'green' : 'faint'}`}>
-          {running ? 'running' : 'stopped'}
+        <span className={`agents-detail-pill ${detailPillClass(session)}`}>
+          {detailPillText(session)}
         </span>
         <div className="agents-detail-actions">
           {canOpenWorktree && (

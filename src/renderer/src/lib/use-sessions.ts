@@ -39,12 +39,27 @@ export function useSessions({ onToast, onSwitchToAgents }: UseSessionsOptions): 
 
   // Keep the session list live: main pushes status on PTY exit / respawn, which
   // the rail + detail panel reflect without an explicit refresh.
+  //
+  // Activity is the exception: it changes on every tool call, so it is applied
+  // in place instead of refetching the whole list per event (ACTV-07). An event
+  // for a session the list does not hold yet is dropped; the next list() carries
+  // the state anyway.
   useEffect(() => {
     const offStatus = api.on('session:status', refreshSessions)
     const offExit = api.on('session:exit', refreshSessions)
+    const offActivity = api.on('session:activity', ({ id, activity }) => {
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === id
+            ? { ...session, ...(activity ? { activity } : { activity: undefined }) }
+            : session
+        )
+      )
+    })
     return () => {
       offStatus()
       offExit()
+      offActivity()
     }
   }, [refreshSessions])
 

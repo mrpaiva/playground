@@ -368,7 +368,9 @@ T10 → T11
 
 ---
 
-### T10: Rail and detail rendering
+### T10: Rail and detail rendering ✅ COMPLETE (visual pass rides T11)
+
+**Status**: Done — `use-sessions` patches `session:activity` in place; the rail row shows a spinning loader for working/compacting and a coloured dot otherwise, with `aria-label` on the label; the header adds ` · N working` and ` · N need you`; `AgentsView`'s pill shows the fuller wording plus tool, subagent count and error type; new `loader` icon; CSS carries the app's first `prefers-reduced-motion` rule. Build gate green: lint 0 errors, 887 tests, `electron-vite build` OK. Colours: working/compacting `--green`, waiting `--blue`, approval/input `--pink`, error `--red`, shell `--amber` (handoff).
 
 **What**: Apply `session:activity` in place in the sessions hook, and render the states: loader, dots, colours, labels, `aria-label`, reduced motion, and the detail-pane pill.
 **Where**: `src/renderer/src/lib/use-sessions.ts`, `src/renderer/src/components/{SessionRail.tsx,SessionRail.css,AgentsView.tsx,Icon.tsx}`
