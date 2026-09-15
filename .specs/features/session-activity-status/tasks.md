@@ -151,7 +151,9 @@ T10 → T11
 
 ---
 
-### T3: The activity state machine
+### T3: The activity state machine ✅ COMPLETE
+
+**Status**: Done — `activity-machine.ts` (`applyHookEvent`, `applyKeystroke`, `sameView`) + 53 tests, one per Transition Table row plus the edges. Quick gate green; lint clean. Suite 758 → 811. Design detail the spec left open: `PostCompact` with no state to restore assumes `working` (the cheap error), commented and tested.
 
 **What**: Implement the pure reducer that folds Claude Code hook payloads (and the keystroke rule) into a session's activity, exactly as the spec's Transition Table states.
 **Where**: `src/main/activity-machine.ts`
