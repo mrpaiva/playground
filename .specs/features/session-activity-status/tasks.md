@@ -91,7 +91,7 @@ T10 → T11
 
 ### T1: Move `commandKey` to shared ✅ COMPLETE
 
-**Status**: Done — `src/shared/command-key.ts` + 11 tests; `terminal-keys.ts` imports it and holds no copy. Quick gate green (50 tests across the two files, `terminal-keys.test.ts` unmodified). Suite 748 → 759.
+**Status**: Done (`c464e3f`) — `src/shared/command-key.ts` + 10 tests; `terminal-keys.ts` imports it and holds no copy. Quick gate green (50 tests across the two files, `terminal-keys.test.ts` unmodified). Suite 748 → 758.
 
 **What**: Move the private `commandKey` helper out of the renderer into `src/shared/command-key.ts`, export it, and import it back into `terminal-keys.ts` so both processes resolve an agent command the same way.
 **Where**: `src/shared/command-key.ts`
@@ -120,7 +120,9 @@ T10 → T11
 
 ---
 
-### T2: Activity types and the `session:activity` channel
+### T2: Activity types and the `session:activity` channel ✅ COMPLETE
+
+**Status**: Done — `ActivityState` (7 states), `SessionActivity`, `SessionView.activity`, and `session:activity` on `IpcEvents`. `PersistedSession` untouched. Build gate green: typecheck 0 errors, lint 0 errors (18 pre-existing warnings), 758 tests.
 
 **What**: Add `ActivityState`, `SessionActivity` and the optional `SessionView.activity` to the shared config types, and declare `session:activity` in `IpcEvents`.
 **Where**: `src/shared/config.ts`, `src/shared/ipc-contract.ts`
