@@ -211,7 +211,9 @@ T10 → T11
 
 ---
 
-### T5: Hook settings builder
+### T5: Hook settings builder ✅ COMPLETE
+
+**Status**: Done — `claude-hook-settings.ts` (`HOOKED_EVENTS`, `ACTIVITY_TOKEN_ENV`, `HOOK_TIMEOUT_SECONDS`, `buildClaudeHookSettings`) + 8 tests. **Phase 2 build gate green**: typecheck 0 errors, lint 0 errors (18 pre-existing warnings), 836 tests (748 baseline + 88).
 
 **What**: Build the `--settings` JSON that points every consumed hook event at the app's endpoint, with the bearer header, the env allowlist and the timeout.
 **Where**: `src/main/claude-hook-settings.ts`
