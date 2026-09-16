@@ -31,31 +31,47 @@ Handoff snapshot.
 
 ## Handoff
 
-**Status (current, 2026-09-13): `agents-rail-v2` EXECUTED + independent Verifier PASS on
-branch `feature/agents-rail-v2` (based on `origin/main` `83e67ce`, the PR #86 merge). Nothing
-uncommitted. PR not opened — push needs an explicit go-ahead.**
+**Status (current, 2026-09-15): `session-activity-status` EXECUTED + independent Verifier
+**PASS** (round 2) on branch `feature/session-activity-status`, cut from `origin/main`
+`fa78f78`. 14 commits. Nothing uncommitted except the next feature's spec. PR not opened —
+push needs an explicit go-ahead.**
 
-**OWNER SMOKE GATES RUN 2026-09-14 — ALL PASS.** `smoke-rail-v2.mjs` **16/16**,
-`smoke-agents.mjs` **16/16**, `smoke-agent-config.mjs` pass. 6 of the 8 class-2 ACs (RAIL-17, 18,
-20, 23, 24 + the rendering halves of 07/08/11/12) now carry executed evidence. Two first-run
-failures were both harness defects, not rail defects, and are fixed: the smoke read `aria-selected`
-before React re-rendered (`f3f330d`), and a pre-existing stale assertion counted `.ns-agent-chip`
-as 3 when that selector also matches the Ad-hoc chip and `SEEDED_AGENTS` has grown to four
-(`3453f42`, unrelated to this feature). Seed was `user/otavio/20754-monitor-acesso/23688-patch-14.0.3`
-→ `#23688`, which incidentally confirmed PR #81's last-segment `taskIdFromBranch` end-to-end.
+Each Claude session now launches with `--settings` pointing at a generated hook file, reports
+its lifecycle to a loopback endpoint in main, and the rail shows `working` / `waiting` /
+`approval` / `input` / `error` / `compacting` / `shell` with the running tool, the subagent
+count and the API error type in the tooltip and the detail pane. Suite 748 → **916** tests,
+typecheck + lint clean, `electron-vite build` green. Verifier: 31/35 ACs unit-evidenced, 4
+convention-exempt visual ACs with a named hand-verify path, 26 mutations injected across two
+rounds and 24 killed. Report: `.specs/features/session-activity-status/validation.md`.
 
-**STILL OUTSTANDING — the two-theme visual pass.** `RAIL-26` (long task title clamps at 2 lines,
-no horizontal overflow at 344px) and `RAIL-27` (a session whose stored agent matches no registry
-entry still renders a tinted tile) are **not decidable by any script** and remain code-verified
-only. The same pass should report how `opencode` and `Ad-hoc` read at 22×22 now both resolve to
-`--amber` — a pre-existing collision this feature surfaces but does not fix.
+**OWNER ACTIONS OUTSTANDING (both user-run):**
+1. `node scripts/smoke-activity.mjs` against `npm run dev -- -- --remote-debugging-port=9222`.
+   It is the only part of the feature that spends tokens: one trivial prompt that needs an
+   approval. It also carries T8's deferred dev hand-verification.
+2. The two-theme visual pass: the spinning green loader, the blue waiting dot, the pink
+   approval dot, the red error dot, the amber `shell` dot at 344px in light and dark, plus
+   `prefers-reduced-motion` freezing the loader (ACTV-14/15/17/20).
 
-**UNRELATED WORK PARKED IN A STASH:** `stash@{0}` ("wip(reconciler-core)") holds the AD-017
-Reconciler line for `.specs/STATE.md` plus the untracked `.specs/features/reconciler-core/`
-spec/design/context. It was set aside when this feature branched so it would not be swept into a
-rail commit. **Its AD-017 collides with the `dev-alias-setting` AD-017 already merged on `main`
-— renumber it (AD-019 or later) when it lands.** `git stash pop` on `docs/state-v1-release-note`
-restores it.
+**KNOWN FOLLOW-UP, owner deferred it 2026-09-15:** the three `quota_auto_resume_*`
+notification types are not consumed. A session paused by a claude.ai usage limit reports
+`error` (`StopFailure` `rate_limit`) and stays there after Claude resumes on its own, because
+Claude Code sends no `idle_prompt` while it waits for the reset. Fix is three rows in the
+transition table: `_fired` → `working`, `_stale` → `needs-input` (it waits for Enter),
+`_disabled` → `waiting`. Requires Claude Code v2.1.234+.
+
+**NEXT FEATURE SPEC REWRITTEN, uncommitted:** `.specs/features/session-idle-notifications/`
+(now titled *Session Activity Notifications*, NOTF-01..21) was rebuilt on the seven states:
+P1 is now "told when an agent is blocked on you", P2 is the old finish/fail case, and six
+assumption rows are the agent's defaults awaiting an owner yes/no before Design.
+
+**PRIOR, still true — the two-theme visual pass for `agents-rail-v2`** (`RAIL-26`, `RAIL-27`)
+remains code-verified only, and `opencode` and `Ad-hoc` still both resolve to `--amber` at
+22×22.
+
+**UNRELATED WORK PARKED IN A STASH — GONE:** the earlier handoff pointed at `stash@{0}`
+("wip(reconciler-core)") holding the AD-017 Reconciler line plus an untracked
+`.specs/features/reconciler-core/`. As of 2026-09-15 `git stash list` is **empty** and no
+dangling commit in this clone carries that tree. If it is not in another clone it is lost.
 
 0. **`agents-rail-v2` (RAIL-01..28) — EXECUTED, independent Verifier PASS.** Branch
    `feature/agents-rail-v2`, 12 commits (`9bc144d..789468b`). Grouping is derived at render time

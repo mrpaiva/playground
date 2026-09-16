@@ -35,6 +35,7 @@ requested, turn finished, turn failed, compaction, session ended. This feature c
 | Taskbar badge or overlay icon | Owner chose the rail and the detail pane |
 | Notifying the user on a state change | Feature `session-idle-notifications`, which builds on this one |
 | Editing the injected hook configuration | The configuration is an implementation detail of the app, generated per launch |
+| Consuming the `quota_auto_resume_*` notifications (owner deferred, 2026-09-15) | A session paused by a claude.ai usage limit reports `error` from `StopFailure` `rate_limit` and **stays there** after Claude resumes on its own, because Claude Code sends no `idle_prompt` while it waits for the reset. Closing it is three Transition Table rows — `_fired` → `working`, `_stale` → `needs-input` (it waits for Enter), `_disabled` → `waiting` — and needs Claude Code v2.1.234+. Follow-up, not a defect in what ships here |
 
 ---
 

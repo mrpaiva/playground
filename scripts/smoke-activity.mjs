@@ -286,6 +286,48 @@ check(
   row.header ?? ''
 )
 
+// --- 3b. Activity arrives without re-fetching the session list (ACTV-07) ---
+// Counting needs a wrapper around the bridge, which contextBridge may freeze.
+// If it cannot be installed the check reports SKIP rather than a false pass.
+const counterInstalled = await evaluate(
+  ws,
+  `(() => {
+     try {
+       const original = window.api.invoke.bind(window.api)
+       window.__actvListCalls = 0
+       const patched = { ...window.api, invoke: (channel, ...rest) => {
+         if (channel === 'sessions:list') window.__actvListCalls++
+         return original(channel, ...rest)
+       } }
+       Object.defineProperty(window, 'api', { value: patched, configurable: true, writable: true })
+       return window.api.invoke !== original
+     } catch {
+       return false
+     }
+   })()`
+)
+if (counterInstalled) {
+  // Deliberately do NOT poll during this window: every sessions:list counted
+  // here is one the renderer asked for on its own.
+  await sleep(12000)
+  const listCalls = await evaluate(ws, `window.__actvListCalls`)
+  const label = await evaluate(
+    ws,
+    `(() => {
+       const rows = [...document.querySelectorAll('.rail-row')]
+       const el = rows.find((r) => (r.title || '').includes('Claude'))
+       return el?.querySelector('.rail-row-status')?.textContent ?? ''
+     })()`
+  )
+  check(
+    'the rail follows the agent without re-fetching the session list (ACTV-07)',
+    listCalls === 0 && label !== '',
+    `${listCalls} sessions:list call(s) in 12s, row read "${label}"`
+  )
+} else {
+  console.log('SKIP  ACTV-07 IPC count — the bridge could not be wrapped in this build')
+}
+
 // --- 4. Approving is a keystroke, and work resumes (ACTV-12) ---
 await evaluate(ws, `(window.api.send('session:input', { id: '${id}', data: '1' }), true)`)
 const resumed = await waitForState(ws, id, 'working', 15000)

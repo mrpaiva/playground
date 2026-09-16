@@ -385,7 +385,7 @@ T10 → T11
 
 **Done when**:
 
-- [ ] `session:activity` updates the one session in place; no `sessions:list` call is made (ACTV-07) — verified in the T11 smoke by counting IPC calls
+- [ ] `session:activity` updates the one session in place; no `sessions:list` call is made (ACTV-07) — the reducer is unit-tested in `src/renderer/src/lib/session-activity.test.ts` (F2) and the smoke counts `sessions:list` calls across a live activity burst (F4)
 - [ ] `working`/`compacting` render the spinning `loader` icon; the other states render a dot in the colour table from the design; `stopped`/`running`/`path missing` are untouched (ACTV-14..19)
 - [ ] The status element carries `aria-label` naming the state (ACTV-21)
 - [ ] `@media (prefers-reduced-motion: reduce)` stops the loader animation (ACTV-20)
@@ -526,5 +526,11 @@ No task defers its own tests to a later task.
 
 **What**: the ACTV-18 check asserted the machine state, not the rendered `shell` label; the hand-verify list omitted the detail pane, the waiting/error indicators and reduced motion; the payload-logging deviation was disclosed only in tasks.md.
 **Done**: the check now reads `.rail-row-status` (the state assertion stays, renamed to ACTV-03), the hand-verify list names every uncovered surface, and the script carries its own `SPEC_DEVIATION` marker.
+**Tests**: none (smoke script) · **Gate**: build
+
+### F4: Measure ACTV-07 instead of reading it ✅ COMPLETE
+
+**What**: Round 2 left one probe alive — a `refreshSessions()` added next to the in-place patch in `use-sessions.ts` survives every test, because the subscription wiring is convention-exempt and nothing counts IPC calls.
+**Done**: `smoke-activity.mjs` wraps the bridge, waits 12 s through a live activity burst without polling, and asserts zero `sessions:list` calls while the row still follows the agent. If `contextBridge` refuses the wrapper the check prints SKIP rather than passing falsely. T10's stale Done-when now cites the real evidence.
 **Tests**: none (smoke script) · **Gate**: build
 
