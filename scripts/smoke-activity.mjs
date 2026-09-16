@@ -167,6 +167,20 @@ check(
   `${unauthorized}`
 )
 
+// Switch to the Agents direction: the rail only exists there, and the row
+// assertions below read it.
+await evaluate(
+  ws,
+  `(() => {
+     const seg = [...document.querySelectorAll('.topbar-segment')].find((b) => /Agents/.test(b.textContent))
+     if (seg) seg.click()
+     return true
+   })()`
+)
+await sleep(400)
+const railPresent = await evaluate(ws, `Boolean(document.querySelector('.session-rail'))`)
+check('the Agents direction is open (the rail is what these checks read)', railPresent)
+
 // --- Clean slate + a throwaway agent that always asks for permission ---
 await evaluate(
   ws,
