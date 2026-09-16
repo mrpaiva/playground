@@ -45,11 +45,13 @@ typecheck + lint clean, `electron-vite build` green. Verifier: 31/35 ACs unit-ev
 convention-exempt visual ACs with a named hand-verify path, 26 mutations injected across two
 rounds and 24 killed. Report: `.specs/features/session-activity-status/validation.md`.
 
-**OWNER ACTIONS OUTSTANDING (both user-run):**
-1. `node scripts/smoke-activity.mjs` against `npm run dev -- -- --remote-debugging-port=9222`.
-   It is the only part of the feature that spends tokens: one trivial prompt that needs an
-   approval. It also carries T8's deferred dev hand-verification.
-2. The two-theme visual pass: the spinning green loader, the blue waiting dot, the pink
+**OWNER SMOKE RUN 2026-09-15 — 19/19 PASS** (`node scripts/smoke-activity.mjs`), plus the
+documented ACTV-07 SKIP. The first run failed one check and that failure was a real defect,
+now AD-020 + `e157495`: Claude Code never delivers `SessionStart` to an http hook. T8's
+deferred dev hand-verification rides this run.
+
+**OWNER ACTION OUTSTANDING (user-run):**
+1. The two-theme visual pass: the spinning green loader, the blue waiting dot, the pink
    approval dot, the red error dot, the amber `shell` dot at 344px in light and dark, plus
    `prefers-reduced-motion` freezing the loader (ACTV-14/15/17/20).
 

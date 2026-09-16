@@ -401,9 +401,9 @@ T10 → T11
 
 ---
 
-### T11: Owner smoke script ✅ COMPLETE (owner still has to run it)
+### T11: Owner smoke script ✅ COMPLETE — **RUN BY THE OWNER, 19/19**
 
-**Status**: Done — `scripts/smoke-activity.mjs`, 13 checks over one real session and **one** prompt. It also asserts the written settings file and that the live endpoint answers 401 to an untokened POST. Build gate green: typecheck + lint clean, 887 tests. **SPEC_DEVIATION**: the script prints the observed state sequence instead of logging every raw hook payload — a `--settings` file is fixed at spawn, so capturing payloads would mean a second Claude session and a second prompt. A renamed event still shows up, as a missing transition and a failed check.
+**Status**: Done and **executed by the owner: 19/19 checks passed** (plus the documented ACTV-07 SKIP). The first run found a real defect — a fresh session held no state because Claude Code never delivers `SessionStart` to an http hook — which is now AD-020 and commit `e157495`; the re-run after the amendment was green. Live evidence exists for ACTV-01/02/03/04/12/13/16/18/21/22/23/24. Original note: `scripts/smoke-activity.mjs`, checks over one real session and **one** prompt. It also asserts the written settings file and that the live endpoint answers 401 to an untokened POST. Build gate green: typecheck + lint clean, 887 tests. **SPEC_DEVIATION**: the script prints the observed state sequence instead of logging every raw hook payload — a `--settings` file is fixed at spawn, so capturing payloads would mean a second Claude session and a second prompt. A renamed event still shows up, as a missing transition and a failed check.
 
 **What**: A CDP smoke script that drives one real Claude session through the whole state sequence and logs every live hook payload beside its documented shape.
 **Where**: `scripts/smoke-activity.mjs`
