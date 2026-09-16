@@ -72,7 +72,8 @@ Normative for ACTV-03. `tool` and `subagents` are details carried alongside the 
 
 | Hook event (payload discriminator) | New state | Detail effect |
 | ---------------------------------- | --------- | ------------- |
-| `SessionStart` (any source) | **never delivered** — see the assumption below; the mapping is kept for the day it is | — |
+| `SessionStart` (`source` = `startup`, `resume`, `clear`, `fork`) *(not currently delivered over http — AD-020; the mapping is kept for the day it is)* | `waiting` | clear tool, subagents = 0 |
+| `SessionStart` (`source` = `compact`) *(same)* | unchanged | — |
 | `UserPromptSubmit` | `working` | clear tool |
 | `PreToolUse` | `working` | tool = `tool_name` |
 | `PostToolUse`, `PostToolUseFailure` | `working` | clear tool |

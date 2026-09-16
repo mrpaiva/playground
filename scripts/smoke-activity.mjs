@@ -217,7 +217,8 @@ if (!wt) {
 }
 check('a worktree is registered (session seed)', true, wt.branch)
 
-// --- 1. A Claude session reports waiting once it is up (ACTV-01, ACTV-03) ---
+// --- 1. A Claude session launches with the hooks and reports nothing until its
+//        first turn, because SessionStart never arrives (ACTV-01, ACTV-13) ---
 const id = await evaluate(
   ws,
   `(async () => (await window.api.invoke('sessions:spawn', { agentName: ${JSON.stringify(SMOKE_AGENT)}, cwd: ${JSON.stringify(wt.path)} })).id)()`

@@ -170,7 +170,7 @@ T10 → T11
 
 - [ ] `applyHookEvent`, `applyKeystroke` and `sameView` exported; no I/O, no timers, no imports outside `src/shared`
 - [ ] Every row of the Transition Table has a test fed a payload shaped like the documentation's example for that event
-- [ ] Tests cover: `SessionStart` `source: compact` changes nothing; `SessionEnd` `clear`/`resume` change nothing while other reasons give `exited`; `PostCompact` restores the pre-`PreCompact` state; subagent count by `agent_id` never goes below zero and ignores an unknown `agent_id`; `PostToolUse` with no tool recorded; unknown event name and unknown `notification_type` return the input unchanged; `applyKeystroke` only moves `needs-approval`/`needs-input`; a null state stays null until the first state-setting event
+- [ ] Tests cover: `SessionStart` `source: compact` changes nothing; `SessionEnd` `clear`/`resume` give `waiting` (amended after the owner smoke, AD-020) while other reasons give `exited`; `PostCompact` restores the pre-`PreCompact` state; subagent count by `agent_id` never goes below zero and ignores an unknown `agent_id`; `PostToolUse` with no tool recorded; unknown event name and unknown `notification_type` return the input unchanged; `applyKeystroke` only moves `needs-approval`/`needs-input`; a null state stays null until the first state-setting event
 - [ ] `sameView` treats equal views as equal and any differing field as changed (the ACTV-06 gate)
 - [ ] Gate check passes: `npx vitest run src/main/activity-machine.test.ts`
 - [ ] Test count: ~754 → ~784 (+30; no silent deletions)

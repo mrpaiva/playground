@@ -304,3 +304,192 @@ plural), all died to a named test. No duplicate of the moved code survives at ei
 **What is still open**: nothing that blocks. ACTV-07's "without re-fetching" clause and the
 owner-run smoke are both Minor, both named above with a concrete remedy, and both sit on the
 renderer side of a documented testing convention rather than on unproven behaviour.
+
+---
+
+# Session Activity Status Validation — Round 3 (post-smoke amendment)
+
+## Validation: the `SessionStart`-never-arrives amendment — PASS ✅
+
+**Date**: 2026-09-15
+**Scope**: the focused amendment only — commit `e157495`
+*fix(main): treat a cleared session as waiting, since SessionStart never arrives*. Rounds 1-2 above
+stand; this round does **not** re-derive the whole feature.
+**Diff range**: `e497ea2..HEAD` = `44aa1a3`, `e9a1805`, `01e0c40`, `e157495` (HEAD `e157495`,
+branch `feature/session-activity-status`).
+**Verifier**: independent sub-agent (author ≠ verifier), read-only over the real tree.
+**Claim under test**: Claude Code does not deliver `SessionStart` to an `http` hook, therefore
+(a) a freshly spawned session holds no activity and renders `running` until its first turn, and
+(b) `SessionEnd` with `reason` `clear`/`resume` maps to `waiting` instead of leaving the state
+unchanged.
+**Verdict**: ✅ **PASS** — code, spec Transition Table, tests and AD-020 agree; the amendment is
+strictly stronger than what it replaced; six mutations over the amended behaviour all died. Three
+**documentation** nits are recorded below; none of them is a behaviour defect.
+
+---
+
+## 1. Code vs the amended Transition Table — row by row
+
+`spec.md:73-92` against `src/main/activity-machine.ts:74-135` (`applyHookEvent`) and `:160-164`
+(`applyKeystroke`). `to(state, …)` carries the subagent set forward; `to(null, …)` resets it to 0
+and drops `beforeCompact` (`activity-machine.ts:46-63`).
+
+| Table row (`spec.md`) | Code | Agrees? |
+| --------------------- | ---- | ------- |
+| `SessionStart` (any source) — "never delivered; the mapping is kept" (`:75`) | `:82-89` — `source === 'compact'` ⇒ unchanged, else `to(null,'waiting')` | ✅ (see nit N3) |
+| `UserPromptSubmit` ⇒ `working`, clear tool (`:76`) | `:90-94` `to(state,'working')`, no `tool` in the detail | ✅ |
+| `PreToolUse` ⇒ `working`, tool = `tool_name` (`:77`) | `:95-96` | ✅ |
+| `PostToolUse`, `PostToolUseFailure` ⇒ `working`, clear tool (`:78`) | `:90-94` | ✅ |
+| `PermissionRequest` ⇒ `needs approval`, tool (`:79`) | `:97-98` | ✅ |
+| `Notification` `permission_prompt` ⇒ `needs approval` (`:80`) | `:27`, `:131` | ✅ |
+| `Elicitation` / `elicitation_dialog`, `elicitation_url_dialog` ⇒ `needs input` (`:81`) | `:99-100`, `:28`, `:132` | ✅ |
+| `ElicitationResult` ⇒ `working` (`:82`) | `:90-94` | ✅ |
+| keystroke while blocked ⇒ `working` (`:83`) | `:160-164` | ✅ |
+| `Stop` ⇒ `waiting`, clear tool (`:84`) | `:101-102` | ✅ |
+| `Notification` `idle_prompt` ⇒ `waiting`, clear tool (`:85`) | `:133` | ✅ |
+| `StopFailure` ⇒ `error`, error field (`:86`) | `:103-104` | ✅ |
+| `PreCompact` ⇒ `compacting`, remember prior (`:87`) | `:107-108` | ✅ |
+| `PostCompact` ⇒ the state held before (`:88`) | `:109-112` (falls back to `working` with nothing to restore — disclosed in the code comment, unchanged by this commit) | ✅ |
+| `SubagentStart` / `SubagentStop` ⇒ unchanged, ±`agent_id` (`:89`) | `:113-116`, `:137-153` | ✅ |
+| `SessionEnd` `reason` ∉ {clear, resume} ⇒ `exited`, clear tool, subagents = 0 (`:90`) | `:117-120` `to(null,'exited')` | ✅ |
+| **`SessionEnd` `reason` ∈ {clear, resume} ⇒ `waiting`, clear tool, subagents = 0 (`:91`)** | **`:118-119` `to(null,'waiting')`** | ✅ **the amendment** |
+| any other event / notification type ⇒ unchanged (`:92`) | `:121-122` default returns `state` by reference; `:78-79` missing `hook_event_name`; `:130` missing `notification_type` | ✅ |
+
+**No row where code and table disagree.** The amendment's two halves are consistent across the
+three documents that carry it: `spec.md:60` (amended assumption row), `spec.md:91` (table row),
+`spec.md:123-127` (P1 Independent Test now reads "the row reads `running` until the first prompt"),
+`.specs/STATE.md:30` (AD-020, which also records the rejected `command`-hook alternative and the
+`contextBridge` limitation), and `activity-machine.ts:30-39` (the `CONTINUING_END_REASONS` doc
+comment carries the measurement, so the reason survives the next reader).
+
+Claim half (a) — no activity for a fresh session — needs no code: nothing synthesises a state, and
+`session-manager.ts:232-236` only ever folds an event that actually arrived. `to(null,'waiting')`
+on `SessionEnd` is the only new way to reach `waiting` without a prior state, and that is exactly
+the `/clear` case the amendment describes.
+
+---
+
+## 2. The changed tests assert the new outcome, and nothing was weakened
+
+`git diff e157495~1 e157495 -- src/main/activity-machine.test.ts`: **+13 / -3**, one test rewritten,
+one added, **none deleted, none loosened**.
+
+| Before | After | Direction |
+| ------ | ----- | --------- |
+| `it.each(['clear','resume'])` *"keeps the state … because a SessionStart follows"*, body `expect(applyHookEvent(working(), …)).toBe(before)` — an identity check from a state with **no** tool and **no** subagents | `activity-machine.test.ts:190-198` *"waits when the session ends with %s: the CLI stays up at a fresh prompt"*, driven from `workingWithTool()` and asserting `toEqual({ state: 'waiting', subagents: 0 })` | **Stronger**: the exact-object `toEqual` now also pins *tool cleared* and *subagents 0*, which `toBe(before)` never touched |
+| — | `activity-machine.test.ts:200-206` *"drops the subagents of a cleared session"* — builds a live `SubagentStart` then clears | **New**: the only test that distinguishes `to(null,…)` from `to(state,…)` on this branch (M3 below dies to it alone) |
+
+Suite count: round 2 recorded **916**; HEAD runs **917** — exactly the one added test (the `it.each`
+kept its two cases). The sibling rows are untouched and still green: `:182-188` (`exited` for
+`prompt_input_exit`/`logout`/`other`) and `:29-59` (the `SessionStart` mapping, kept deliberately).
+`01e0c40`, also in range, only **adds** a smoke check (`smoke-activity.mjs:172-183`, "the Agents
+direction is open") — no assertion was removed there either.
+
+---
+
+## 3. Discrimination Sensor — round C, over the amendment
+
+Isolated scratch: `git worktree add --detach <scratchpad>/sensor HEAD`, `node_modules` reached by an
+NTFS junction, mutated there, `npx vitest run src/main` there, scratch removed with `rmdir` of the
+junction **first** (so `git worktree remove --force` could not follow it into the real
+`node_modules`) and `git worktree remove --force` after. **No `git stash`.** Pre-sensor
+`git status --porcelain` was empty; after cleanup it is empty again apart from this file, and
+`node_modules` is intact (500 entries).
+
+| # | File:line | Mutation | Killed? | Killing test(s) |
+| - | --------- | -------- | ------- | --------------- |
+| M1 | `activity-machine.ts:119` | `clear`/`resume` ⇒ `state` — **the exact pre-amendment behaviour** | ✅ Killed (3) | `activity-machine.test.ts:190` *"waits when the session ends with clear / with resume"* ×2; `:200` *"drops the subagents of a cleared session"* |
+| M2 | `activity-machine.ts:117-120` | `clear`/`resume` ⇒ `to(null,'exited')` (the branch removed; every reason means gone) | ✅ Killed (3) | `:190` ×2; `:200` |
+| M3 | `activity-machine.ts:119` | `to(null,'waiting')` ⇒ `to(state,'waiting')` — the subagent count survives a clear | ✅ Killed (1) | **`:200` *"drops the subagents of a cleared session"* only** — the test this commit added; the `it.each` at `:190` starts from zero subagents and stays green |
+| M4 | `activity-machine.ts:39` | `CONTINUING_END_REASONS` emptied (`[]`) | ✅ Killed (3) | `:190` ×2; `:200` |
+| M5 | `activity-machine.ts:39` | `CONTINUING_END_REASONS` loses `'resume'` | ✅ Killed (1) | `:190` *"…with resume"* — the `clear` case stays green, so the two reasons are independently pinned |
+| M6 | `activity-machine.ts:119` | `clear`/`resume` ⇒ `to(null,'working')` (right reset, wrong state) | ✅ Killed (3) | `:190` ×2; `:200` |
+
+**6 injected / 6 killed / 0 survived.** M3 is the decisive one: it is precisely the mutation that
+round 2 caught as M13/M14 on the neighbouring branches, and here it dies to exactly one test — the
+one added in `e157495`. That test is therefore load-bearing, not decoration. M5 shows the two
+reasons are not tested as a lump.
+
+---
+
+## 4. Gate — re-run at `e157495`, real tree
+
+| Gate | Result |
+| ---- | ------ |
+| `npm run typecheck` | ✅ exit 0 — `tsc --noEmit` for node + web, 0 errors |
+| `npm run lint` | ✅ exit 0 — **0 errors, 18 warnings**, the same 18 pre-existing prettier warnings round 2 recorded, in `scripts/fixtures/implement-ticket/workflow.ts`, `scripts/smoke-agent-config.mjs`, `scripts/smoke-agents.mjs`, `src/shared/tasks.test.ts`. `smoke-activity.mjs` and `activity-machine.ts` contribute none |
+| `npm test` | ✅ **917 passed / 917**, 52 files, 0 skipped, 0 failed (67.9 s) — 916 → 917 as claimed |
+| `npx electron-vite build` | ✅ exit 0 — main, preload and renderer bundles emitted |
+
+---
+
+## 5. Honesty of the smoke script's two documented limitations
+
+### 5a. `SKIP ACTV-07 IPC count — contextBridge freezes the bridge` (`smoke-activity.mjs:342-366`)
+
+**Honest, not a weakened assertion.** The SKIP branch calls `console.log` and never `check()`
+(`:106-110`), so it never enters `checks[]` and cannot become a false PASS: `summarise` exits
+non-zero only on a recorded FAIL (`:112-118`). The positive path is still attempted first — the
+counter is installed if it can be — and only its impossibility is reported. The new comment
+(`:361-364`) names the measured cause, names where ACTV-07's positive half **is** tested
+(`src/renderer/src/lib/session-activity.test.ts`) and states plainly that the negative half stays a
+code reading. That is round 2's Gap 1 restated accurately, not closed by assertion: it claims less
+than before, not more.
+
+One nit, recorded not charged: `counterInstalled` falls to `false` through a bare `catch`
+(`:337-339`), so any future failure cause will also print "contextBridge freezes the bridge". The
+message asserts a specific cause the code does not actually discriminate.
+
+### 5b. `a freshly spawned session reports no activity and stays running (ACTV-13)` (`:235-255`)
+
+**Honest as written, and correctly labelled — but it is an absence-assertion, and it is weaker than
+the check it replaced.** This is worth stating exactly:
+
+- It is *not* weaker than the AC it names. ACTV-13 (`spec.md:121`) requires the app to "hold no
+  activity state until its first hook event arrives", and `activity === null && status === 'running'`
+  after a 12 s settle is a direct assertion of that clause. (Its "issue it a fresh token" clause is
+  not smoke-covered, but it never was; it is unit-covered in main.)
+- It *is* weaker than the deleted `waitForState(ws, id, 'waiting', 60000)` check, which proved the
+  whole hook path live — injection, loopback endpoint, token routing, IPC push — from one event. An
+  absence would pass just as well with the hook path completely broken.
+- That hole does not stay open **within a run**: the very next section drives a real prompt and
+  requires `working` inside 30 s (`:266-278`), then `needs-approval`, then `waiting`. If injection
+  or routing were dead, those FAIL. So the negative check is pinned by a later positive in the same
+  script, and the label it carries (ACTV-13, not ACTV-01) is the right one — ACTV-01's hook-config
+  half is asserted independently at `:154-160` from the written settings file, plus the 401 probe at
+  `:162-172`.
+
+Verdict on 5b: the check asserts what it says and no more, and the run as a whole did not lose the
+end-to-end evidence — it moved it one section later. The 12 s wait is arbitrary but safe in this
+direction: a slower boot cannot turn the absence into a false pass.
+
+---
+
+## 6. Documentation nits (Minor, non-blocking, no behaviour impact)
+
+| # | Where | What |
+| - | ----- | ---- |
+| N1 | `scripts/smoke-activity.mjs:220` | Section header still reads `--- 1. A Claude session reports waiting once it is up (ACTV-01, ACTV-03) ---`, which is the behaviour the commit just retired. The header comment (`:4-9`) and the check itself were both updated; this one line was missed |
+| N2 | `.specs/features/session-activity-status/tasks.md:173` | T3's Done-when still says "`SessionEnd` `clear`/`resume` **change nothing** while other reasons give `exited`" — stale against `spec.md:91`. Same class as round 2's recorded `tasks.md:388` drift |
+| N3 | `.specs/features/session-activity-status/spec.md:75` | The `SessionStart` row's "New state" cell is now prose ("never delivered … the mapping is kept for the day it is") and no longer states *what* the kept mapping is, while the code (`activity-machine.ts:82-89`) and four live tests (`activity-machine.test.ts:29-59`) still encode `waiting` / unchanged-on-`compact`. Nothing contradicts; the normative table simply stopped covering a branch that is still tested. Suggested wording: keep the mapping in the cell and mark the row *(not currently delivered — AD-020)* |
+
+---
+
+## Round 3 Summary
+
+**Overall**: ✅ **PASS** — the amendment may ship as committed.
+
+**Claim (a)** — a fresh session holds no activity and renders `running`: upheld. Nothing in the
+machine invents a state, and the smoke now asserts the absence directly (`smoke-activity.mjs:249-254`)
+with the hook path still proven live by the checks that follow.
+**Claim (b)** — `SessionEnd` `clear`/`resume` ⇒ `waiting`: upheld and pinned. `activity-machine.ts:118-119`
+matches `spec.md:91` on all three effects (state, tool cleared, subagents 0); six mutations over that
+branch, including the pre-amendment behaviour itself, all died.
+**Tests**: rewritten assertion is strictly stronger (exact-object `toEqual` from a state that holds a
+tool, replacing an identity check from a state that held nothing); one test added; none removed,
+none loosened; 916 → 917 accounted for.
+**Sensor**: 6/6 killed, 0 survived. **Gate**: typecheck 0 errors · lint 0 errors / 18 pre-existing
+warnings · 917/917 tests · build exit 0.
+**Open**: three documentation nits (N1-N3), all cosmetic. Round 2's Gap 1 (ACTV-07's negative half)
+and Gap 2 (a full owner smoke run to green) remain as round 2 left them — the run that produced this
+amendment is the partial execution that found the defect.
