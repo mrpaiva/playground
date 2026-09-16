@@ -3,9 +3,11 @@
  * through the injected hooks, end to end into the rail.
  *
  * It drives one session through the whole sequence:
- *   waiting → working → approval → (the keystroke that approves) → working →
- *   waiting → shell
- * and checks the rail's label, aria-label, tooltip and header counts on the way.
+ *   (no activity) → working → approval → (the keystroke that approves) →
+ *   working → waiting → shell
+ * checking the rail's label, aria-label, tooltip and header counts on the way.
+ * A fresh session reports nothing until its first turn, because Claude Code
+ * 2.1.273 does not deliver SessionStart to an http hook (measured 2026-09-15).
  *
  * COST: this is the only part of the feature that spends tokens. It submits ONE
  * trivial prompt that asks Claude to run a five-second shell command, so the
@@ -230,8 +232,25 @@ await evaluate(
   `(async () => { try { await window.api.invoke('sessions:stop', { id: '${dummy}' }) } catch {} return true })()`
 )
 
-const ready = await waitForState(ws, id, 'waiting', 60000)
-check('the session reports waiting once Claude is up (ACTV-01)', Boolean(ready))
+// Claude Code 2.1.273 does not deliver SessionStart to an http hook, so a fresh
+// session reports nothing until its first turn and the row reads `running`
+// (measured; see the spec's assumption table). The state it must NOT be in is a
+// derived one.
+await sleep(12000)
+const beforePrompt = JSON.parse(
+  await evaluate(
+    ws,
+    `(async () => {
+       const s = (await window.api.invoke('sessions:list')).find((s) => s.id === '${id}')
+       return JSON.stringify({ activity: s?.activity ?? null, status: s?.status ?? null })
+     })()`
+  )
+)
+check(
+  'a freshly spawned session reports no activity and stays running (ACTV-13)',
+  beforePrompt.activity === null && beforePrompt.status === 'running',
+  JSON.stringify(beforePrompt)
+)
 
 const adhoc = JSON.parse(
   await evaluate(
@@ -339,7 +358,11 @@ if (counterInstalled) {
     `${listCalls} sessions:list call(s) in 12s, row read "${label}"`
   )
 } else {
-  console.log('SKIP  ACTV-07 IPC count — the bridge could not be wrapped in this build')
+  // Measured 2026-09-15: contextBridge freezes `window.api`, so the count cannot
+  // be installed from the page in this build. ACTV-07's positive half is
+  // unit-tested (`src/renderer/src/lib/session-activity.test.ts`); the negative
+  // half ("without re-fetching") stays a code reading.
+  console.log('SKIP  ACTV-07 IPC count — contextBridge freezes the bridge in this build')
 }
 
 // --- 4. Approving is a keystroke, and work resumes (ACTV-12) ---

@@ -57,6 +57,7 @@ requested, turn finished, turn failed, compaction, session ended. This feature c
 | How the renderer receives it | A `session:activity` event carrying the new activity, applied in place | `use-sessions.ts:43` refetches the whole list on `session:status`; at tool-call frequency that is a round-trip per tool | y |
 | Tool name on the row | The row label stays `working`; the running tool's name shows in the tooltip and the detail pane | Owner decision: Claude chains several tools per second and a label that changes per call is unreadable | y |
 | Token cost | None. Hooks are local POSTs; tests use documentation-shaped payloads; no recording is needed | Owner concern at Design, answered by the hook approach | y |
+| **[amended 2026-09-15, after the owner-run smoke]** `SessionStart` over http | **Not delivered.** Claude Code 2.1.273 fires `SessionStart` to a `command` hook and not to an `http` one, at launch **and** mid-session after `/clear`. A freshly spawned session therefore holds no activity and renders `running` until its first turn, and `SessionEnd` `clear`/`resume` means `waiting` because nothing else would correct it | Measured three ways with zero-token probes: both hook types on the same event in one session (command fired, http did not); a `/clear` mid-session (only `SessionEnd reason=clear` arrived); and a fresh session idle for 100 s (no `idle_prompt`, which the docs gate on Claude having responded). Owner chose to accept it rather than add a shell-dependent `command` hook | y |
 | Foreground-child-process detection | Not used | node-pty exposes no foreground process on Windows, and the agent is one process in both states (`design.md` §Rejected Approaches) | y |
 | Auth boundaries, rate limits, external-dependency failure | The hook endpoint listens on `127.0.0.1` only and requires a live session token; Claude Code treats an unreachable endpoint as a non-blocking error | The only external party is the local Claude Code process the app itself launched | y |
 | Observability | A rejected or malformed hook request is logged once per session in main | The symptom of a broken hook path is a session stuck without state, which the log explains | y |
@@ -71,8 +72,7 @@ Normative for ACTV-03. `tool` and `subagents` are details carried alongside the 
 
 | Hook event (payload discriminator) | New state | Detail effect |
 | ---------------------------------- | --------- | ------------- |
-| `SessionStart` (`source` = `startup`, `resume`, `clear`, `fork`) | `waiting` | clear tool, subagents = 0 |
-| `SessionStart` (`source` = `compact`) | unchanged | — |
+| `SessionStart` (any source) | **never delivered** — see the assumption below; the mapping is kept for the day it is | — |
 | `UserPromptSubmit` | `working` | clear tool |
 | `PreToolUse` | `working` | tool = `tool_name` |
 | `PostToolUse`, `PostToolUseFailure` | `working` | clear tool |
@@ -88,7 +88,7 @@ Normative for ACTV-03. `tool` and `subagents` are details carried alongside the 
 | `PostCompact` | the state held before `PreCompact` | — |
 | `SubagentStart` / `SubagentStop` | unchanged | add / remove `agent_id` from the active set |
 | `SessionEnd` (`reason` ≠ `clear`, `resume`) | `exited` | clear tool, subagents = 0 |
-| `SessionEnd` (`reason` = `clear`, `resume`) | unchanged | — (a `SessionStart` follows) |
+| `SessionEnd` (`reason` = `clear`, `resume`) | `waiting` | clear tool, subagents = 0 (the CLI stays up at a fresh prompt) |
 | any other event or notification type | unchanged | — |
 
 ---
@@ -120,8 +120,8 @@ main, the event across IPC, a visible label on the row. Everything else refines 
 12. WHILE a session is `needs approval` or `needs input`, WHEN the user sends a keystroke to that session THEN the app SHALL set it to `working`.  <!-- complex -->
 13. WHEN a session starts or respawns THEN the app SHALL issue it a fresh token and hold no activity state until its first hook event arrives.  <!-- event-driven -->
 
-**Independent Test**: Start a Claude session — the row reads `waiting` once Claude is up.
-Ask for a shell command that needs approval: `working`, then `needs approval` the moment
+**Independent Test**: Start a Claude session — the row reads `running` until the first
+prompt, because `SessionStart` never arrives. Ask for a shell command that needs approval: `working`, then `needs approval` the moment
 the dialog opens; approve it and the row reads `working` for the whole silent run, then
 `waiting`. Type `/exit`: `shell`. Start an ad-hoc `pwsh` session: `running`, exactly as
 before.

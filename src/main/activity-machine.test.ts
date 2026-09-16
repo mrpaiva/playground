@@ -188,12 +188,22 @@ describe('applyHookEvent', () => {
   )
 
   it.each(['clear', 'resume'])(
-    'keeps the state when the session ends with %s, because a SessionStart follows',
+    'waits when the session ends with %s: the CLI stays up at a fresh prompt',
     (reason) => {
-      const before = working()
-      expect(applyHookEvent(before, event('SessionEnd', { reason }))).toBe(before)
+      // SessionStart never reaches an http hook (measured, 2.1.273), so nothing
+      // would correct the state afterwards; the new session is at its prompt.
+      const after = applyHookEvent(workingWithTool(), event('SessionEnd', { reason }))
+      expect(after?.view).toEqual({ state: 'waiting', subagents: 0 })
     }
   )
+
+  it('drops the subagents of a cleared session', () => {
+    const withSubagent = applyHookEvent(working(), event('SubagentStart', { agent_id: 'a1' }))
+
+    const after = applyHookEvent(withSubagent, event('SessionEnd', { reason: 'clear' }))
+
+    expect(after?.view).toEqual({ state: 'waiting', subagents: 0 })
+  })
 
   it('counts each subagent by its id', () => {
     const one = applyHookEvent(working(), event('SubagentStart', { agent_id: 'a1' }))

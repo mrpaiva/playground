@@ -27,7 +27,15 @@ export interface MachineState {
 const APPROVAL_NOTIFICATIONS = ['permission_prompt']
 const INPUT_NOTIFICATIONS = ['elicitation_dialog', 'elicitation_url_dialog']
 
-/** SessionEnd reasons that do NOT mean the agent is gone: a SessionStart follows. */
+/**
+ * SessionEnd reasons that do NOT mean the agent is gone: the CLI stays up and a
+ * new session begins at its prompt, so the agent is waiting on the user.
+ *
+ * It waits rather than merely keeping its old state because **`SessionStart`
+ * never reaches an http hook** — measured on Claude Code 2.1.273, both at launch
+ * and mid-session after `/clear`: the same event delivered to a `command` hook
+ * and not to an `http` one. So nothing else would ever correct the state.
+ */
 const CONTINUING_END_REASONS = ['clear', 'resume']
 
 function str(payload: Record<string, unknown>, key: string): string | undefined {
@@ -72,6 +80,10 @@ export function applyHookEvent(
 
   switch (event) {
     case 'SessionStart':
+      // Currently unreachable: Claude Code 2.1.273 does not deliver SessionStart
+      // to http hooks (see CONTINUING_END_REASONS). Kept because it is the
+      // correct mapping the day it does, and because a session that never
+      // reports simply shows `running`, which is the documented degrade path.
       // A compaction re-starts the session mid-turn; the turn is still running,
       // and PostCompact is what resumes it.
       return str(payload, 'source') === 'compact' ? state : to(null, 'waiting')
@@ -104,7 +116,7 @@ export function applyHookEvent(
       return applySubagent(state, str(payload, 'agent_id'), 'stop')
     case 'SessionEnd':
       return CONTINUING_END_REASONS.includes(str(payload, 'reason') ?? '')
-        ? state
+        ? to(null, 'waiting')
         : to(null, 'exited')
     default:
       return state
