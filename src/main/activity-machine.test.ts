@@ -46,6 +46,29 @@ describe('applyHookEvent', () => {
     expect(after?.view).toEqual({ state: 'waiting', subagents: 0 })
   })
 
+  it('drops the subagents a restarted session was running', () => {
+    const withSubagent = applyHookEvent(
+      workingWithTool(),
+      event('SubagentStart', { agent_id: 'a1' })
+    )
+    expect(withSubagent?.view.subagents).toBe(1)
+
+    const after = applyHookEvent(withSubagent, event('SessionStart', { source: 'clear' }))
+
+    expect(after?.view).toEqual({ state: 'waiting', subagents: 0 })
+  })
+
+  it('drops the subagents of a session whose agent exited', () => {
+    const withSubagent = applyHookEvent(
+      workingWithTool(),
+      event('SubagentStart', { agent_id: 'a1' })
+    )
+
+    const after = applyHookEvent(withSubagent, event('SessionEnd', { reason: 'prompt_input_exit' }))
+
+    expect(after?.view).toEqual({ state: 'exited', subagents: 0 })
+  })
+
   it('works on a submitted prompt', () => {
     expect(drive(event('UserPromptSubmit'))?.view).toEqual({ state: 'working', subagents: 0 })
   })

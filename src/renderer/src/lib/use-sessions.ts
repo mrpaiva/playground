@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { SessionView } from '../../../shared/config'
 import { api } from './api'
+import { applyActivity } from './session-activity'
 
 export interface UseSessionsOptions {
   /** Show a transient error toast (spawn / duplicate failures). */
@@ -48,13 +49,7 @@ export function useSessions({ onToast, onSwitchToAgents }: UseSessionsOptions): 
     const offStatus = api.on('session:status', refreshSessions)
     const offExit = api.on('session:exit', refreshSessions)
     const offActivity = api.on('session:activity', ({ id, activity }) => {
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === id
-            ? { ...session, ...(activity ? { activity } : { activity: undefined }) }
-            : session
-        )
-      )
+      setSessions((prev) => applyActivity(prev, id, activity))
     })
     return () => {
       offStatus()

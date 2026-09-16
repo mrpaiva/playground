@@ -16,10 +16,25 @@
  * agent and every session it spawns are removed on the way out.
  *
  * NOT automatable here (hand-verify):
- *   - the two-theme visual pass: the spinning loader, the pink approval dot and
- *     the amber shell dot at 344px in light and dark
+ *   - the two-theme visual pass at 344px in light and dark: the spinning green
+ *     loader (working/compacting), the blue waiting dot, the pink approval dot,
+ *     the red error dot and the amber shell dot (ACTV-14..18)
  *   - prefers-reduced-motion: the loader must freeze with the OS setting on
+ *     (ACTV-20)
+ *   - the detail pane's pill, which this script never opens: it must mirror the
+ *     row's state and add the tool, the subagent count and the error type
+ *     (ACTV-24..27 — the wording itself is unit-tested in
+ *     `src/renderer/src/lib/session-activity.test.ts`)
  *   - a screen reader announcing each row's state
+ *   - the error state end to end: forcing a real rate limit is not something a
+ *     script should do on purpose
+ *
+ * SPEC_DEVIATION: design.md's T11 says this script logs every live hook payload
+ * and flags fields the documented shape does not predict.
+ * Reason: a session's `--settings` file is fixed at spawn, so capturing payloads
+ * would need a second Claude session and a second prompt. Instead it prints the
+ * observed state sequence: a renamed event shows up as a transition that never
+ * arrives and a check that fails.
  *
  * Requires: a registered workspace holding at least one worktree, `claude` on
  * PATH, and a logged-in Claude Code.
@@ -289,7 +304,17 @@ check('the finished turn reports waiting (ACTV-03)', Boolean(done))
 // --- 6. Leaving the agent drops to the hosting shell (ACTV-18) ---
 await evaluate(ws, `(window.api.send('session:input', { id: '${id}', data: '/exit\\r' }), true)`)
 const exited = await waitForState(ws, id, 'exited', 30000)
-check('exiting the agent reports shell (ACTV-18)', Boolean(exited))
+check('exiting the agent reports the exited state (ACTV-03)', Boolean(exited))
+
+const shellLabel = await evaluate(
+  ws,
+  `(() => {
+     const rows = [...document.querySelectorAll('.rail-row')]
+     const el = rows.find((r) => (r.title || '').includes('Claude'))
+     return el?.querySelector('.rail-row-status')?.textContent ?? ''
+   })()`
+)
+check('the row reads shell once the agent has exited (ACTV-18)', shellLabel === 'shell', shellLabel)
 
 // --- Cleanup: sessions and the throwaway agent ---
 await evaluate(

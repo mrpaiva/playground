@@ -505,3 +505,26 @@ No dependency points at a later phase.
 | T11 | Smoke script | none | none | ✅ OK |
 
 No task defers its own tests to a later task.
+
+---
+
+## Fix round 1 (Verifier FAIL, 2026-09-15)
+
+### F1: Kill the two surviving mutants ✅ COMPLETE
+
+**What**: The Transition Table's `subagents = 0` effect on `SessionStart` and `SessionEnd` was only ever asserted from states already holding zero subagents, so mutating `to(null, …)` to `to(state, …)` at `activity-machine.ts:77` and `:108` left the suite green.
+**Done**: two cases in `activity-machine.test.ts` drive both events from a state holding one subagent. Re-injecting both mutants now fails exactly those two tests.
+**Tests**: unit · **Gate**: quick (55 in file)
+
+### F2: Give ACTV-07 and ACTV-24..27 real evidence ✅ COMPLETE
+
+**What**: The in-place activity patch and the detail-pane pill were correct by reading but proved by nothing — T10 delegated ACTV-07 to an IPC count the smoke never implemented, and the pane was not on any hand-verify list.
+**Done**: `src/renderer/src/lib/session-activity.ts` extracts `applyActivity`, `detailPillClass` and `detailPillText` out of `use-sessions.ts` and `AgentsView.tsx` (the `rail-groups` precedent: the decision is unit-tested, the component stays hand-verified) + 27 tests.
+**Tests**: unit · **Gate**: build (916 tests)
+
+### F3: Smoke accuracy ✅ COMPLETE
+
+**What**: the ACTV-18 check asserted the machine state, not the rendered `shell` label; the hand-verify list omitted the detail pane, the waiting/error indicators and reduced motion; the payload-logging deviation was disclosed only in tasks.md.
+**Done**: the check now reads `.rail-row-status` (the state assertion stays, renamed to ACTV-03), the hand-verify list names every uncovered surface, and the script carries its own `SPEC_DEVIATION` marker.
+**Tests**: none (smoke script) · **Gate**: build
+
