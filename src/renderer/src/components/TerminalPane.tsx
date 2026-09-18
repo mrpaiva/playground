@@ -186,6 +186,9 @@ export function TerminalPane({
       if (!result.ok) onToastRef.current(result.error ?? 'Couldn’t open the link')
     }
     const onLinkMouseDown = (event: MouseEvent): void => {
+      // A press released outside the pane never saw its mouseup here; any new
+      // press retires it, or the next plain click's release would be swallowed.
+      pendingLink = null
       // The chord first, so a plain click never hit-tests (and never probes).
       if (linkGestureOnMouseDown(event, true) !== 'intercept') return
       const cell = bufferPositionForMouseEvent(term, event)
