@@ -66,6 +66,35 @@ export class LinkOpener {
     }
   }
 
+  /**
+   * Directory → Explorer; file → the Windows default app, or the native "Open
+   * with" chooser when there is no association (LINK-09..11, LINK-13). The
+   * chooser is launched explicitly: on Windows 11 `shell.openPath` no-ops on an
+   * unassociated file (electron#36605). Executables take the same route (AD-021).
+   */
+  async openPath(cwd: string, pathText: string): Promise<LaunchResult> {
+    const absolutePath = this.resolveCandidate(cwd, pathText)
+    const kind = absolutePath ? await this.kindOf(absolutePath) : 'missing'
+    if (!absolutePath || kind === 'missing') {
+      return { ok: false, error: `${absolutePath ?? pathText} no longer exists` }
+    }
+    if (kind === 'dir') {
+      return this.launch('explorer.exe', [absolutePath], absolutePath)
+    }
+    const ext = path.extname(absolutePath)
+    if (ext && (await this.deps.hasAssociation(ext))) {
+      const failure = await this.deps.openPath(absolutePath)
+      if (failure === '') return { ok: true }
+    }
+    return this.launch('rundll32.exe', ['shell32.dll,OpenAs_RunDLL', absolutePath], absolutePath)
+  }
+
+  private async launch(command: string, args: string[], target: string): Promise<LaunchResult> {
+    return (await this.deps.spawnDetached(command, args))
+      ? { ok: true }
+      : { ok: false, error: `Couldn’t open ${target}` }
+  }
+
   private async kindOf(absolutePath: string): Promise<PathKind> {
     try {
       return (await this.deps.stat(absolutePath)).isDirectory() ? 'dir' : 'file'

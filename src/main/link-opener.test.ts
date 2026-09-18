@@ -4,6 +4,9 @@ import { LinkOpener, PROBE_BATCH_LIMIT, type LinkOpenerDeps } from './link-opene
 interface Fakes extends LinkOpenerDeps {
   statCalls: string[]
   openedUrls: string[]
+  openedPaths: string[]
+  spawns: Array<[string, string[]]>
+  associationQueries: string[]
 }
 
 /** Every OS call is a fake; `dirs` and `files` decide what `stat` reports. */
@@ -13,6 +16,10 @@ function makeFakes(
     dirs?: string[]
     statThrows?: boolean
     openExternalThrows?: boolean
+    /** What `shell.openPath` resolves with ('' = success). */
+    openPathResult?: string
+    spawnOk?: boolean
+    associated?: boolean
   } = {}
 ): Fakes {
   const files = new Set(opts.files ?? [])
@@ -20,6 +27,9 @@ function makeFakes(
   const fakes: Fakes = {
     statCalls: [],
     openedUrls: [],
+    openedPaths: [],
+    spawns: [],
+    associationQueries: [],
     homedir: () => 'C:\\Users\\dev',
     stat: async (path) => {
       fakes.statCalls.push(path)
@@ -28,13 +38,22 @@ function makeFakes(
       if (files.has(path)) return { isDirectory: () => false }
       throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
     },
-    openPath: async () => '',
+    openPath: async (path) => {
+      fakes.openedPaths.push(path)
+      return opts.openPathResult ?? ''
+    },
     openExternal: async (url) => {
       if (opts.openExternalThrows) throw new Error('boom')
       fakes.openedUrls.push(url)
     },
-    spawnDetached: async () => true,
-    hasAssociation: async () => true
+    spawnDetached: async (command, args) => {
+      fakes.spawns.push([command, args])
+      return opts.spawnOk ?? true
+    },
+    hasAssociation: async (ext) => {
+      fakes.associationQueries.push(ext)
+      return opts.associated ?? true
+    }
   }
   return fakes
 }
@@ -155,5 +174,83 @@ describe('LinkOpener.openUrl (LINK-04, LINK-05)', () => {
     )
     expect(result.ok).toBe(false)
     expect(result.error).toContain('https://example.com/')
+  })
+})
+
+describe('LinkOpener.openPath (LINK-09, LINK-10, LINK-11, LINK-13, LINK-31)', () => {
+  const FILE = 'E:\\Repos\\X\\wt-1\\src\\a.ts'
+  const DIR = 'E:\\Repos\\X\\wt-1\\src'
+  const CHOOSER: [string, string[]] = ['rundll32.exe', ['shell32.dll,OpenAs_RunDLL', FILE]]
+
+  it('opens an associated file with the Windows default app', async () => {
+    const fakes = makeFakes({ files: [FILE] })
+    const result = await new LinkOpener(fakes).openPath(CWD, 'src/a.ts')
+    expect(result).toEqual({ ok: true })
+    expect(fakes.associationQueries).toEqual(['.ts'])
+    expect(fakes.openedPaths).toEqual([FILE])
+    expect(fakes.spawns).toEqual([])
+  })
+
+  it('shows the Open with chooser when the extension has no association, without openPath', async () => {
+    const fakes = makeFakes({ files: [FILE], associated: false })
+    const result = await new LinkOpener(fakes).openPath(CWD, 'src/a.ts')
+    expect(result).toEqual({ ok: true })
+    expect(fakes.openedPaths).toEqual([])
+    expect(fakes.spawns).toEqual([CHOOSER])
+  })
+
+  it('falls back to the chooser when openPath reports a failure', async () => {
+    const fakes = makeFakes({ files: [FILE], openPathResult: 'Failed to open path' })
+    const result = await new LinkOpener(fakes).openPath(CWD, 'src/a.ts')
+    expect(result).toEqual({ ok: true })
+    expect(fakes.openedPaths).toEqual([FILE])
+    expect(fakes.spawns).toEqual([CHOOSER])
+  })
+
+  it('treats a file without an extension as unassociated', async () => {
+    const noExt = 'E:\\Repos\\X\\wt-1\\LICENSE'
+    const fakes = makeFakes({ files: [noExt] })
+    await new LinkOpener(fakes).openPath(CWD, 'LICENSE')
+    expect(fakes.associationQueries).toEqual([])
+    expect(fakes.spawns).toEqual([['rundll32.exe', ['shell32.dll,OpenAs_RunDLL', noExt]]])
+  })
+
+  it('opens a directory in File Explorer', async () => {
+    const fakes = makeFakes({ dirs: [DIR] })
+    const result = await new LinkOpener(fakes).openPath(CWD, 'src')
+    expect(result).toEqual({ ok: true })
+    expect(fakes.spawns).toEqual([['explorer.exe', [DIR]]])
+    expect(fakes.openedPaths).toEqual([])
+  })
+
+  it('reports a path that no longer exists', async () => {
+    const result = await new LinkOpener(makeFakes()).openPath(CWD, 'src/gone.ts')
+    expect(result).toEqual({ ok: false, error: `${CWD}\\src\\gone.ts no longer exists` })
+  })
+
+  it('reports an unresolvable path as no longer existing', async () => {
+    const result = await new LinkOpener(makeFakes()).openPath('', 'src/a.ts')
+    expect(result).toEqual({ ok: false, error: 'src/a.ts no longer exists' })
+  })
+
+  it('reports a chooser that could not launch, naming the path', async () => {
+    const fakes = makeFakes({ files: [FILE], associated: false, spawnOk: false })
+    const result = await new LinkOpener(fakes).openPath(CWD, 'src/a.ts')
+    expect(result).toEqual({ ok: false, error: `Couldn’t open ${FILE}` })
+  })
+
+  it('reports an Explorer that could not launch, naming the path', async () => {
+    const fakes = makeFakes({ dirs: [DIR], spawnOk: false })
+    const result = await new LinkOpener(fakes).openPath(CWD, 'src')
+    expect(result).toEqual({ ok: false, error: `Couldn’t open ${DIR}` })
+  })
+
+  it('opens an executable through the same association route as any file (LINK-31)', async () => {
+    const script = 'E:\\Repos\\X\\wt-1\\run.ps1'
+    const fakes = makeFakes({ files: [script] })
+    const result = await new LinkOpener(fakes).openPath(CWD, 'run.ps1')
+    expect(result).toEqual({ ok: true })
+    expect(fakes.associationQueries).toEqual(['.ps1'])
+    expect(fakes.openedPaths).toEqual([script])
   })
 })
