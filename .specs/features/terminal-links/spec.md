@@ -220,41 +220,41 @@ underlines on hover and Ctrl+click opens example.com.
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| LINK-01 | P1: URL | Design | In Design |
-| LINK-02 | P1: URL | Design | In Design |
-| LINK-03 | P1: URL | Design | In Design |
-| LINK-04 | P1: URL | Design | In Design |
-| LINK-05 | P1: URL | Design | In Design |
-| LINK-06 | P1: File | Design | In Design |
-| LINK-07 | P1: File | Design | In Design |
-| LINK-08 | P1: File | Design | In Design |
-| LINK-09 | P1: File | Design | In Design |
-| LINK-10 | P1: File | Design | In Design |
-| LINK-11 | P1: File | Design | In Design |
-| LINK-12 | P1: File | Design | In Design |
-| LINK-13 | P1: File | Design | In Design |
-| LINK-14 | P1: Mouse | Design | In Design |
-| LINK-15 | P1: Mouse | Design | In Design |
-| LINK-16 | P1: Mouse | Design | In Design |
-| LINK-17 | P1: Mouse | Design | In Design |
-| LINK-18 | P1: Mouse | Design | In Design |
-| LINK-19 | P1: Mouse | Design | In Design |
-| LINK-20 | P2: OSC 8 | Design | In Design |
+| LINK-01 | P1: URL | Tasks | In Tasks |
+| LINK-02 | P1: URL | Tasks | In Tasks |
+| LINK-03 | P1: URL | Tasks | In Tasks |
+| LINK-04 | P1: URL | Tasks | In Tasks |
+| LINK-05 | P1: URL | Tasks | In Tasks |
+| LINK-06 | P1: File | Tasks | In Tasks |
+| LINK-07 | P1: File | Tasks | In Tasks |
+| LINK-08 | P1: File | Tasks | In Tasks |
+| LINK-09 | P1: File | Tasks | In Tasks |
+| LINK-10 | P1: File | Tasks | In Tasks |
+| LINK-11 | P1: File | Tasks | In Tasks |
+| LINK-12 | P1: File | Tasks | In Tasks |
+| LINK-13 | P1: File | Tasks | In Tasks |
+| LINK-14 | P1: Mouse | Tasks | In Tasks |
+| LINK-15 | P1: Mouse | Tasks | In Tasks |
+| LINK-16 | P1: Mouse | Tasks | In Tasks |
+| LINK-17 | P1: Mouse | Tasks | In Tasks |
+| LINK-18 | P1: Mouse | Tasks | In Tasks |
+| LINK-19 | P1: Mouse | Tasks | In Tasks |
+| LINK-20 | P2: OSC 8 | Tasks | In Tasks |
 | LINK-21 | P2: OSC 8 | - | Withdrawn |
-| LINK-22 | P2: OSC 8 | Design | In Design |
-| LINK-23 | Edge | - | In Design |
-| LINK-24 | Edge | - | In Design |
-| LINK-25 | Edge | - | In Design |
-| LINK-26 | Edge | - | In Design |
-| LINK-27 | Edge | - | In Design |
-| LINK-28 | Edge | - | In Design |
-| LINK-29 | Edge | - | In Design |
-| LINK-30 | Edge | - | In Design |
-| LINK-31 | Edge | - | In Design |
+| LINK-22 | P2: OSC 8 | Tasks | In Tasks |
+| LINK-23 | Edge | - | In Tasks |
+| LINK-24 | Edge | - | In Tasks |
+| LINK-25 | Edge | - | In Tasks |
+| LINK-26 | Edge | - | In Tasks |
+| LINK-27 | Edge | - | In Tasks |
+| LINK-28 | Edge | - | In Tasks |
+| LINK-29 | Edge | - | In Tasks |
+| LINK-30 | Edge | - | In Tasks |
+| LINK-31 | Edge | - | In Tasks |
 
 **ID format:** `LINK-[NUMBER]`
 
-**Coverage:** 30 active (LINK-21 withdrawn at Design), 0 mapped to tasks, 30 unmapped ⚠️ (mapped at Tasks)
+**Coverage:** 30 active (LINK-21 withdrawn at Design), 30 mapped to tasks (`tasks.md` §Requirement → Task Coverage), 0 unmapped
 
 ---
 
