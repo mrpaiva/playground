@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/terminal-links/design.md`
-**Status**: Approved
+**Status**: Done — T1–T11 committed on `feature/terminal-links`; fix tasks F1 (`9afe7f6`, stale `pendingLink`) and F2 (OSC 8 smoke rows 18–21) closed after the first Verifier pass; see `validation.md`
 
 ---
 

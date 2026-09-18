@@ -2,7 +2,7 @@
 
 **Spec**: `.specs/features/terminal-links/spec.md`
 **Context**: `.specs/features/terminal-links/context.md`
-**Status**: Draft
+**Status**: Approved
 
 ---
 
@@ -126,7 +126,7 @@ graph TD
   - `createTerminalLinkProvider(deps): TerminalLinkProvider`
   - `deps = { buffer: BufferLike; getCols(): number; probe(paths: string[]): Promise<ProbeResult[]>; onActivate?: never }`
   - `provideLinks(y1: number, cb: (links: ILink[] | undefined) => void): void` — windowed line → candidates → URL links now; path candidates: cached → immediate, uncached → one batched `probe` per row; on settle, recompute the fingerprint and `cb(undefined)` if it changed (LINK-25); links carry `decorations: { underline: true, pointerCursor: true }` and a no-op `activate` (xterm never opens anything)
-  - `hitTest(x1: number, y1: number): LinkHit | null` — synchronous: windowed line → candidates → the one whose range contains the cell → `{ kind: 'url', url }` | `{ kind: 'path', pathText, state: 'file' | 'dir' }` | `{ kind: 'path', pathText, state: 'unprobed', settled: Promise<'file' | 'dir' | 'missing'> }` (kicks off the probe). A cached `'missing'` yields `null` (LINK-07)
+  - `hitTest(x1: number, y1: number): LinkHit | null` — synchronous: windowed line → candidates → the one whose range contains the cell → `{ kind: 'url', url }` | `{ kind: 'path', pathText, state: 'file' | 'dir' }` | `{ kind: 'path', pathText, state: 'unprobed', settled: Promise<KnownLinkHit | null> }` (kicks off the probe; `settled` carries the existing hit, which for a spaced path may be an alternative). A cached `'missing'` yields `null` (LINK-07)
   - `dispose()` — clears the cache (LINK-27)
 - **Cache**: `Map<string, ProbeResult>` keyed by `pathText` as written (main resolves against the
   session cwd, which is constant for the pane), per provider instance (LINK-26)
@@ -211,7 +211,9 @@ export type LinkCandidate =
 export type LinkHit =
   | { kind: 'url'; url: string }
   | { kind: 'path'; pathText: string; state: 'file' | 'dir' }
-  | { kind: 'path'; pathText: string; state: 'unprobed'; settled: Promise<PathKind> }
+  | { kind: 'path'; pathText: string; state: 'unprobed'; settled: Promise<KnownLinkHit | null> }
+// `settled` resolves to the hit that exists (for a spaced path that may be an alternative, not the
+// primary text), or null — so the pane can open it without re-deriving the text.
 ```
 
 ---
