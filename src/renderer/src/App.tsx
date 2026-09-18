@@ -330,6 +330,7 @@ function App(): JSX.Element {
             onDuplicate={duplicateSession}
             onOpenWorktree={openWorktreeForSession}
             onNew={() => openNewSession()}
+            onToast={setToast}
           />
         ) : ui.direction === 'workflows' ? (
           <WorkflowsView
