@@ -188,7 +188,7 @@ async function launchAt(
   return (await run()) ? { ok: true } : { ok: false, error: `Couldn't launch ${label}` }
 }
 
-function spawnDetached(command: string, args: string[]): Promise<boolean> {
+export function spawnDetached(command: string, args: string[]): Promise<boolean> {
   return new Promise((resolve) => {
     const child = spawn(command, args, { detached: true, stdio: 'ignore' })
     child.once('error', () => resolve(false))
