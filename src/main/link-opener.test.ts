@@ -3,14 +3,23 @@ import { LinkOpener, PROBE_BATCH_LIMIT, type LinkOpenerDeps } from './link-opene
 
 interface Fakes extends LinkOpenerDeps {
   statCalls: string[]
+  openedUrls: string[]
 }
 
 /** Every OS call is a fake; `dirs` and `files` decide what `stat` reports. */
-function makeFakes(opts: { files?: string[]; dirs?: string[]; statThrows?: boolean } = {}): Fakes {
+function makeFakes(
+  opts: {
+    files?: string[]
+    dirs?: string[]
+    statThrows?: boolean
+    openExternalThrows?: boolean
+  } = {}
+): Fakes {
   const files = new Set(opts.files ?? [])
   const dirs = new Set(opts.dirs ?? [])
   const fakes: Fakes = {
     statCalls: [],
+    openedUrls: [],
     homedir: () => 'C:\\Users\\dev',
     stat: async (path) => {
       fakes.statCalls.push(path)
@@ -20,7 +29,10 @@ function makeFakes(opts: { files?: string[]; dirs?: string[]; statThrows?: boole
       throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
     },
     openPath: async () => '',
-    openExternal: async () => {},
+    openExternal: async (url) => {
+      if (opts.openExternalThrows) throw new Error('boom')
+      fakes.openedUrls.push(url)
+    },
     spawnDetached: async () => true,
     hasAssociation: async () => true
   }
@@ -99,5 +111,49 @@ describe('LinkOpener.probe (LINK-12, LINK-24, LINK-29)', () => {
     expect(results.slice(0, 32).every((r) => r.kind === 'file')).toBe(true)
     expect(results.slice(32).map((r) => r.kind)).toEqual(['missing', 'missing', 'missing'])
     expect(fakes.statCalls).toHaveLength(32)
+  })
+})
+
+describe('LinkOpener.openUrl (LINK-04, LINK-05)', () => {
+  it('opens an https url in the default browser', async () => {
+    const fakes = makeFakes()
+    const result = await new LinkOpener(fakes).openUrl(
+      'https://dev.azure.com/x/y/_workitems/edit/123'
+    )
+    expect(result).toEqual({ ok: true })
+    expect(fakes.openedUrls).toEqual(['https://dev.azure.com/x/y/_workitems/edit/123'])
+  })
+
+  it('opens an http url too', async () => {
+    const fakes = makeFakes()
+    await new LinkOpener(fakes).openUrl('http://localhost:3000/')
+    expect(fakes.openedUrls).toEqual(['http://localhost:3000/'])
+  })
+
+  it.each(['mailto:a@b.c', 'vscode://file/E:/x', 'file:///E:/x/y.cs', 'javascript:alert(1)'])(
+    'refuses %s without calling the shell',
+    async (url) => {
+      const fakes = makeFakes()
+      const result = await new LinkOpener(fakes).openUrl(url)
+      expect(result.ok).toBe(false)
+      expect(result.error).toContain(url)
+      expect(fakes.openedUrls).toEqual([])
+    }
+  )
+
+  it('refuses text that is not a url without calling the shell', async () => {
+    const fakes = makeFakes()
+    const result = await new LinkOpener(fakes).openUrl('not a url')
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('not a url')
+    expect(fakes.openedUrls).toEqual([])
+  })
+
+  it('reports a shell failure instead of throwing', async () => {
+    const result = await new LinkOpener(makeFakes({ openExternalThrows: true })).openUrl(
+      'https://example.com/'
+    )
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('https://example.com/')
   })
 })

@@ -1,5 +1,6 @@
 import { win32 as path } from 'node:path'
 import type { PathKind, ProbeResult } from '../shared/links'
+import type { LaunchResult } from '../shared/shortcuts'
 
 /** Every OS touch the opener makes, injected so the unit tests run on fakes (no spawn, no fs). */
 export interface LinkOpenerDeps {
@@ -41,6 +42,28 @@ export class LinkOpener {
         return { pathText, absolutePath, kind }
       })
     )
+  }
+
+  /** Only http and https reach the browser; every other scheme is refused here, not in the renderer (LINK-04). */
+  async openUrl(url: string): Promise<LaunchResult> {
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      return { ok: false, error: `Only http and https links open here — ${url}` }
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return { ok: false, error: `Only http and https links open here — ${url}` }
+    }
+    try {
+      await this.deps.openExternal(parsed.toString())
+      return { ok: true }
+    } catch (err) {
+      return {
+        ok: false,
+        error: `Couldn’t open ${url}: ${err instanceof Error ? err.message : String(err)}`
+      }
+    }
   }
 
   private async kindOf(absolutePath: string): Promise<PathKind> {
