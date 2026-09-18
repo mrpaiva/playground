@@ -27,7 +27,7 @@ xterm.js with no link provider at all: no addon, no `linkHandler`, no `registerL
 | Hard-wrapped links (a URL or path the TUI re-drew across rows without xterm's wrap flag) | Orca carries ~700 lines of heuristics for this; soft-wrapped lines (xterm's `isWrapped`) are covered |
 | Live cwd via OSC 7 | Agents do not `cd`; PowerShell does not emit OSC 7 by default. Relative paths resolve against the session's initial cwd |
 | Schemes other than `http`/`https` (`mailto:`, `vscode://`, `ms-teams:`…) | `shell.openExternal` with an arbitrary scheme launches applications; the main process accepts only `http`/`https` |
-| `file://` in plain text | Only an OSC 8 hyperlink with a `file://` target is routed as a file |
+| `file://` URIs, in plain text or as an OSC 8 target | Plain-text `file://` was never in scope; the OSC 8 form was withdrawn at Design (LINK-21) because xterm 6.0.0's scheme gate is all-or-nothing |
 | UNC paths (`\\server\share\…`) | Not requested; existence probing over the network on hover is a latency hazard |
 | Remote / WSL / SSH path mapping | Playground is local-only (AD-005) |
 | Upgrading `@xterm/xterm` past 6.0.0 | Same rationale as every previous terminal feature; `mouseEventsRequireAlt` (6.1) is replaced by a capture-phase `stopPropagation` the pane already uses for right-click |
@@ -47,11 +47,14 @@ xterm.js with no link provider at all: no addon, no `linkHandler`, no `registerL
 | Executable files are opened like any other file | No block list | Owner decision with the risk stated: a Ctrl+click on a `.ps1`/`.cmd`/`.exe` the agent printed runs it through the OS association. Orca does not block either | y |
 | `:line:col` is parsed but not delivered | Strip before probing/opening; do not pass to the app | Default-app launch has no argument channel for it. Recorded in Out of Scope | y |
 | Only `http`/`https` open in the browser, validated in main | Main rejects any other scheme before `shell.openExternal` | The renderer is not trusted with the scheme decision (same split as Orca's `shell:openUrl`) | y |
-| OSC 8 `file://` targets route as files | Resolve `file:///E:/x/y.cs` to `E:\x\y.cs` and follow the file rules | The one non-http OSC 8 target with a safe meaning | y |
+| ~~OSC 8 `file://` targets route as files~~ **Withdrawn at Design** | `linkHandler.allowNonHttpProtocols` stays `false`; xterm provides only `http(s)` OSC 8 links | Verified in the 6.0.0 bundle: the option is all-or-nothing, so `file://` would drag every scheme in (contradicts LINK-22). No agent was observed emitting OSC 8 at all | y |
+| Plain click must not open an OSC 8 link | `linkHandler.activate` is a no-op; every activation goes through the Ctrl gesture | Today xterm's default OSC 8 handler opens `http` links on a plain click (`window.open` → `setWindowOpenHandler` → `shell.openExternal`), so LINK-16 needs the handler replaced, not just added | y |
+| The "Open with" chooser is launched explicitly | Main checks the association (`cmd /c assoc .ext`) and runs `rundll32 shell32.dll,OpenAs_RunDLL <path>` when there is none | On Windows 11 `shell.openPath` no-ops on an unassociated file and shows nothing ([electron#36605](https://github.com/electron/electron/issues/36605), closed not planned) | y |
+| A path candidate not yet probed at Ctrl+`mousedown` is intercepted | Probe, then open on `mouseup` if it exists; a miss swallows that one click and is cached | First-click reliability (LINK-19) is worth one lost Ctrl+click on prose that looked like a path (owner decision at Design) | y |
 | No tooltip | Underline on hover only | Owner declined; the bottom-left position answer is void without it (kept in context.md) | y |
 | Ctrl+click outside a link is untouched | Only a Ctrl+`mousedown` **over a link** is intercepted | The agent owns every other gesture (TCU-27 precedent) | y |
 | Ctrl+drag does not open | Activation requires `mouseup` on the same link with < 4 px of movement since `mousedown` | Orca's `DRAG_THRESHOLD_PX`; avoids opening on a sloppy selection attempt | y |
-| First-click reliability | The pane primes xterm's linkifier on Ctrl+`mousedown` so output painted under a still pointer resolves on the first click | xterm resolves links only on `mousemove`; Orca's `terminal-linkifier-click-priming.ts` | y |
+| First-click reliability | The pane runs its own synchronous hit test at Ctrl+`mousedown` (cell from `.xterm-screen` geometry + the same detection the provider uses), independent of xterm's hover state | xterm resolves links only on `mousemove`; Orca primes the linkifier through private API (`terminal-linkifier-click-priming.ts`), which 6.0.0 stays clear of (Design approach B) | y |
 | Failures surface a toast | `onToast` reaches `TerminalPane`; message names the target | Same channel as the worktree launchers (`WorktreeDetail.launch`) | y |
 | Existence probe failure = not a link | An IPC error or a rejected probe yields "does not exist" | Best-effort detection; never block or crash the pane | y |
 | Stale probe results are discarded | A probe result is applied only if the row's text is unchanged since the probe started | TUIs redraw rows constantly; Orca fingerprints the logical line for this reason | y |
@@ -106,8 +109,9 @@ that file.
 1. WHEN a row contains text shaped like a path with at least one separator, optionally followed by
    `:line` or `:line:col`, AND the path resolved against the session cwd exists on disk THEN the
    app SHALL underline the path text (suffix included) on hover. `LINK-06`
-2. WHEN such a candidate does not exist on disk THEN the app SHALL NOT underline it and Ctrl+click
-   SHALL reach xterm as an ordinary click. `LINK-07`
+2. WHEN such a candidate does not exist on disk THEN the app SHALL NOT underline it, and once its
+   non-existence is known (probed) a Ctrl+click on it SHALL reach xterm as an ordinary click.
+   `LINK-07`
 3. WHEN a candidate contains spaces (`E:\Meus Docs\a.txt`) THEN the app SHALL probe the candidates
    from the path start to each extension-terminated token and SHALL link the longest one that
    exists. `LINK-08`
@@ -153,7 +157,8 @@ regression TCU-27 guarded against.
    pending gesture. `LINK-18`
 6. WHEN the pointer has not moved since new output was painted under it and the user
    Ctrl+clicks THEN the app SHALL still resolve and open the link under the pointer (first-click
-   reliability). `LINK-19`
+   reliability). A path candidate not yet probed at that instant SHALL be intercepted and probed;
+   if it turns out not to exist, that one click is swallowed and the result cached. `LINK-19`
 
 **Independent Test**: In Claude Code with mouse tracking on, Ctrl+click a URL: the browser
 opens and Claude's input shows no stray characters or cursor jump. Ctrl+click empty space:
@@ -175,10 +180,12 @@ agent was observed emitting OSC 8 on Windows during this analysis.
 1. WHEN the buffer contains an OSC 8 hyperlink with an `http`/`https` target THEN Ctrl+click on
    its text SHALL open the target per LINK-02/04/05, regardless of what the visible text is.
    `LINK-20`
-2. WHEN the OSC 8 target is a `file://` URI THEN the app SHALL convert it to a local path and
-   apply the file rules (LINK-09..13). `LINK-21`
-3. WHEN the OSC 8 target has any other scheme THEN Ctrl+click SHALL do nothing and the text SHALL
-   NOT be underlined. `LINK-22`
+2. ~~WHEN the OSC 8 target is a `file://` URI THEN the app SHALL convert it to a local path and
+   apply the file rules.~~ **`LINK-21` withdrawn at Design** — xterm 6.0.0 either filters OSC 8
+   to `http(s)` (its default) or admits every scheme; admitting `file://` would underline
+   `mailto:`/`vscode://` too, contradicting LINK-22. Deferred (context.md)
+3. WHEN the OSC 8 target has any scheme other than `http`/`https` THEN the app SHALL NOT provide
+   it as a link: no underline, and Ctrl+click passes through as an ordinary click. `LINK-22`
 
 **Independent Test**: `printf '\e]8;;https://example.com\e\\click me\e]8;;\e\\'` → "click me"
 underlines on hover and Ctrl+click opens example.com.
@@ -213,41 +220,41 @@ underlines on hover and Ctrl+click opens example.com.
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| LINK-01 | P1: URL | Design | Pending |
-| LINK-02 | P1: URL | Design | Pending |
-| LINK-03 | P1: URL | Design | Pending |
-| LINK-04 | P1: URL | Design | Pending |
-| LINK-05 | P1: URL | Design | Pending |
-| LINK-06 | P1: File | Design | Pending |
-| LINK-07 | P1: File | Design | Pending |
-| LINK-08 | P1: File | Design | Pending |
-| LINK-09 | P1: File | Design | Pending |
-| LINK-10 | P1: File | Design | Pending |
-| LINK-11 | P1: File | Design | Pending |
-| LINK-12 | P1: File | Design | Pending |
-| LINK-13 | P1: File | Design | Pending |
-| LINK-14 | P1: Mouse | Design | Pending |
-| LINK-15 | P1: Mouse | Design | Pending |
-| LINK-16 | P1: Mouse | Design | Pending |
-| LINK-17 | P1: Mouse | Design | Pending |
-| LINK-18 | P1: Mouse | Design | Pending |
-| LINK-19 | P1: Mouse | Design | Pending |
-| LINK-20 | P2: OSC 8 | Design | Pending |
-| LINK-21 | P2: OSC 8 | Design | Pending |
-| LINK-22 | P2: OSC 8 | Design | Pending |
-| LINK-23 | Edge | - | Pending |
-| LINK-24 | Edge | - | Pending |
-| LINK-25 | Edge | - | Pending |
-| LINK-26 | Edge | - | Pending |
-| LINK-27 | Edge | - | Pending |
-| LINK-28 | Edge | - | Pending |
-| LINK-29 | Edge | - | Pending |
-| LINK-30 | Edge | - | Pending |
-| LINK-31 | Edge | - | Pending |
+| LINK-01 | P1: URL | Design | In Design |
+| LINK-02 | P1: URL | Design | In Design |
+| LINK-03 | P1: URL | Design | In Design |
+| LINK-04 | P1: URL | Design | In Design |
+| LINK-05 | P1: URL | Design | In Design |
+| LINK-06 | P1: File | Design | In Design |
+| LINK-07 | P1: File | Design | In Design |
+| LINK-08 | P1: File | Design | In Design |
+| LINK-09 | P1: File | Design | In Design |
+| LINK-10 | P1: File | Design | In Design |
+| LINK-11 | P1: File | Design | In Design |
+| LINK-12 | P1: File | Design | In Design |
+| LINK-13 | P1: File | Design | In Design |
+| LINK-14 | P1: Mouse | Design | In Design |
+| LINK-15 | P1: Mouse | Design | In Design |
+| LINK-16 | P1: Mouse | Design | In Design |
+| LINK-17 | P1: Mouse | Design | In Design |
+| LINK-18 | P1: Mouse | Design | In Design |
+| LINK-19 | P1: Mouse | Design | In Design |
+| LINK-20 | P2: OSC 8 | Design | In Design |
+| LINK-21 | P2: OSC 8 | - | Withdrawn |
+| LINK-22 | P2: OSC 8 | Design | In Design |
+| LINK-23 | Edge | - | In Design |
+| LINK-24 | Edge | - | In Design |
+| LINK-25 | Edge | - | In Design |
+| LINK-26 | Edge | - | In Design |
+| LINK-27 | Edge | - | In Design |
+| LINK-28 | Edge | - | In Design |
+| LINK-29 | Edge | - | In Design |
+| LINK-30 | Edge | - | In Design |
+| LINK-31 | Edge | - | In Design |
 
 **ID format:** `LINK-[NUMBER]`
 
-**Coverage:** 31 total, 0 mapped to tasks, 31 unmapped ⚠️ (mapped at Tasks)
+**Coverage:** 30 active (LINK-21 withdrawn at Design), 0 mapped to tasks, 30 unmapped ⚠️ (mapped at Tasks)
 
 ---
 
