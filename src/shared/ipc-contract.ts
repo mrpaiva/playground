@@ -6,6 +6,7 @@ import type {
   SessionView,
   WorkspaceTemplates
 } from './config'
+import type { ProbeResult } from './links'
 import type { LaunchResult, ShortcutTool } from './shortcuts'
 import type { ParentOfResult, PinTaskResult, TasksSnapshot } from './tasks'
 import type { WorkspaceEntry, WorkspaceNode } from './tree'
@@ -38,6 +39,12 @@ export interface IpcContract {
   'tree:get': { req: void; res: WorkspaceNode[] }
   /** Opens the external tool rooted at the path; failures are returned, never thrown. */
   'shortcuts:launch': { req: { tool: ShortcutTool; path: string }; res: LaunchResult }
+  /** Resolves each candidate against cwd and stats it; never throws, unresolvable → 'missing' (LINK-29). */
+  'links:probe': { req: { cwd: string; paths: string[] }; res: ProbeResult[] }
+  /** Opens an http/https URL in the default browser; any other scheme is refused (LINK-04). */
+  'links:openUrl': { req: { url: string }; res: LaunchResult }
+  /** Opens a file with its Windows default app (or the "Open with" chooser) and a directory in Explorer. */
+  'links:openPath': { req: { cwd: string; pathText: string }; res: LaunchResult }
   /** git worktree add at the flat-sibling path; failures are returned, never thrown. */
   'worktrees:create': {
     req: {
