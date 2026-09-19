@@ -28,6 +28,10 @@ export type IconName =
   | 'x-circle'
   | 'stop-square'
   | 'loader'
+  | 'git-sync'
+  | 'git-pull'
+  | 'git-push'
+  | 'git-fetch'
 
 const PATHS: Record<IconName, JSX.Element> = {
   'git-branch': (
@@ -185,7 +189,39 @@ const PATHS: Record<IconName, JSX.Element> = {
   ),
   // Open arc: it reads as motion when the row spins it, and as a ring when the
   // OS asks for reduced motion.
-  loader: <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  loader: <path d="M21 12a9 9 0 1 1-6.219-8.56" />,
+  // The refresh arrows turned a quarter, so Sync reads apart from Refresh and
+  // Respawn while keeping the round-trip shape.
+  'git-sync': (
+    <g transform="rotate(90 12 12)">
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M8 16H3v5" />
+    </g>
+  ),
+  'git-pull': (
+    <>
+      <path d="M12 3v14" />
+      <path d="m6 11 6 6 6-6" />
+      <path d="M5 21h14" />
+    </>
+  ),
+  'git-push': (
+    <>
+      <path d="m18 9-6-6-6 6" />
+      <path d="M12 3v14" />
+      <path d="M5 21h14" />
+    </>
+  ),
+  // Pull's arrow with a dashed shaft: it only looks, it does not land.
+  'git-fetch': (
+    <>
+      <path d="M12 3v14" strokeDasharray="2 3" />
+      <path d="m6 11 6 6 6-6" />
+      <path d="M5 21h14" />
+    </>
+  )
 }
 
 interface IconProps {

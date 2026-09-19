@@ -32,6 +32,9 @@
 }
 
 .sync-pop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 5px 11px;
   border: 1px solid var(--border);
   border-radius: 7px;

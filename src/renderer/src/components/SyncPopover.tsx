@@ -4,7 +4,7 @@ import type { CommitLine, CommitLists, GitOp, SyncState } from '../../../shared/
 import { relativeTime } from '../lib/relative-time'
 import { fetchAgeLabel, syncSectionFor } from '../lib/status-bar'
 import type { OpOutcome } from '../lib/use-git-sync'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 import './SyncPopover.css'
 
 interface SyncPopoverProps {
@@ -17,6 +17,15 @@ interface SyncPopoverProps {
   outcome: OpOutcome | null
   onRun: (op: GitOp, remote?: string) => void
   onClose: () => void
+}
+
+/** The Visual Studio Git Changes glyphs; Publish pushes, so it shares Push's. */
+const OP_ICON: Record<GitOp, IconName> = {
+  sync: 'git-sync',
+  pull: 'git-pull',
+  push: 'git-push',
+  fetch: 'git-fetch',
+  publish: 'git-push'
 }
 
 const RUNNING_LABEL: Record<GitOp, string> = {
@@ -94,6 +103,7 @@ export function SyncPopover({
       disabled={busy || disabled}
       onClick={() => onRun(op, arg)}
     >
+      <Icon name={OP_ICON[op]} size={13} />
       {label}
     </button>
   )
