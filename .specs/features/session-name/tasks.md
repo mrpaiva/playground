@@ -332,7 +332,9 @@ T7 → T8
 
 ---
 
-### T8: Smoke script and dev hand-check
+### T8: Smoke script and dev hand-check ✅ COMPLETE
+
+**Status**: Done — `scripts/smoke-session-name.mjs`, 14 checks. **Dev hand-check 2026-09-19, Claude Code 2.1.278: 14/14 PASS** (`playground-a5`/`playground-3f` within one interval of the first prompt; `/rename alpha` in place; stop → agent name; config untouched). Two environment findings on the way, neither a product defect: (1) a **second dev instance** of the app was running on the same `userData` — each launch rewrites `agent-hooks/claude-settings.json` with its own hook port, so the first run's sessions reported to the other instance and got HTTP 401 (no hook event → no `session_id` → no name); recorded in the script header and TESTING.md. (2) The first draft asserted RAIL-13 ordinals on an untagged worktree, but orphan groups are keyed per session (`rail-groups.ts` `session:<id>`), so nothing collides there — the check now asserts the bare agent name; ordinals inside a task group stay unit-tested.
 
 **What**: An owner-runnable CDP smoke that proves the feature end to end on a live app, plus one dev-run pass of it before hand-off.
 **Where**: `scripts/smoke-session-name.mjs` (new)
