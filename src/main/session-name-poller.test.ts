@@ -121,6 +121,14 @@ afterEach(() => {
 })
 
 describe('SessionNamePoller — when it calls the listing', () => {
+  it('fixes the cadence the spec names: 1 s debounce, 30 s interval, 20 s timeout (SNAME-09, SNAME-10, SNAME-12)', () => {
+    // Literal on purpose: every other test drives the boundaries through these
+    // constants, so only a literal can catch a changed value (L-009).
+    expect(NAME_DEBOUNCE_MS).toBe(1000)
+    expect(NAME_INTERVAL_MS).toBe(30000)
+    expect(NAME_TIMEOUT_MS).toBe(20000)
+  })
+
   it('calls the listing once, debounced, after the first watch (SNAME-09)', () => {
     const { poller, calls } = makePoller()
 
