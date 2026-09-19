@@ -477,10 +477,10 @@ T17 → T18
 
 **Done when**:
 
-- [ ] The bar renders in all five directions, including with nothing selected
-- [ ] `App.tsx` gains a mount and a prop bundle — no logic (AD-004)
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **797** (unchanged — renderer wiring)
+- [x] The bar renders in all five directions, including with nothing selected
+- [x] `App.tsx` gains a mount and a prop bundle — no logic (AD-004)
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **797** (unchanged — renderer wiring)
 
 **Tests**: none
 **Gate**: full
