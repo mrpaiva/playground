@@ -1,7 +1,58 @@
 import { stat } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import type { SyncState } from '../shared/git'
+import type { CommitLine, CommitLists, SyncState } from '../shared/git'
 import { git, gitFailureLine } from './git'
+
+/** Unit separator between `%h`, `%s` and `%ct` — a byte no commit subject carries. */
+const FIELD = '\x1f'
+const LOG_FORMAT = '--format=%h%x1f%s%x1f%ct'
+
+/**
+ * One `CommitLine` per `%h%x1f%s%x1f%ct` line (STBR-16). The subject is
+ * everything between the first and the last separator, so it survives any
+ * character it contains; `%ct` is epoch seconds.
+ */
+export function parseCommitLines(stdout: string): CommitLine[] {
+  return stdout
+    .split(/\r?\n/)
+    .filter((line) => line !== '')
+    .map((line) => {
+      const first = line.indexOf(FIELD)
+      const last = line.lastIndexOf(FIELD)
+      return {
+        sha: line.slice(0, first),
+        subject: line.slice(first + 1, last),
+        at: Number(line.slice(last + 1)) * 1000
+      }
+    })
+}
+
+/**
+ * The commits a pull would bring in (`HEAD..@{upstream}`) and a push would
+ * send (`@{upstream}..HEAD`), `limit` each, with exact counts of the rest from
+ * `rev-list --count` (STBR-15/16). A branch without an upstream — or any git
+ * failure, which `readSyncState` already reports — yields two empty lists.
+ */
+export async function readCommits(worktreePath: string, limit = 20): Promise<CommitLists> {
+  const side = async (range: string): Promise<{ lines: CommitLine[]; more: number }> => {
+    const log = await git(worktreePath, ['log', LOG_FORMAT, '-n', String(limit), range])
+    const count = await git(worktreePath, ['rev-list', '--count', range])
+    const lines = parseCommitLines(log.stdout)
+    return { lines, more: Number(count.stdout.trim()) - lines.length }
+  }
+  try {
+    const incoming = await side('HEAD..@{upstream}')
+    const outgoing = await side('@{upstream}..HEAD')
+    return {
+      incoming: incoming.lines,
+      outgoing: outgoing.lines,
+      moreIncoming: incoming.more,
+      moreOutgoing: outgoing.more
+    }
+  } catch {
+    return { incoming: [], outgoing: [], moreIncoming: 0, moreOutgoing: 0 }
+  }
+}
 
 /**
  * `rev-list --count --left-right @{upstream}...HEAD` prints `behind<TAB>ahead`:

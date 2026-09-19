@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { parseAheadBehind, readSyncState } from './git-sync'
+import { parseAheadBehind, parseCommitLines, readCommits, readSyncState } from './git-sync'
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', ['-c', 'user.name=Dev', '-c', 'user.email=dev@example.com', ...args], {
@@ -13,6 +13,28 @@ const git = (cwd: string, ...args: string[]): string =>
 
 const commit = (cwd: string, message: string): void => {
   git(cwd, 'commit', '--allow-empty', '-q', '-m', message)
+}
+
+/** A primary checkout on `main` tracking `origin/main` in a local bare remote; never fetched. */
+function seedRepo(): { root: string; remote: string; repo: string } {
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'wtm-sync-')))
+  const remote = join(root, 'remote.git')
+  const repo = join(root, 'repo')
+  git(root, 'init', '-q', '--bare', '-b', 'main', remote)
+  mkdirSync(repo)
+  git(repo, 'init', '-q', '-b', 'main')
+  commit(repo, 'first')
+  git(repo, 'remote', 'add', 'origin', remote)
+  git(repo, 'push', '-q', '-u', 'origin', 'main')
+  return { root, remote, repo }
+}
+
+/** Lands `count` commits on the remote's main from a second clone under `root`. */
+function pushFromElsewhere(root: string, remote: string, count: number): void {
+  const other = join(root, 'other')
+  git(root, 'clone', '-q', remote, other)
+  for (let i = 0; i < count; i++) commit(other, `remote ${i}`)
+  git(other, 'push', '-q', 'origin', 'main')
 }
 
 describe('parseAheadBehind', () => {
@@ -26,33 +48,16 @@ describe('readSyncState', () => {
   let remote: string
   let repo: string
 
-  /** A primary checkout on `main` tracking `origin/main` in a local bare remote; never fetched. */
   beforeEach(() => {
-    root = realpathSync.native(mkdtempSync(join(tmpdir(), 'wtm-sync-')))
-    remote = join(root, 'remote.git')
-    repo = join(root, 'repo')
-    git(root, 'init', '-q', '--bare', '-b', 'main', remote)
-    mkdirSync(repo)
-    git(repo, 'init', '-q', '-b', 'main')
-    commit(repo, 'first')
-    git(repo, 'remote', 'add', 'origin', remote)
-    git(repo, 'push', '-q', '-u', 'origin', 'main')
+    ;({ root, remote, repo } = seedRepo())
   })
 
   afterEach(() => {
     rmSync(root, { recursive: true, force: true })
   })
 
-  /** Lands `count` commits on the remote's main from a second clone. */
-  const pushFromElsewhere = (count: number): void => {
-    const other = join(root, 'other')
-    git(root, 'clone', '-q', remote, other)
-    for (let i = 0; i < count; i++) commit(other, `remote ${i}`)
-    git(other, 'push', '-q', 'origin', 'main')
-  }
-
   it('counts commits to pull and to push against the upstream from local refs', async () => {
-    pushFromElsewhere(2)
+    pushFromElsewhere(root, remote, 2)
     git(repo, 'fetch', '-q', 'origin')
     commit(repo, 'local')
 
@@ -134,5 +139,83 @@ describe('readSyncState', () => {
 
     expect(state.error).toMatch(/^fatal: /)
     expect(state).toMatchObject({ branch: 'main', upstream: null, behind: 0, ahead: 0 })
+  })
+})
+
+describe('parseCommitLines', () => {
+  it('returns no commits for an empty stdout', () => {
+    expect(parseCommitLines('')).toEqual([])
+  })
+
+  it("keeps a subject containing the separator's neighbours intact", () => {
+    const subject = 'fix:\x1e split\ton  spaces '
+    expect(parseCommitLines(`abc1234\x1f${subject}\x1f1700000000\n`)).toEqual([
+      { sha: 'abc1234', subject, at: 1700000000000 }
+    ])
+  })
+
+  it('reads a CRLF-terminated stream without carrying the CR into any field', () => {
+    expect(
+      parseCommitLines('abc1234\x1fone\x1f1700000000\r\ndef5678\x1ftwo\x1f1700000060\r\n')
+    ).toEqual([
+      { sha: 'abc1234', subject: 'one', at: 1700000000000 },
+      { sha: 'def5678', subject: 'two', at: 1700000060000 }
+    ])
+  })
+})
+
+describe('readCommits', () => {
+  let root: string
+  let remote: string
+  let repo: string
+
+  beforeEach(() => {
+    ;({ root, remote, repo } = seedRepo())
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  /** Every commit in `range`, newest first, as git itself reports it. */
+  const expected = (range: string): { sha: string; subject: string; at: number }[] =>
+    parseCommitLines(git(repo, 'log', '--format=%h%x1f%s%x1f%ct', range))
+
+  it('lists incoming as HEAD..@{upstream} and outgoing as @{upstream}..HEAD', async () => {
+    pushFromElsewhere(root, remote, 2)
+    git(repo, 'fetch', '-q', 'origin')
+    commit(repo, 'local work')
+
+    const lists = await readCommits(repo)
+
+    expect(lists.incoming.map((c) => c.subject)).toEqual(['remote 1', 'remote 0'])
+    expect(lists.outgoing.map((c) => c.subject)).toEqual(['local work'])
+    expect(lists.incoming).toEqual(expected('HEAD..origin/main'))
+    expect(lists.outgoing).toEqual(expected('origin/main..HEAD'))
+    expect(lists).toMatchObject({ moreIncoming: 0, moreOutgoing: 0 })
+  })
+
+  it('caps each list at 20 and counts the rest exactly', async () => {
+    pushFromElsewhere(root, remote, 21)
+    git(repo, 'fetch', '-q', 'origin')
+    for (let i = 0; i < 22; i++) commit(repo, `local ${i}`)
+
+    const lists = await readCommits(repo)
+
+    expect(lists.incoming).toHaveLength(20)
+    expect(lists.outgoing).toHaveLength(20)
+    expect(lists).toMatchObject({ moreIncoming: 1, moreOutgoing: 2 })
+  })
+
+  it('returns two empty lists and zero counts for a branch without an upstream', async () => {
+    git(repo, 'switch', '-q', '-c', 'user/dev/4821-fix-login')
+    commit(repo, 'unpublished')
+
+    expect(await readCommits(repo)).toEqual({
+      incoming: [],
+      outgoing: [],
+      moreIncoming: 0,
+      moreOutgoing: 0
+    })
   })
 })

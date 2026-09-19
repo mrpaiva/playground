@@ -174,13 +174,13 @@ T17 → T18
 
 **Done when**:
 
-- [ ] `parseCommitLines` handles an empty stdout, a subject containing the field separator's neighbours, and a CRLF-terminated stream
-- [ ] Both ranges are correct: outgoing `@{upstream}..HEAD`, incoming `HEAD..@{upstream}`
-- [ ] `moreIncoming` / `moreOutgoing` come from `rev-list --count`, so they are exact beyond the 20 returned
-- [ ] No upstream yields two empty lists and zero counts, without an error
-- [ ] Tests cover the four cases above against a temp repo + bare remote
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 762 + 5 = **767**
+- [x] `parseCommitLines` handles an empty stdout, a subject containing the field separator's neighbours, and a CRLF-terminated stream
+- [x] Both ranges are correct: outgoing `@{upstream}..HEAD`, incoming `HEAD..@{upstream}`
+- [x] `moreIncoming` / `moreOutgoing` come from `rev-list --count`, so they are exact beyond the 20 returned
+- [x] No upstream yields two empty lists and zero counts, without an error
+- [x] Tests cover the four cases above against a temp repo + bare remote
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 762 + 5 = **767**
 
 **Tests**: unit
 **Gate**: full
