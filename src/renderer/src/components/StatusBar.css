@@ -45,14 +45,16 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 5px;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text);
 }
 
+/* Spaced by its own margin, not a flex gap: a gap would also split the head
+   from the tail and print the branch name with a space in it. */
 .status-bar-branch > svg {
   flex: 0 0 auto;
+  margin-right: 5px;
   color: var(--text-faint);
 }
 
