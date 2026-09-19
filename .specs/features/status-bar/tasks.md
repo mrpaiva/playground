@@ -500,11 +500,11 @@ T17 → T18
 
 **Done when**:
 
-- [ ] A toast raised while the bar is visible clears it in both themes
-- [ ] No other toast call site changes
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: **797** (unchanged — stylesheet)
+- [ ] A toast raised while the bar is visible clears it in both themes — deferred to the T18 live smoke
+- [x] No other toast call site changes
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: **797** (unchanged — stylesheet)
 
 **Tests**: none
 **Gate**: build
