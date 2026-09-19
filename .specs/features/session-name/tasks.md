@@ -110,7 +110,9 @@ T7 → T8
 
 ## Task Breakdown
 
-### T1: Shared contracts for the session name [P]
+### T1: Shared contracts for the session name [P] ✅ COMPLETE
+
+**Status**: Done (`28ec9c8`) — build gate green, 917/917.
 
 **What**: Add the optional `name` to `SessionView` and the `session:name` push to `IpcEvents`; `PersistedSession` stays untouched.
 **Where**: `src/shared/config.ts` (`SessionView`, after `activity?`), `src/shared/ipc-contract.ts` (`IpcEvents`, after `session:activity`)
@@ -138,7 +140,9 @@ T7 → T8
 
 ---
 
-### T2: `parseAgentsListing` [P]
+### T2: `parseAgentsListing` [P] ✅ COMPLETE
+
+**Status**: Done (`3faead1`) — 17 tests (the 11 planned cases, `it.each`-expanded); quick gate green.
 
 **What**: The pure parser that turns the listing's stdout into `Map<sessionId, name>`, trusting nothing about its shape.
 **Where**: `src/main/agents-listing.ts` (new), `src/main/agents-listing.test.ts` (new)
@@ -165,10 +169,12 @@ T7 → T8
 
 ---
 
-### T3: `SessionNamePoller` [P]
+### T3: `SessionNamePoller` [P] ✅ COMPLETE
+
+**Status**: Done — `src/main/session-name-poller.ts` + 20 tests (planned 18); quick gate green, eslint/tsc clean, `agent-step-runner.test.ts` 17/17 unmodified. **Scope addition, owner-approved 2026-09-19:** `AgentChild.onError?` added to the seam (`agent-step-runner.ts`) — Node emits `error` (not a throw) for `ENOENT`/`EACCES`, and an unlistened `error` on a `ChildProcess` is an uncaught exception in main; the poller subscribes when present, T7 wires `child.on('error')` in `spawnAgent`. `implements SessionNames` dropped for structural typing (the interface lands in T4).
 
 **What**: The main-process poller that decides *when* to call `claude agents --json`, runs it through the `AgentSpawn` seam with a timeout, and reports each successful listing as a map.
-**Where**: `src/main/session-name-poller.ts` (new), `src/main/session-name-poller.test.ts` (new)
+**Where**: `src/main/session-name-poller.ts` (new), `src/main/session-name-poller.test.ts` (new), `src/main/agent-step-runner.ts` (`AgentChild.onError?`)
 **Depends on**: T2
 **Reuses**: `AgentSpawn`/`AgentChild` (`src/main/agent-step-runner.ts:60-73`); `makeFakeSpawn` scripted-child pattern (`agent-step-runner.test.ts:121-152`); `parseAgentsListing` (T2)
 **Requirement**: SNAME-09, SNAME-10, SNAME-12, SNAME-14; edge case "tick while a call is in flight" (coalesced, per design)
@@ -306,6 +312,7 @@ T7 → T8
 - [ ] `const namePoller = new SessionNamePoller({ spawn: spawnAgent, resolveBin: resolveClaude, cwd: app.getPath('userData'), env: scrubAuthEnv(process.env), log: (msg) => console.error(msg) })` before `new SessionManager({ …, names: namePoller })`
 - [ ] `namePoller.onListing((names) => sessions.applyNames(names))` next to `hookServer.onEvent(...)`
 - [ ] `namePoller.dispose()` in `window-all-closed`, next to `sessionManager?.killAll()`
+- [ ] `spawnAgent` wires `onError: (listener) => child.on('error', listener)` (the T3 seam extension)
 - [ ] A short comment naming the seam as hand-verified (TESTING.md) and pointing at T8
 - [ ] Gate check passes: `npm run typecheck && npm run lint && npm test && npx electron-vite build`
 - [ ] Test count: ~975 (no change; no silent deletions)
