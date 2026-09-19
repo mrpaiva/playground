@@ -139,11 +139,11 @@ graph TD
 - **Location**: `src/renderer/src/components/TerminalPane.tsx`
 - **New props**: `cwd: string`, `onToast: (message: string) => void`
 - **Wiring** (inside the existing `useEffect`, disposed in its cleanup):
-  1. `const links = createTerminalLinkProvider({ buffer: term.buffer.active, getCols: () => term.cols, probe: (paths) => api.invoke('links:probe', { cwd, paths }) })`; `term.registerLinkProvider(links)`
-  2. `term.options.linkHandler = { activate: () => {}, hover: (_e, text, range) => { osc = { text, range } }, leave: () => { osc = null } }` — `allowNonHttpProtocols` left at its default (`false`): xterm itself drops every non-`http(s)` OSC 8 target, which is LINK-22 (LINK-21 withdrawn)
-  3. `onLinkMouseDown` (capture): `pos = bufferPositionForMouseEvent(term, e)`; `hit = osc && rangeContains(osc.range, pos) ? { kind: 'url', url: osc.text } : links.hitTest(pos)`; if `linkGestureOnMouseDown(e, hit) === 'intercept'` → `preventDefault`, `stopPropagation`, `pending = { x, y, hit }`
+  1. `const links = createTerminalLinkProvider({ buffer: activeBufferOf(term), getCols: () => term.cols, probe: (paths) => api.invoke('links:probe', { cwd, paths }) })`; `term.registerLinkProvider(links)` — `activeBufferOf` (amendment 2026-09-19) resolves `term.buffer.active` on every `getLine`/`getNullCell`; the first delivery passed `term.buffer.active` itself, a getter evaluated once, and a TUI in the alternate screen left the provider reading the empty normal buffer (LINK-32)
+  2. `term.options.linkHandler = { allowNonHttpProtocols: true, activate: () => {}, hover: (_e, text, range) => { osc = { text, range } }, leave: () => { osc = null } }` — the option is all-or-nothing in 6.0.0, so every OSC 8 target is provided (hover underline + pointer) and the **pane** decides what opens (amendment 2026-09-19; LINK-21 reinstated, LINK-22 amended)
+  3. `onLinkMouseDown` (capture): `pos = bufferPositionForMouseEvent(term, e)`; `hit = osc && rangeContains(osc.range, pos) ? hitForOscTarget(osc.text) : links.hitTest(pos)` where `hitForOscTarget` (pure, `terminal-links.ts`) yields `{ kind: 'url', url }` for `http(s)`, `{ kind: 'fileUrl', url }` for `file`, `null` otherwise (pass-through, LINK-22); if `linkGestureOnMouseDown(e, hit) === 'intercept'` → `preventDefault`, `stopPropagation`, `pending = { x, y, hit }`
   4. `onLinkMouseUp` (capture): if no `pending` → return; `stopPropagation`; if `'open'` → `activate(pending.hit)`; `pending = null`
-  5. `activate(hit)`: url → `api.invoke('links:openUrl', { url })`; path → `state === 'unprobed' ? await hit.settled : state` → `'missing'` → nothing; else `api.invoke('links:openPath', { cwd, pathText })`; any `{ ok: false, error }` or rejection → `onToast(error)` (LINK-05/13/24)
+  5. `activate(hit)`: url → `api.invoke('links:openUrl', { url })`; fileUrl → `api.invoke('links:openFileUrl', { url })`; path → `state === 'unprobed' ? await hit.settled : state` → `'missing'` → nothing; else `api.invoke('links:openPath', { cwd, pathText })`; any `{ ok: false, error }` or rejection → `onToast(error)` (LINK-05/13/24)
   6. `window` `blur` → `pending = null` (LINK-18)
 - **Ordering**: the new listeners are separate capture listeners on the same `container`;
   `onRightMouseDown` keeps running (it returns early for button 0 after forgetting the
@@ -167,7 +167,8 @@ graph TD
   - `probe(cwd, paths: string[]): Promise<ProbeResult[]>` — `{ pathText, absolutePath, kind: 'file' | 'dir' | 'missing' }`; stat errors and unresolvable paths → `'missing'`; caps the batch at 32
   - `openUrl(url): Promise<LaunchResult>` — `new URL`; protocol ∈ {`http:`, `https:`} else `{ ok: false, error: "Only http and https links open here — <url>" }`; `openExternal` rejection → `{ ok: false, error }` (LINK-04/05)
   - `openPath(cwd, pathText): Promise<LaunchResult>` — resolve → stat (`missing` → `"<path> no longer exists"`); dir → `spawnDetached('explorer.exe', [abs])` (LINK-11); file → `hasAssociation(ext)` ? `openPath(abs)` (non-empty string → chooser) : chooser; chooser = `spawnDetached('rundll32.exe', ['shell32.dll,OpenAs_RunDLL', abs])` (LINK-09/10); spawn `false` → `{ ok: false, error: "Couldn't open <path>" }` (LINK-13)
-- **Dependencies**: `path`, `fs`, `os`, `child_process`, Electron `shell` (injected)
+  - `openFileUrl(url): Promise<LaunchResult>` (amendment 2026-09-19, LINK-21) — `new URL`; protocol must be `file:` and host empty or `localhost` (else `{ ok: false, error: "Only local file links open here — <url>" }`); `fileURLToPath` after dropping hash/search, then the `openPath` body on the absolute path (stat, dir/file/chooser). The `#L10C5` / `:line:col` forms are dropped like LINK-09 does
+- **Dependencies**: `path`, `fs`, `os`, `child_process`, `url`, Electron `shell` (injected)
 - **Reuses**: `spawnDetached`, `LaunchResult`
 
 ### IPC contract additions
@@ -176,7 +177,18 @@ graph TD
 - `'links:probe': { req: { cwd: string; paths: string[] }; res: ProbeResult[] }`
 - `'links:openUrl': { req: { url: string }; res: LaunchResult }`
 - `'links:openPath': { req: { cwd: string; pathText: string }; res: LaunchResult }`
+- `'links:openFileUrl': { req: { url: string }; res: LaunchResult }` (amendment 2026-09-19)
 - Registered in `src/main/index.ts` next to `shortcuts:launch`.
+
+### `terminal-env.ts` — `FORCE_HYPERLINK` (amendment 2026-09-19, LINK-33)
+
+- `PTY_ENV_FORCED` gains `FORCE_HYPERLINK: '1'`. Claude Code's binary inlines the
+  `supports-hyperlinks` check and tests this variable **before** `TERM_PROGRAM`, so the
+  CSI-u reason for leaving `TERM_PROGRAM` unclaimed is untouched. With it set, every path in a
+  tool header and every markdown link is an OSC 8 hyperlink (`file:///C:/…`, `https://…`),
+  and the markdown link text is `blueBright`; xterm draws its dashed underline on those cells.
+  This — not a link provider — is what produces the look the owner saw in Orca, which forces
+  the same variable.
 
 ---
 
@@ -260,7 +272,9 @@ export type LinkHit =
 | Path resolution in main, not the renderer | `path.win32.resolve` + `os.homedir` in `LinkOpener` | The renderer has no Node; a hand-rolled Windows resolver is more code than the IPC round-trip it would save. Cache keyed by the text as written, since `cwd` is constant per pane |
 | Probe on hover only | `provideLinks` triggers probes; output never does | Bounded by what the user points at |
 | `linkHandler.activate` is a no-op | All activation via the capture gesture | One code path for URL, path and OSC 8; plain click can never open (LINK-16) |
-| OSC 8 scheme filter left to xterm | `allowNonHttpProtocols` default | LINK-22 for free; LINK-21 (`file://`) withdrawn |
+| ~~OSC 8 scheme filter left to xterm~~ **Reversed 2026-09-19:** every OSC 8 scheme is provided, the pane filters | `allowNonHttpProtocols: true` + `hitForOscTarget` | Claude Code emits `file://` OSC 8 for every path once `FORCE_HYPERLINK` is set (LINK-33); the all-or-nothing gate costs only a hover underline on schemes that already carry xterm's dashed one. LINK-21 reinstated, LINK-22 narrowed to opening |
+| The provider follows `term.buffer.active` per call | `activeBufferOf(term)` | A TUI's alternate screen (`?1049h`) swaps the active buffer after the pane is created; capturing the getter's value once blinded hover and Ctrl+click in every Claude Code session (LINK-32, found 2026-09-19) |
+| `FORCE_HYPERLINK=1` in the PTY env | `PTY_ENV_FORCED` | The `supports-hyperlinks` convention; checked before `TERM_PROGRAM` by Claude Code, so LINK-33 does not reopen the CSI-u finding (INPUT-12) |
 | Chooser via `rundll32 shell32.dll,OpenAs_RunDLL` after an `assoc` check | explicit, not `shell.openPath` | electron#36605 |
 | Unprobed candidate at Ctrl+mousedown is intercepted | swallow-once | First-click reliability (LINK-19) beats one lost Ctrl+click on prose |
 
@@ -268,3 +282,8 @@ export type LinkHit =
 > Windows file association with no executable block list.* Owner decision 2026-09-18 with the risk
 > stated; Orca behaves the same. A block list, if ever wanted, is a single guard in
 > `LinkOpener.openPath`.
+
+> **Project-level decisions appended with the 2026-09-19 amendment — AD-022, AD-023:** every
+> agent session runs with `FORCE_HYPERLINK=1` (the app claims hyperlink support for the whole
+> PTY, not per agent), and OSC 8 `file://` targets open through the same file rules as a
+> printed path, with every other non-http scheme left to the agent. See `.specs/STATE.md`.

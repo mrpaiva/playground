@@ -75,9 +75,15 @@ is listed under Deferred Ideas.
 
 - Only **`http` and `https`** open, validated in the **main** process before
   `shell.openExternal` (the renderer is never trusted with the scheme decision). Other schemes
-  (`mailto:`, `vscode://`, `ms-teams:`) do not become links.
-- An OSC 8 hyperlink whose target is `file://` is routed as a file path. `file://` in plain text
-  is not detected.
+  (`mailto:`, `vscode://`, `ms-teams:`) never open; since the 2026-09-19 amendment they do get
+  xterm's hover underline as OSC 8 targets (the gate is all-or-nothing) and Ctrl+click passes
+  through.
+- An OSC 8 hyperlink whose target is `file://` is routed as a file path (withdrawn at Design,
+  reinstated by the 2026-09-19 amendment once Claude Code was seen emitting it with
+  `FORCE_HYPERLINK`). `file://` in plain text is not detected.
+- The owner's reference for the look (2026-09-19): Orca — file paths dashed, external links blue.
+  Both come from the agent's own OSC 8 + colour once `FORCE_HYPERLINK=1` is in the environment;
+  the app claims it for every session and does not style plain-text links itself.
 - A failed URL open surfaces a toast.
 
 ### Agent's Discretion

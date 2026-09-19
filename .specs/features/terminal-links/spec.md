@@ -26,8 +26,9 @@ xterm.js with no link provider at all: no addon, no `linkHandler`, no `registerL
 | Bare filenames without a separator (`Foo.cs`, `package.json`) | Not selected; VS Code's word-link detector costs an existence check per candidate word |
 | Hard-wrapped links (a URL or path the TUI re-drew across rows without xterm's wrap flag) | Orca carries ~700 lines of heuristics for this; soft-wrapped lines (xterm's `isWrapped`) are covered |
 | Live cwd via OSC 7 | Agents do not `cd`; PowerShell does not emit OSC 7 by default. Relative paths resolve against the session's initial cwd |
-| Schemes other than `http`/`https` (`mailto:`, `vscode://`, `ms-teams:`…) | `shell.openExternal` with an arbitrary scheme launches applications; the main process accepts only `http`/`https` |
-| `file://` URIs, in plain text or as an OSC 8 target | Plain-text `file://` was never in scope; the OSC 8 form was withdrawn at Design (LINK-21) because xterm 6.0.0's scheme gate is all-or-nothing |
+| Schemes other than `http`/`https`/`file` (`mailto:`, `vscode://`, `ms-teams:`…) | `shell.openExternal` with an arbitrary scheme launches applications; the main process accepts only `http`/`https`, and `file` only as an OSC 8 target (amendment 2026-09-19) |
+| `file://` URIs in plain text | Never in scope. The OSC 8 form was withdrawn at Design (LINK-21) and **reinstated by the 2026-09-19 amendment**: Claude Code emits it for every path it prints once `FORCE_HYPERLINK` is set (LINK-33) |
+| Persistent styling of plain-text links (colour, always-on underline) | The dashed underline and the blue the owner saw in Orca are the agent's own OSC 8 + SGR colour rendered by xterm, not a terminal feature; Orca's plain-text provider is hover-only like ours |
 | UNC paths (`\\server\share\…`) | Not requested; existence probing over the network on hover is a latency hazard |
 | Remote / WSL / SSH path mapping | Playground is local-only (AD-005) |
 | Upgrading `@xterm/xterm` past 6.0.0 | Same rationale as every previous terminal feature; `mouseEventsRequireAlt` (6.1) is replaced by a capture-phase `stopPropagation` the pane already uses for right-click |
@@ -47,11 +48,13 @@ xterm.js with no link provider at all: no addon, no `linkHandler`, no `registerL
 | Executable files are opened like any other file | No block list | Owner decision with the risk stated: a Ctrl+click on a `.ps1`/`.cmd`/`.exe` the agent printed runs it through the OS association. Orca does not block either | y |
 | `:line:col` is parsed but not delivered | Strip before probing/opening; do not pass to the app | Default-app launch has no argument channel for it. Recorded in Out of Scope | y |
 | Only `http`/`https` open in the browser, validated in main | Main rejects any other scheme before `shell.openExternal` | The renderer is not trusted with the scheme decision (same split as Orca's `shell:openUrl`) | y |
-| ~~OSC 8 `file://` targets route as files~~ **Withdrawn at Design** | `linkHandler.allowNonHttpProtocols` stays `false`; xterm provides only `http(s)` OSC 8 links | Verified in the 6.0.0 bundle: the option is all-or-nothing, so `file://` would drag every scheme in (contradicts LINK-22). No agent was observed emitting OSC 8 at all | y |
+| ~~OSC 8 `file://` targets route as files~~ Withdrawn at Design, **reinstated 2026-09-19** | `linkHandler.allowNonHttpProtocols` is `true`; the pane classifies the hovered OSC 8 target by scheme (`http(s)` → browser, `file` → path rules, anything else → not openable) and main converts the `file://` URL to a path | The all-or-nothing gate is accepted: every OSC 8 cell already carries xterm's dashed underline, so a hover underline on `mailto:` adds nothing the user did not already see. Orca sets the same option. The trigger was seeing Claude Code emit `file:///C:/…` for every path in its tool headers once `FORCE_HYPERLINK` is set (LINK-33) | y |
+| The provider reads the buffer that is active **at each call** | `activeBufferOf(term)` delegates `getLine`/`getNullCell` to `term.buffer.active` on every access | `term.buffer.active` is a getter; the first delivery captured it once at pane creation, so a TUI in the alternate screen (Claude Code 2.1.278 uses `?1049h`) left both hover and Ctrl+click reading the empty normal buffer — reproduced 2026-09-19 (LINK-32). Orca's provider reads `terminal.buffer.active` per call | y |
+| `FORCE_HYPERLINK=1` is forced into every session's environment | Alongside `TERM`/`COLORTERM` in `PTY_ENV_FORCED`; `TERM_PROGRAM` stays unclaimed | It is the `supports-hyperlinks` convention Claude Code's binary checks **before** `TERM_PROGRAM` (`if (FORCE_HYPERLINK) return …`), so the CSI-u reason for not claiming `TERM_PROGRAM` is untouched. Orca forces the same variable (`TERM_PROGRAM=Orca` too). Any other CLI honouring it emits OSC 8 that xterm renders harmlessly | y |
 | Plain click must not open an OSC 8 link | `linkHandler.activate` is a no-op; every activation goes through the Ctrl gesture | Today xterm's default OSC 8 handler opens `http` links on a plain click (`window.open` → `setWindowOpenHandler` → `shell.openExternal`), so LINK-16 needs the handler replaced, not just added | y |
 | The "Open with" chooser is launched explicitly | Main checks the association (`cmd /c assoc .ext`) and runs `rundll32 shell32.dll,OpenAs_RunDLL <path>` when there is none | On Windows 11 `shell.openPath` no-ops on an unassociated file and shows nothing ([electron#36605](https://github.com/electron/electron/issues/36605), closed not planned) | y |
 | A path candidate not yet probed at Ctrl+`mousedown` is intercepted | Probe, then open on `mouseup` if it exists; a miss swallows that one click and is cached | First-click reliability (LINK-19) is worth one lost Ctrl+click on prose that looked like a path (owner decision at Design) | y |
-| xterm's static OSC 8 decoration is out of our hands | Every OSC 8 cell keeps xterm's own dotted underline, `https` and `mailto:` alike; LINK-22's "no underline" means the **link** underline/pointer and activation, which xterm grants only to `http(s)` targets | Measured in the owner smoke (rows 20–21): the dotted line is the renderer's hyperlink decoration, drawn before any provider runs; `mailto:` shows `cursor: text` and passes the click through | y |
+| xterm's static OSC 8 decoration is out of our hands | Every OSC 8 cell keeps xterm's own **dashed** underline (`AttributeData.underlineStyle` → `DASHED` whenever `urlId` is set; class `xterm-underline-5`), `https`, `file` and `mailto:` alike. Since the amendment, the hover underline/pointer applies to every OSC 8 target too; LINK-22 now governs **opening** only | Measured in the owner smoke (rows 20–21) and re-measured 2026-09-19 with `FORCE_HYPERLINK`: Claude Code's `Write(C:\…)` header is dashed in the default colour, its markdown link is dashed + `blueBright` (SGR 12) — the "Orca look" is the agent's output | y |
 | Parentheses inside a URL | The ported addon regex stops a URL at `(`; `https://en.wikipedia.org/wiki/Foo_(bar)` links as `…/Foo_` (Verifier finding). LINK-23 covers the **unmatched** trailing bracket only; balanced ones are upstream xterm behavior, unchanged | Matching upstream keeps the port faithful; paths do balance brackets (`trimPathTail`). Revisit if Wikipedia-style URLs show up in agent output | y |
 | No tooltip | Underline on hover only | Owner declined; the bottom-left position answer is void without it (kept in context.md) | y |
 | Ctrl+click outside a link is untouched | Only a Ctrl+`mousedown` **over a link** is intercepted | The agent owns every other gesture (TCU-27 precedent) | y |
@@ -63,7 +66,7 @@ xterm.js with no link provider at all: no addon, no `linkHandler`, no `registerL
 | Existence cache lifetime | Per `TerminalPane` mount (per session); dropped with the terminal | A path created after a negative probe stays unlinked until the session is switched — accepted; matches Orca's per-pane cache | y |
 | Verification split | Unit tests for the detection/resolution lib and the main-side handlers; the `TerminalPane` wiring is hand-verified | Repo convention: `src/renderer/src/lib/*` and `src/main/*` are the tested seams; renderer components have no unit tests | y |
 | Branch and base | `feature/terminal-links` from `main` at `6ecd19c` | Fork synced to upstream on 2026-09-18. Upstream PR #95 (`terminal-scroll-paste`) also edits `TerminalPane.tsx` — rebase if it lands first | y |
-| OSC 8 emission by the agents is unverified | Handler is installed regardless (P2) | Cheap; covers whatever an agent emits explicitly. Not observed in Claude Code on Windows during this analysis | y |
+| ~~OSC 8 emission by the agents is unverified~~ **Verified 2026-09-19** | Claude Code 2.1.278 emits OSC 8 **only** when its hyperlink check passes: `FORCE_HYPERLINK` (any value but `0`), `TERM_PROGRAM` in its list (`ghostty`, `Hyper`, `kitty`, `alacritty`, `iTerm.app`, `iTerm2`) or the other `supports-hyperlinks` signals. Without it every path and URL is plain text — which is why the first delivery never saw one | Read in the binary and measured live: with `FORCE_HYPERLINK=1` the `Write(...)` header carries `file:///C:/Users/MAUROP%7E1/…/hyperlink-probe.txt` and a markdown link carries its `https://` target | y |
 | Remaining implicit dimensions (auth, rate limits, idempotency, data lifecycle beyond the cache) | N/A for this scope | Single-user local desktop; a double Ctrl+click opens the target twice and the OS focuses the existing window | y |
 
 **Open questions:** none — all resolved or logged above.
@@ -174,23 +177,29 @@ behavior identical to before the feature. Shift+drag still selects.
 open with the same Ctrl+click so that tools which already mark their links work without the
 text-scanning heuristics.
 
-**Why P2**: Cheap to wire (`terminal.options.linkHandler`) and correct by construction, but no
-agent was observed emitting OSC 8 on Windows during this analysis.
+**Why P2**: Cheap to wire (`terminal.options.linkHandler`) and correct by construction. At the
+first delivery no agent had been observed emitting OSC 8 on Windows; the 2026-09-19 amendment
+found why (Claude Code gates it on `FORCE_HYPERLINK`, LINK-33) and made it the main path.
 
 **Acceptance Criteria**:
 
 1. WHEN the buffer contains an OSC 8 hyperlink with an `http`/`https` target THEN Ctrl+click on
    its text SHALL open the target per LINK-02/04/05, regardless of what the visible text is.
    `LINK-20`
-2. ~~WHEN the OSC 8 target is a `file://` URI THEN the app SHALL convert it to a local path and
-   apply the file rules.~~ **`LINK-21` withdrawn at Design** — xterm 6.0.0 either filters OSC 8
-   to `http(s)` (its default) or admits every scheme; admitting `file://` would underline
-   `mailto:`/`vscode://` too, contradicting LINK-22. Deferred (context.md)
-3. WHEN the OSC 8 target has any scheme other than `http`/`https` THEN the app SHALL NOT provide
-   it as a link: no underline, and Ctrl+click passes through as an ordinary click. `LINK-22`
+2. WHEN the OSC 8 target is a `file://` URI THEN Ctrl+click on its text SHALL convert it to a
+   local path in main (`file:///C:/dir/a.txt` → `C:\dir\a.txt`; a `#L10C5` fragment or a
+   `:line:col` suffix is dropped, LINK-09) and apply the file rules of LINK-09..13, regardless
+   of what the visible text is. A `file://` URL with a host other than empty or `localhost`
+   (a UNC form) SHALL be refused with a toast, not opened. `LINK-21` (withdrawn at Design,
+   **reinstated 2026-09-19**)
+3. WHEN the OSC 8 target has any scheme other than `http`/`https`/`file` THEN the app SHALL NOT
+   open it: Ctrl+click passes through as an ordinary click and nothing is launched. (xterm's
+   hover underline and pointer cursor apply to every OSC 8 target once `allowNonHttpProtocols`
+   is on — accepted, see Assumptions.) `LINK-22` (amended 2026-09-19)
 
 **Independent Test**: `printf '\e]8;;https://example.com\e\\click me\e]8;;\e\\'` → "click me"
-underlines on hover and Ctrl+click opens example.com.
+underlines on hover and Ctrl+click opens example.com. In a Claude Code session, the path in a
+`Write(C:\…\x.txt)` header is dashed; Ctrl+click opens the file.
 
 ---
 
@@ -215,6 +224,15 @@ underlines on hover and Ctrl+click opens example.com.
   <!-- ubiquitous --> `LINK-30`
 - WHEN a candidate path is an executable (`.exe`, `.cmd`, `.ps1`, …) THEN the app SHALL treat it
   like any file (owner decision; see Assumptions). <!-- ubiquitous --> `LINK-31`
+- WHEN the agent switches to the alternate screen buffer after the pane was created (a TUI's
+  `?1049h`, as Claude Code does) THEN hover and Ctrl+click SHALL detect links in the rows of the
+  buffer that is active at that moment — the alternate one while it is shown, the normal one
+  again after `?1049l`. <!-- ubiquitous --> `LINK-32` (amendment 2026-09-19)
+- The app SHALL launch every agent session with `FORCE_HYPERLINK=1` in its environment, in
+  addition to `TERM` and `COLORTERM`, and SHALL still not claim a `TERM_PROGRAM`, so that a
+  hyperlink-aware CLI (Claude Code) emits OSC 8 for the paths and URLs it prints and the pane
+  shows them with xterm's dashed underline. <!-- ubiquitous --> `LINK-33` (amendment
+  2026-09-19)
 
 ---
 
@@ -242,8 +260,8 @@ underlines on hover and Ctrl+click opens example.com.
 | LINK-18 | P1: Mouse | Execute | Verified |
 | LINK-19 | P1: Mouse | Execute | Verified |
 | LINK-20 | P2: OSC 8 | Execute | Verified |
-| LINK-21 | P2: OSC 8 | - | Withdrawn |
-| LINK-22 | P2: OSC 8 | Execute | Verified |
+| LINK-21 | P2: OSC 8 | Execute (amendment) | Reinstated — pending |
+| LINK-22 | P2: OSC 8 | Execute (amendment) | Amended — pending |
 | LINK-23 | Edge | - | Verified |
 | LINK-24 | Edge | - | Verified |
 | LINK-25 | Edge | - | Verified |
@@ -253,10 +271,12 @@ underlines on hover and Ctrl+click opens example.com.
 | LINK-29 | Edge | - | Verified |
 | LINK-30 | Edge | - | Verified |
 | LINK-31 | Edge | - | Verified |
+| LINK-32 | Edge (amendment) | Execute (amendment) | Pending |
+| LINK-33 | Edge (amendment) | Execute (amendment) | Pending |
 
 **ID format:** `LINK-[NUMBER]`
 
-**Coverage:** 30 active (LINK-21 withdrawn at Design), 30 mapped to tasks (`tasks.md` §Requirement → Task Coverage), 30 verified (`validation.md`)
+**Coverage:** 33 active (LINK-21 reinstated 2026-09-19), 33 mapped to tasks (`tasks.md` §Requirement → Task Coverage), 30 verified (`validation.md`), 3 pending the amendment's Verifier pass (LINK-21, LINK-32, LINK-33; LINK-22 re-verification)
 
 ---
 
@@ -270,3 +290,6 @@ underlines on hover and Ctrl+click opens example.com.
 - [ ] `echo .` → Ctrl+click opens Explorer on the worktree
 - [ ] Shift+drag selection, right-click copy/paste and plain clicks behave exactly as before
       (TCU suite still green)
+- [ ] In a live Claude Code session (alternate screen, mouse tracking on): the path in a
+      `Write(...)` header shows dashed, hover underlines it and Ctrl+click opens the file; a
+      markdown link shows blue + dashed and Ctrl+click opens the browser (amendment 2026-09-19)

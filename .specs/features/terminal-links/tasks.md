@@ -10,6 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Design**: `.specs/features/terminal-links/design.md`
 **Status**: Done — T1–T11 committed on `feature/terminal-links`; fix tasks F1 (`9afe7f6`, stale `pendingLink`) and F2 (OSC 8 smoke rows 18–21) closed after the first Verifier pass; see `validation.md`
+**Amendment 2026-09-19** (§Amendment below): T12–T15 — alternate-screen bug (LINK-32), `FORCE_HYPERLINK` (LINK-33), OSC 8 `file://` (LINK-21 reinstated, LINK-22 amended). Verifier re-runs after T15.
 
 ---
 
@@ -389,6 +390,95 @@ Three phases → executed inline (no sub-agent offer). The Verifier runs automat
 
 ---
 
+---
+
+## Amendment 2026-09-19 — hyperlinks and the alternate screen
+
+Trigger: the owner ran the delivered branch against a real Claude Code session and got neither the hover underline nor the Ctrl+click; the reference look he wanted (Orca: files dashed, external links blue) turned out to be the agent's own OSC 8 output under `FORCE_HYPERLINK`. Spec: LINK-21 (reinstated), LINK-22 (amended), LINK-32, LINK-33. Four sequential tasks, executed inline; the Verifier runs automatically after T15.
+
+```
+T12 → T13 → T14 → T15
+```
+
+**Baseline before T12:** `npm test` → **1021 tests passing, 0 failing** (2026-09-18, `cb18b7a`).
+
+### T12: Read the active buffer on every lookup
+
+**What**: `activeBufferOf(term)` — a `BufferLike` that resolves `term.buffer.active` on each `getLine`/`getNullCell`; the pane passes it instead of `term.buffer.active`.
+**Where**: `src/renderer/src/lib/terminal-buffer-lines.ts` (+ `.test.ts`), `src/renderer/src/lib/terminal-link-provider.test.ts` (one AC test), `src/renderer/src/components/TerminalPane.tsx:162` (modify)
+**Depends on**: T10
+**Reuses**: `BufferLike`, the provider test fakes
+**Requirement**: LINK-32
+
+**Done when**:
+
+- [ ] `activeBufferOf({ buffer: { active } })` returns the line/null cell of whichever buffer is `active` at call time — swapping `active` between two calls swaps the answers
+- [ ] a provider built over `activeBufferOf` finds the URL in the alternate buffer after the swap (`provideLinks` + `hitTest`) and nothing on that row once the normal buffer is active again
+- [ ] `TerminalPane` passes `activeBufferOf(term)`; gate `npx vitest run src/renderer/src/lib/terminal-buffer-lines.test.ts src/renderer/src/lib/terminal-link-provider.test.ts` green, count ≥ baseline for those files
+
+**Tests**: unit
+**Gate**: quick
+
+**Commit**: `fix(renderer): read the active buffer on every terminal link lookup`
+
+### T13: Claim `FORCE_HYPERLINK`
+
+**What**: `PTY_ENV_FORCED` gains `FORCE_HYPERLINK: '1'`; the header comment says why.
+**Where**: `src/main/terminal-env.ts`, `src/main/terminal-env.test.ts` (modify)
+**Depends on**: —
+**Requirement**: LINK-33
+
+**Done when**:
+
+- [ ] `buildPtyEnv({})` yields `FORCE_HYPERLINK === '1'` and still `TERM_PROGRAM === undefined`
+- [ ] a parent `FORCE_HYPERLINK=0` is overridden to `'1'`
+- [ ] gate `npx vitest run src/main/terminal-env.test.ts` green
+
+**Tests**: unit
+**Gate**: quick
+
+**Commit**: `feat(main): claim hyperlink support for agent sessions`
+
+### T14: Open OSC 8 `file://` links
+
+**What**: `hitForOscTarget(uri)` (pure) classifies an OSC 8 target; `LinkOpener.openFileUrl` converts `file://` to a path and applies the file rules; new `links:openFileUrl` channel; the pane sets `allowNonHttpProtocols: true` and routes by kind.
+**Where**: `src/renderer/src/lib/terminal-links.ts` (+ `.test.ts`), `src/renderer/src/lib/terminal-link-provider.ts` (`KnownLinkHit` gains `fileUrl`), `src/main/link-opener.ts` (+ `.test.ts`), `src/shared/ipc-contract.ts`, `src/main/index.ts`, `src/renderer/src/components/TerminalPane.tsx` (modify)
+**Depends on**: T12
+**Reuses**: `openPath` body, `LaunchResult`, the `hoveredOsc` wiring
+**Requirement**: LINK-20, LINK-21, LINK-22
+
+**Done when**:
+
+- [ ] `hitForOscTarget('https://x')` → `{ kind: 'url', url }`; `'http://x'` same; `'file:///C:/a.txt'` → `{ kind: 'fileUrl', url }`; `'mailto:a@b.c'`, `'vscode://file/x'`, `'ms-teams:launch'`, garbage → `null` (LINK-20/21/22)
+- [ ] `openFileUrl('file:///C:/dir/a.txt')` stats `C:\dir.txt` and opens it like `openPath` (association → `openPath`, none → chooser, dir → Explorer); `#L10C5` and `:12:3` are dropped; `file://server/share/x` and `http://…` → `{ ok: false, error: 'Only local file links open here — <url>' }`; a missing file → `'<path> no longer exists'` (LINK-21, LINK-09..13)
+- [ ] `TerminalPane`: `allowNonHttpProtocols: true`; Ctrl+mousedown over an OSC 8 range uses `hitForOscTarget`; `null` falls through to `links.hitTest` on the text; `activate` sends `fileUrl` to `links:openFileUrl`
+- [ ] gate `npm run typecheck && npm run lint && npm test` green, count ≥ T13's
+
+**Tests**: unit
+**Gate**: build
+
+**Commit**: `feat(terminal): open osc 8 file links with ctrl+click`
+
+### T15: Smoke in a live Claude Code session and hand off
+
+**What**: Re-run the owner smoke against the real agent (alternate screen, mouse tracking, `FORCE_HYPERLINK`) through the CDP driver; record rows in `validation.md`; update traceability and the STATE handoff.
+**Where**: `.specs/features/terminal-links/validation.md`, `spec.md` (traceability), `.specs/STATE.md` (Handoff only)
+**Depends on**: T14
+**Requirement**: LINK-21, LINK-22, LINK-32, LINK-33, Success Criteria (amendment row)
+
+**Done when**:
+
+- [ ] Claude pane (alternate buffer): hover on a plain URL underlines it; Ctrl+click opens the browser (LINK-32)
+- [ ] `Write(C:\…)` header: dashed by xterm; hover underlines; Ctrl+click opens the file (LINK-21, LINK-33)
+- [ ] markdown link: blue + dashed; Ctrl+click opens the browser (LINK-20)
+- [ ] `mailto:` OSC 8: Ctrl+click passes through, nothing opens (LINK-22)
+- [ ] rows written to `validation.md`; gate `npm run typecheck && npm run lint && npm test` green
+
+**Tests**: none (hand-verified through the CDP driver)
+**Gate**: build
+
+**Commit**: `docs(specs): record the hyperlink smoke for terminal-links`
+
 ## Parallel Execution Map
 
 ```
@@ -483,8 +573,8 @@ Phase 3 (Sequential):
 | LINK-18 | T8, T10 |
 | LINK-19 | T9, T10, T11 |
 | LINK-20 | T10 |
-| LINK-21 | withdrawn |
-| LINK-22 | T6, T10 |
+| LINK-21 | T14, T15 (reinstated 2026-09-19) |
+| LINK-22 | T6, T10, T14, T15 (amended 2026-09-19) |
 | LINK-23 | T6 |
 | LINK-24 | T2, T9 |
 | LINK-25 | T9 |
@@ -494,5 +584,7 @@ Phase 3 (Sequential):
 | LINK-29 | T2 |
 | LINK-30 | T8, T10 |
 | LINK-31 | T4 |
+| LINK-32 | T12, T15 |
+| LINK-33 | T13, T15 |
 
-**Coverage:** 30 active, 30 mapped, 0 unmapped.
+**Coverage:** 33 active, 33 mapped, 0 unmapped.
