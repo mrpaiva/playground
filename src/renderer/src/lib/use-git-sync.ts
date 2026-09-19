@@ -79,7 +79,12 @@ export function useGitSync({
   const popoverPathRef = useRef(popoverPath)
   const onToastRef = useRef(onToast)
   const onRefreshTreeRef = useRef(onRefreshTree)
+  // A read answers after the selection may have moved on. Storing a late answer
+  // would replace the current target's state with another path's, which the
+  // return below then hides, leaving the section on `…` until the next refresh.
+  const targetPathRef = useRef(targetPath)
   useEffect(() => {
+    targetPathRef.current = targetPath
     popoverPathRef.current = popoverPath
     onToastRef.current = onToast
     onRefreshTreeRef.current = onRefreshTree
@@ -88,14 +93,18 @@ export function useGitSync({
   const loadState = useCallback((path: string): void => {
     api
       .invoke('git:sync-state', { worktreePath: path })
-      .then((next) => setState({ path, state: next }))
+      .then((next) => {
+        if (targetPathRef.current === path) setState({ path, state: next })
+      })
       .catch(console.error)
   }, [])
 
   const loadCommits = useCallback((path: string): void => {
     api
       .invoke('git:commits', { worktreePath: path })
-      .then((next) => setCommits({ path, commits: next }))
+      .then((next) => {
+        if (targetPathRef.current === path) setCommits({ path, commits: next })
+      })
       .catch(console.error)
   }, [])
 
