@@ -33,102 +33,55 @@ Handoff snapshot.
 
 ## Handoff
 
-**Status (current, 2026-09-15): `session-activity-status` EXECUTED + independent Verifier
-**PASS** (round 2) on branch `feature/session-activity-status`, cut from `origin/main`
-`fa78f78`. 14 commits. Nothing uncommitted except the next feature's spec. PR not opened —
-push needs an explicit go-ahead.**
+**Status (current, 2026-09-18): `terminal-links` EXECUTED + independent Verifier **PASS** (pass 2)
+on branch `feature/terminal-links`, cut from `main` `6ecd19c` (fork synced to `obogoni/main` the same
+day). 18 commits, tree clean. PR not opened — push to `fork` (mrpaiva) and the PR need an explicit
+go-ahead.**
 
-Each Claude session now launches with `--settings` pointing at a generated hook file, reports
-its lifecycle to a loopback endpoint in main, and the rail shows `working` / `waiting` /
-`approval` / `input` / `error` / `compacting` / `shell` with the running tool, the subagent
-count and the API error type in the tooltip and the detail pane. Suite 748 → **916** tests,
-typecheck + lint clean, `electron-vite build` green. Verifier: 31/35 ACs unit-evidenced, 4
-convention-exempt visual ACs with a named hand-verify path, 26 mutations injected across two
-rounds and 24 killed. Report: `.specs/features/session-activity-status/validation.md`.
+In the embedded agent terminal, `http(s)` URLs, OSC 8 `http(s)` hyperlinks and file paths that exist
+on disk become links; **Ctrl+click** opens a URL in the default browser and a path with the Windows
+default app (no association → the native "Open with" chooser, launched explicitly because
+`shell.openPath` no-ops on Windows 11; directory → Explorer). Everything else about the mouse is
+untouched: a plain click, a Ctrl+click off a link, Shift+drag and right-click still reach the agent
+(measured with a raw-mode probe: Ctrl+click on a link sends **no** mouse report, the others do).
+Detection and geometry are pure libs in `src/renderer/src/lib/` (URL regex + soft-wrap mapping ported
+from `@xterm/addon-web-links` 0.12.0, MIT); scheme validation, path resolution, stat and launch live
+in main (`src/main/link-opener.ts`, DI with fakes). No xterm private API, no new dependency, xterm
+stays 6.0.0. Suite 917 → **1021** (+104 in five new test files), typecheck + lint clean. Verifier:
+30/30 ACs evidenced, 9/9 mutants killed, gaps closed in pass 2 (`9afe7f6` stale-press fix; OSC 8 smoke
+rows). Owner smoke was run by the author through the Chrome DevTools Protocol against the dev app
+(`validation.md` rows 1–21).
 
-**OWNER SMOKE RUN 2026-09-15 — 19/19 PASS** (`node scripts/smoke-activity.mjs`), plus the
-documented ACTV-07 SKIP. The first run failed one check and that failure was a real defect,
-now AD-020 + `e157495`: Claude Code never delivers `SessionStart` to an http hook. T8's
-deferred dev hand-verification rides this run.
+**Decisions this feature added:** AD-021 (file links open through the Windows association, no
+executable block list). Spec assumptions worth knowing before touching this again: `.ts` on the
+owner's machine is associated to Windows Media Player, so Ctrl+click on a `.ts` path opens it —
+by design; the exits (VS Code at line via `code -g`, Shift+Ctrl alternate, tooltip, single-click
+popover, hard-wrapped links, OSC 7 cwd, MSBuild `Foo.cs(40,12)`) are in
+`.specs/features/terminal-links/context.md` §Deferred Ideas.
 
-**OWNER ACTION OUTSTANDING (user-run):**
-1. The two-theme visual pass: the spinning green loader, the blue waiting dot, the pink
-   approval dot, the red error dot, the amber `shell` dot at 344px in light and dark, plus
-   `prefers-reduced-motion` freezing the loader (ACTV-14/15/17/20).
+**Also in the range (not the feature):** `7e498c5 test(main)` — `dir-remover.test.ts` swapped a fixed
+2.5 s pwsh delay for a lock probe; under a full parallel run the old delay was overrun and the
+"counts every leftover entry" test failed 4/4 while passing in isolation (L-005 class).
 
-**KNOWN FOLLOW-UP, owner deferred it 2026-09-15:** the three `quota_auto_resume_*`
-notification types are not consumed. A session paused by a claude.ai usage limit reports
-`error` (`StopFailure` `rate_limit`) and stays there after Claude resumes on its own, because
-Claude Code sends no `idle_prompt` while it waits for the reset. Fix is three rows in the
-transition table: `_fired` → `working`, `_stale` → `needs-input` (it waits for Enter),
-`_disabled` → `waiting`. Requires Claude Code v2.1.234+.
+**Lessons NOT yet recorded with `scripts/lessons.py`** — the installed script rewrote
+`.specs/lessons.json` on a plain `list` in this checkout (candidates L-003/L-004 dropped; restored
+with `git restore`), so the orchestrator did not run `add`. Candidates, grounded in `validation.md`:
+1. A task marked "no tests, hand-verified" must enumerate its requirement IDs against the smoke
+   checklist before Execute — the smoke list was derived from the Test Coverage Matrix and silently
+   dropped the P2 story (LINK-20/22); a story's "Independent Test" is a smoke row by definition.
+2. Gesture state held across `mousedown`/`mouseup` needs its release sites enumerated at design
+   time (container `mouseup`, window `blur`, **and** a release outside the container) — the
+   stale-press corner was found only by inspection.
+3. When a port keeps upstream behaviour that an AC's wording can be read to contradict, write the
+   assumption at Design time (URL parentheses vs. LINK-23's "unmatched").
 
-**NEXT FEATURE SPEC REWRITTEN, uncommitted:** `.specs/features/session-idle-notifications/`
-(now titled *Session Activity Notifications*, NOTF-01..21) was rebuilt on the seven states:
-P1 is now "told when an agent is blocked on you", P2 is the old finish/fail case, and six
-assumption rows are the agent's defaults awaiting an owner yes/no before Design.
+**Next steps:**
+1. Owner decides: push `feature/terminal-links` to `fork` and open the PR to `obogoni/playground`
+   (draft; title from the feature; description from `validation.md` §Summary). Upstream PR #95
+   (`terminal-scroll-paste`) also edits `TerminalPane.tsx` — rebase if it lands first.
+2. Owner decides whether to record the three lessons above (`lessons.py add`) after checking that
+   the installed script version matches the one that wrote `.specs/lessons.json`.
+3. Optional follow-ups from the Verifier: one `it` pinning `…/Foo_(bar)` → `…/Foo_` in
+   `terminal-links.test.ts`; AC LINK-22 wording ("no underline") could say "no link underline".
 
-**PRIOR, still true — the two-theme visual pass for `agents-rail-v2`** (`RAIL-26`, `RAIL-27`)
-remains code-verified only, and `opencode` and `Ad-hoc` still both resolve to `--amber` at
-22×22.
-
-**UNRELATED WORK PARKED IN A STASH — GONE:** the earlier handoff pointed at `stash@{0}`
-("wip(reconciler-core)") holding the AD-017 Reconciler line plus an untracked
-`.specs/features/reconciler-core/`. As of 2026-09-15 `git stash list` is **empty** and no
-dangling commit in this clone carries that tree. If it is not in another clone it is lost.
-
-0. **`agents-rail-v2` (RAIL-01..28) — EXECUTED, independent Verifier PASS.** Branch
-   `feature/agents-rail-v2`, 12 commits (`9bc144d..789468b`). Grouping is derived at render time
-   in a new pure module `src/renderer/src/lib/rail-groups.ts` (`buildRailGroups`, `statusClass`,
-   `flatRows`, `adjacentRowId`); `SessionRail.tsx` was rewritten to render that model and derives
-   nothing — a grep for `deriveAttribution|linkedPinFor|taskIdFromBranch|sort(|stripAnsi` in the
-   component returns nothing. **748 tests (712 baseline + 36), 747 passing**, the single failure
-   being the known local `worktree-manager` mixed-dirt `rmSync` case. Lint 0 errors / 18
-   pre-existing warnings. `npm run build:win` green. **Mutation sensor 6/6 killed** (both
-   precedence orders reversed, ordinal suffixing dropped, `adjacentRowId` wrapping instead of
-   clamping, header taken from the last session instead of the first, and a `.sort()` injected so
-   status changes reorder) — each killed by the test carrying the matching `RAIL-NN`, so the kills
-   are attributable rather than incidental. Unlike AD-015/AD-016, **author ≠ verifier was actually
-   met**: batch workers and the Verifier were separate agents. See `validation.md`.
-   Three owner decisions are recorded as confirmed spec assumptions: the `shell`/`agentLive`
-   sub-status stays out of scope (it was never built — `SessionStatus` is still `running|stopped`),
-   duplicate agent names inside a group get a per-group ordinal suffix, and the ACs are gated by
-   the extracted pure module rather than a new jsdom harness. One `SPEC_DEVIATION` at
-   `SessionRail.tsx:264`: rows are `div role="option"`, not `<button>`, because a row contains its
-   own action buttons. **AD-018** records that RAIL-12 retires AGCF-08 AC-2 only.
-
-1. **`dev-alias-setting` (DEVA-01..10) — EXECUTED, independent Verifier PASS 10/10.** 5
-   commits (`84e3601` docs spec, `3c432b6` docs defer undoByte, `3e82229` feat,
-   `915e78e` docs validation, `c675198` feat visibility). **Dev
-   alias** field in the ADO block of `SettingsDialog`: state populated from
-   `ado.devAlias ?? ''` (`SettingsDialog.tsx:73`), saved in the **same** `config:patch`
-   as org/project/templates with `devAlias.trim()` (`:121`), label "fills the {dev}
-   placeholder" (`:210-224`); `App.tsx:373` already re-threads it in `onSaved` (zero new
-   plumbing, DEVA-03). Gate: **667 tests / 44 files** (main baseline — the 706 from the
-   previous handoff were the develop tree with PR #83/84 unmerged), typecheck clean, lint
-   0 errors / 19 warnings (main baseline, measured on a throwaway worktree). Verifier:
-   8/8 ACs (3 executed-tested in `tasks.test.ts` — `{dev}` and segment-drop; 5
-   hand-verified per `TESTING.md:42`), sensor 2/4 killed — 2 survivors (M3: save-patch
-   without `devAlias`; M4: without `?? ''`) are renderer logic with no test seam by
-   convention, a documented gap, not a defect; optional future seam = extract the
-   save-patch builder into `src/shared`. Report:
-   `.specs/features/dev-alias-setting/validation.md`.
-   **Post-review increment (owner, `c675198`):** the Dev alias field is now **hidden
-   unless** an effective template (branch or worktree, blank = default) contains
-   `{dev}` (DEVA-09/10); re-verified PASS by an independent Verifier (5/5 checks,
-   sensor 3/4 killed, 1 equivalent mutant).
-   **Owner decision (AD-017):** the pre-existing `commitForm` `undoByte`-drop defect was
-   first included, then **REVERTED** from this branch — `AgentDef.undoByte` exists only in
-   PR #83 (open upstream); on the `main` base it does not compile (TS2353). **Follow-up
-   after #83 merges:** a one-line fix preserving `undoByte` in `commitForm` (recorded in
-   the spec's Out of Scope).
-1. **NEXT STEP:** open the PR `feature/dev-alias-setting` → upstream `main` (owner
-   go-ahead for push), then integrate locally into `develop` after merge. Untracked specs
-   awaiting their own session: `session-activity-status`, `session-idle-notifications`,
-   `sidebar-node-collapse` (stay in the working tree).
-
-**PENDING — bump the committed `package.json` version on the next delivery:** `v1.0.0`
-shipped 2026-09-02 from `cafb43f` (the PR #77 merge), but the bump is **never committed**
-— `main` still reads `0.1.0` and nightlies publish `0.1.0-alpha.N`, semver-sorting below
-the shipped stable. Bump to `1.1.0` on the next delivery (owner decided 2026-09-10 this
-branch ships without it).
+**Uncommitted files:** none. **Branch:** `feature/terminal-links` @ `9839e22`.
