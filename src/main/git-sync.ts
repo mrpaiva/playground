@@ -29,14 +29,18 @@ export async function runGitOp(
   running.add(worktreePath)
   const run = (args: string[]): Promise<{ stdout: string }> =>
     git(worktreePath, args, { timeoutMs })
+  // `--no-rebase` keeps a `pull.rebase=true` (Git for Windows sets it system-wide
+  // by default) from turning the pull into a rebase, which refuses a dirty tree
+  // with its own message before `--ff-only` is ever consulted.
+  const pull = ['pull', '--ff-only', '--no-rebase']
   try {
     switch (op) {
       case 'sync':
-        await run(['pull', '--ff-only'])
+        await run(pull)
         await run(['push'])
         break
       case 'pull':
-        await run(['pull', '--ff-only'])
+        await run(pull)
         break
       case 'push':
         await run(['push'])

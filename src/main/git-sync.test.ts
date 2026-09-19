@@ -1,5 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, utimesSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -303,6 +312,59 @@ describe('runGitOp', () => {
 
     expect(result).toEqual({ ok: false, error: 'fatal: Not possible to fast-forward, aborting.' })
     expect(sha(repo, 'HEAD')).toBe(before)
+    expect(sha(remote, 'main')).toBe(remoteBefore)
+  })
+
+  /**
+   * The spec's dirty-pull edge case: the incoming commit changes a file the
+   * worktree has modified and not committed.
+   */
+  function dirtyAgainstIncoming(): { file: string; local: string } {
+    const file = join(repo, 'notes.txt')
+    writeFileSync(file, 'base\n')
+    git(repo, 'add', 'notes.txt')
+    commit(repo, 'add notes')
+    git(repo, 'push', '-q')
+    const other = join(root, 'other')
+    git(root, 'clone', '-q', remote, other)
+    writeFileSync(join(other, 'notes.txt'), 'from elsewhere\n')
+    git(other, 'commit', '-q', '-am', 'edit notes elsewhere')
+    git(other, 'push', '-q', 'origin', 'main')
+    const local = 'local edit, not committed\n'
+    writeFileSync(file, local)
+    // Git for Windows ships `pull.rebase=true` system-wide; pin it so the pull
+    // must stay a fast-forward on every machine, not only on one without it.
+    git(repo, 'config', 'pull.rebase', 'true')
+    return { file, local }
+  }
+
+  it("fails a pull that would overwrite a local change with git's error: line and changes nothing", async () => {
+    const { file, local } = dirtyAgainstIncoming()
+    const before = sha(repo, 'HEAD')
+
+    const result = await runGitOp(repo, 'pull')
+
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe(
+      'error: Your local changes to the following files would be overwritten by merge:'
+    )
+    expect(sha(repo, 'HEAD')).toBe(before)
+    expect(readFileSync(file, 'utf8')).toBe(local)
+  })
+
+  it('fails a sync that would overwrite a local change the same way, and pushes nothing', async () => {
+    const { file, local } = dirtyAgainstIncoming()
+    const before = sha(repo, 'HEAD')
+    const remoteBefore = sha(remote, 'main')
+
+    const result = await runGitOp(repo, 'sync')
+
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe(
+      'error: Your local changes to the following files would be overwritten by merge:'
+    )
+    expect(sha(repo, 'HEAD')).toBe(before)
+    expect(readFileSync(file, 'utf8')).toBe(local)
     expect(sha(remote, 'main')).toBe(remoteBefore)
   })
 

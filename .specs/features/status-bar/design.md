@@ -84,7 +84,7 @@ graph TD
 - **Interfaces**:
   - `readSyncState(worktreePath: string): Promise<SyncState>` — `rev-parse --abbrev-ref HEAD` (detached → `rev-parse --short HEAD`), `rev-parse --abbrev-ref @{upstream}`, `rev-list --count --left-right @{upstream}...HEAD`, `remote`, and the newest `FETCH_HEAD` mtime under `resolve(worktreePath, <git-common-dir>)` and its `worktrees/*/`
   - `readCommits(worktreePath: string, limit = 20): Promise<CommitLists>` — `log --format=%h%x1f%s%x1f%ct <range>` for `@{upstream}..HEAD` and `HEAD..@{upstream}`, plus a `rev-list --count` for the "+N more" tail
-  - `runGitOp(worktreePath: string, op: GitOp, remote?: string): Promise<GitOpResult>` — `sync` = `pull --ff-only` then `push`; `pull` / `push` / `fetch <remote> <branch>` / `publish` = `push -u <remote> <branch>`; every call carries `timeoutMs: 120_000`
+  - `runGitOp(worktreePath: string, op: GitOp, remote?: string): Promise<GitOpResult>` — `sync` = `pull --ff-only --no-rebase` then `push` (`--no-rebase` so a `pull.rebase=true` config, which Git for Windows sets system-wide, cannot turn it into a rebase; added 2026-09-19 after the round-2 Verifier); `pull` / `push` / `fetch <remote> <branch>` / `publish` = `push -u <remote> <branch>`; every call carries `timeoutMs: 120_000`
   - `parseAheadBehind(stdout: string): { behind: number; ahead: number }` — **pure, unit-tested** (`--left-right` prints `behind<TAB>ahead` for `@{upstream}...HEAD`)
   - `parseCommitLines(stdout: string): CommitLine[]` — **pure, unit-tested**
 - **Dependencies**: `git.ts`, `node:fs/promises` (`stat` for `FETCH_HEAD`), `node:path`
