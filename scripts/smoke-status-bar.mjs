@@ -14,6 +14,7 @@
  *   <tmp>/wt/detached a detached HEAD → no sync operation offered
  *   <tmp>/wt/gone     upstream configured, its tracking ref deleted → git error
  *   <tmp>/wt/many     23 commits behind → 20 listed, `+3 more`
+ *   <tmp>/acme-workspace/acme-gizmo  a second repo with no remote at all
  *   <tmp>/other       a second clone that pushes the "remote" commits
  *   <tmp>/loose       a plain folder, the cwd of the non-worktree session
  *
@@ -50,6 +51,8 @@ const GONE_BRANCH = 'user/dev/4821-fix-login/12348-upstream-ref-gone'
 const MANY_BRANCH = 'user/dev/4821-fix-login/12349-many-incoming'
 /** Commits pushed to MANY_BRANCH from the other clone: 20 listed, `+3 more` (STBR-16). */
 const MANY_COMMITS = 23
+/** The only branch of the no-remote repo; distinct from `main` so sidebar lookups stay unique. */
+const GIZMO_BRANCH = 'local-only'
 const TARGET_TITLE = 'stbr-smoke target'
 const FOLDER_TITLE = 'stbr-smoke folder'
 const SUBFOLDER_TITLE = 'stbr-smoke subfolder'
@@ -164,6 +167,7 @@ const originBare = join(root, 'origin.git')
 const backupBare = join(root, 'backup.git')
 const wsDir = join(root, 'acme-workspace')
 const primary = join(wsDir, 'acme-widget')
+const gizmo = join(wsDir, 'acme-gizmo')
 const other = join(root, 'other')
 const loose = join(root, 'loose')
 const wtDir = {
@@ -237,6 +241,11 @@ function seed() {
   writeFileSync(join(primary, 'added.txt'), 'added\n')
   git(primary, 'add', 'added.txt')
   writeFileSync(join(primary, 'untracked.txt'), 'untracked\n')
+
+  // STBR-13: a repo that never had a remote offers no remote-writing operation.
+  git(wsDir, 'init', '-q', '-b', GIZMO_BRANCH, gizmo)
+  git(gizmo, 'config', 'core.autocrlf', 'false')
+  commit(gizmo, 'gizmo.txt', 'Initial gizmo')
 }
 
 // ---------------------------------------------------------------- page helpers
@@ -318,7 +327,7 @@ async function selectWorktree(ws, branch) {
       `(async () => {
          const node = (await window.api.invoke('tree:get')).find((w) => w.path === ${J(wsDir)})
          const rows = [...document.querySelectorAll('.sidebar-worktree-branch')].map((r) => r.textContent)
-         return JSON.stringify({ tree: node?.repos?.[0]?.worktrees?.map((w) => w.branch), rows })
+         return JSON.stringify({ tree: node?.repos?.flatMap((r) => r.worktrees.map((w) => w.branch)), rows })
        })()`
     )
     throw new Error(`sidebar row for ${branch} not found: ${seen}`)
@@ -552,23 +561,30 @@ async function main() {
   )
   await refresh(ws)
 
-  const tree = JSON.parse(
+  const repos = JSON.parse(
     await evaluate(
       ws,
       `(async () => {
          const node = (await window.api.invoke('tree:get')).find((w) => w.id === ${J(entry.id)})
-         return JSON.stringify(node?.repos?.[0]?.worktrees ?? [])
+         return JSON.stringify(node?.repos ?? [])
        })()`
     )
   )
+  const tree = repos.find((r) => r.name === 'acme-widget')?.worktrees ?? []
+  const gizmoTree = repos.find((r) => r.name === 'acme-gizmo')?.worktrees ?? []
   const pathOf = (branch) => tree.find((w) => w.branch === branch)?.path
   const detachedLabel = tree.find((w) => w.branch.startsWith('(detached '))?.branch
   check(
-    'the temp workspace lists its seven worktrees',
-    tree.length === 7 &&
+    'the temp workspace lists two repos: acme-widget with seven worktrees, acme-gizmo with one',
+    repos.length === 2 &&
+      tree.length === 7 &&
       [LONG_BRANCH, SYNC_BRANCH, PUBLISH_BRANCH, GONE_BRANCH, MANY_BRANCH, 'main'].every(pathOf) &&
-      detachedLabel !== undefined,
-    tree.map((w) => w.branch.slice(0, 40)).join(', ')
+      detachedLabel !== undefined &&
+      gizmoTree.length === 1 &&
+      gizmoTree[0].branch === GIZMO_BRANCH,
+    repos
+      .map((r) => `${r.name}: ${r.worktrees.map((w) => w.branch.slice(0, 40)).join(', ')}`)
+      .join(' | ')
   )
 
   // --- The long branch in every non-Agents direction (STBR-01, 02, 06) ---
@@ -1020,6 +1036,141 @@ async function main() {
     'a session in a folder inside a worktree describes that worktree (STBR-04)',
     b.branchTitle === SYNC_BRANCH && b.folder === null && b.sync !== null,
     JSON.stringify({ branch: b.branchTitle, folder: b.folder, sync: b.sync })
+  )
+
+  // --- The four operations with an upstream, by label and in order (STBR-15) ---
+  await selectWorktree(ws, SYNC_BRANCH)
+  // Start from a screen with no toast, so any toast seen below is this block's.
+  const toastBefore = await waitFor(ws, TOAST, (v) => v === null, 5000)
+  pop = await openSync(ws)
+  check(
+    'with an upstream the popover offers exactly Sync, Pull, Push, Fetch, in that order (STBR-15)',
+    pop.buttons.map((x) => x.label).join() === 'Sync,Pull,Push,Fetch',
+    pop.buttons.map((x) => x.label).join()
+  )
+
+  // --- A successful operation with its popover open: inline, no toast; the tree refreshes (STBR-25) ---
+  // The changed-file counter reads the tree snapshot, not the sync state: a new
+  // untracked file shows there only once something refreshes the tree. Nothing
+  // refreshes it on a timer, so the counter stays stale until the operation's
+  // own refresh (`onRefreshTree`) lands; `loadState` alone cannot move it.
+  writeFileSync(join(wtDir.sync, 'tree-refresh-probe.txt'), 'untracked\n')
+  await sleep(1000)
+  const staleChanges = (await bar(ws)).changes
+  const porcelain = git(wtDir.sync, 'status', '--porcelain').split('\n').filter(Boolean).length
+  await clickPopButton(ws, 'Fetch')
+  pop = await waitOutcome(ws)
+  // A toast would be raised at completion and live 2.2 s, so 2 s of sampling
+  // right after `Done.` would see it.
+  const toastsSeen = []
+  for (const until = Date.now() + 2000; Date.now() < until; ) {
+    const t = JSON.parse(await evaluate(ws, TOAST))
+    if (t) toastsSeen.push(t.text)
+    await sleep(100)
+  }
+  const popAfter = JSON.parse(await evaluate(ws, POP))
+  check(
+    'an operation that finishes with its popover open reports "Done." inline and raises no toast',
+    toastBefore === null &&
+      pop.status === 'Done.' &&
+      popAfter.open &&
+      popAfter.status === 'Done.' &&
+      toastsSeen.length === 0,
+    JSON.stringify({
+      toastBefore,
+      status: popAfter.status,
+      toasts: [...new Set(toastsSeen)]
+    })
+  )
+  b = await waitBar(ws, (v) => v.changes === '1', 3000)
+  check(
+    'a successful operation refreshes the tree: the tree-fed counter picks up a new file (STBR-25)',
+    staleChanges === '0' && porcelain === 1 && b.changes === '1',
+    `counter before ${staleChanges} (porcelain ${porcelain}), after the Fetch ${b.changes}`
+  )
+
+  // --- Dismissal: Escape and an outside click close either popover (edge case) ---
+  const POPS = `JSON.stringify({
+    sync: Boolean(document.querySelector('.sync-pop')),
+    changes: Boolean(document.querySelector('.changes-pop'))
+  })`
+  // A synthetic keydown on the body reaches the popovers' window listeners and
+  // nothing focused, so no terminal ever receives it.
+  const escape = () =>
+    evaluate(
+      ws,
+      `(document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })), true)`
+    )
+  const clickSync = () =>
+    evaluate(ws, `(document.querySelector('button.status-bar-sync').click(), true)`)
+  const clickChanges = () =>
+    evaluate(ws, `(document.querySelector('button.status-bar-changes').click(), true)`)
+  let pops = JSON.parse(await evaluate(ws, POPS))
+  const syncWasOpen = pops.sync
+  await escape()
+  pops = await waitFor(ws, POPS, (p) => !p.sync, 2000)
+  check(
+    'Escape closes the sync popover',
+    syncWasOpen && !pops.sync && !pops.changes,
+    JSON.stringify({ before: syncWasOpen, after: pops })
+  )
+  await clickChanges()
+  const changesOpened = (await waitFor(ws, POPS, (p) => p.changes, 2000)).changes
+  await escape()
+  pops = await waitFor(ws, POPS, (p) => !p.changes, 2000)
+  check(
+    'Escape closes the changes popover',
+    changesOpened && !pops.changes && !pops.sync,
+    JSON.stringify({ before: changesOpened, after: pops })
+  )
+  await clickChanges()
+  const changesReopened = (await waitFor(ws, POPS, (p) => p.changes, 2000)).changes
+  await closePopovers(ws)
+  pops = await waitFor(ws, POPS, (p) => !p.changes, 2000)
+  check(
+    'a click outside closes the changes popover',
+    changesReopened && !pops.changes && !pops.sync,
+    JSON.stringify({ before: changesReopened, after: pops })
+  )
+
+  // --- One popover at a time (edge case) ---
+  await openSync(ws)
+  await clickChanges()
+  await sleep(300)
+  pops = await waitFor(ws, POPS, (p) => p.changes && !p.sync, 2000)
+  check(
+    'with the sync popover open, clicking the counter leaves only the changes popover open',
+    pops.changes && !pops.sync,
+    JSON.stringify(pops)
+  )
+  await clickSync()
+  await sleep(300)
+  pops = await waitFor(ws, POPS, (p) => p.sync && !p.changes, 2000)
+  check(
+    'with the changes popover open, clicking the sync section leaves only the sync popover open',
+    pops.sync && !pops.changes,
+    JSON.stringify(pops)
+  )
+  await closePopovers(ws)
+  rmSync(join(wtDir.sync, 'tree-refresh-probe.txt'), { force: true })
+  await refresh(ws)
+
+  // --- A repo with no remote: a plain-text reason, no operation (STBR-13) ---
+  await selectWorktree(ws, GIZMO_BRANCH)
+  b = await waitBar(ws, (v) => v.sync === 'no remote')
+  await evaluate(ws, `(document.querySelector('.status-bar-sync')?.click(), true)`)
+  await sleep(400)
+  pop = JSON.parse(await evaluate(ws, POP))
+  check(
+    'a repo with no remote reads "no remote" as muted plain text; clicking it opens no operations (STBR-13)',
+    b.repo === 'acme-gizmo' &&
+      b.branchTitle === GIZMO_BRANCH &&
+      b.sync === 'no remote' &&
+      b.syncTag === 'SPAN' &&
+      /\bmuted\b/.test(b.syncClass ?? '') &&
+      !pop.open &&
+      git(gizmo, 'remote') === '',
+    `${b.repo} · ${b.sync} <${b.syncTag} class="${b.syncClass}">; popover open ${pop.open}`
   )
 
   // --- Screenshots, light and dark ---
