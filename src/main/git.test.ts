@@ -1,5 +1,5 @@
 import { tmpdir } from 'node:os'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { git, gitFailureLine, isTimeout } from './git'
 
 /** The rejection `git()` produces, so the helpers are exercised against execFile's real error shape. */
@@ -45,5 +45,32 @@ describe('isTimeout', () => {
   it('is false for a value that is not an error object', () => {
     expect(isTimeout('timed out')).toBe(false)
     expect(isTimeout(null)).toBe(false)
+  })
+})
+
+describe('git', () => {
+  const inherited = process.env.GIT_TERMINAL_PROMPT
+
+  afterEach(() => {
+    if (inherited === undefined) delete process.env.GIT_TERMINAL_PROMPT
+    else process.env.GIT_TERMINAL_PROMPT = inherited
+  })
+
+  it('runs git with GIT_TERMINAL_PROMPT=0 even when the app inherited another value', async () => {
+    process.env.GIT_TERMINAL_PROMPT = '1'
+    // A `!` alias runs in git's own sh, so it echoes the environment git itself was given.
+    const { stdout } = await git(tmpdir(), [
+      '-c',
+      'alias.envp=!echo "prompt=$GIT_TERMINAL_PROMPT"',
+      'envp'
+    ])
+    expect(stdout.trim()).toBe('prompt=0')
+  })
+
+  it('hands every argument to git literally, with no shell to parse it', async () => {
+    const arg = 'a&b|c>d %PATH% $(x) `y` "q" ; e'
+    // --sq-quote echoes its arguments back, single-quoted, exactly as git received them.
+    const { stdout } = await git(tmpdir(), ['rev-parse', '--sq-quote', arg])
+    expect(stdout.trim()).toBe(`'${arg}'`)
   })
 })
