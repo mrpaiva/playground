@@ -1,4 +1,5 @@
 import { win32 as path } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { PathKind, ProbeResult } from '../shared/links'
 import type { LaunchResult } from '../shared/shortcuts'
 
@@ -74,9 +75,38 @@ export class LinkOpener {
    */
   async openPath(cwd: string, pathText: string): Promise<LaunchResult> {
     const absolutePath = this.resolveCandidate(cwd, pathText)
-    const kind = absolutePath ? await this.kindOf(absolutePath) : 'missing'
-    if (!absolutePath || kind === 'missing') {
-      return { ok: false, error: `${absolutePath ?? pathText} no longer exists` }
+    return absolutePath
+      ? this.openAbsolute(absolutePath)
+      : { ok: false, error: `${pathText} no longer exists` }
+  }
+
+  /**
+   * An OSC 8 `file://` target (what Claude Code emits for every path once
+   * `FORCE_HYPERLINK` is set) opens through the same rules as a printed path
+   * (LINK-21). Only a local URL is accepted — a UNC host is refused, like any
+   * other scheme; a `#L10C5` fragment or `:line:col` suffix is dropped (LINK-09).
+   */
+  async openFileUrl(url: string): Promise<LaunchResult> {
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      return { ok: false, error: `Only local file links open here — ${url}` }
+    }
+    if (parsed.protocol !== 'file:' || (parsed.hostname && parsed.hostname !== 'localhost')) {
+      return { ok: false, error: `Only local file links open here — ${url}` }
+    }
+    parsed.hash = ''
+    parsed.search = ''
+    const absolutePath = fileURLToPath(parsed, { windows: true }).replace(/(?::\d+){1,2}$/, '')
+    return this.openAbsolute(path.normalize(absolutePath))
+  }
+
+  /** Directory → Explorer; file → default app or the chooser (LINK-09..11, LINK-13). */
+  private async openAbsolute(absolutePath: string): Promise<LaunchResult> {
+    const kind = await this.kindOf(absolutePath)
+    if (kind === 'missing') {
+      return { ok: false, error: `${absolutePath} no longer exists` }
     }
     if (kind === 'dir') {
       return this.launch('explorer.exe', [absolutePath], absolutePath)

@@ -7,7 +7,7 @@ import {
   type BufferLineLike,
   type CellLike
 } from './terminal-buffer-lines'
-import { createTerminalLinkProvider, type LinkHit } from './terminal-link-provider'
+import { createTerminalLinkProvider, hitForOscTarget, type LinkHit } from './terminal-link-provider'
 
 const COLS = 40
 
@@ -244,5 +244,32 @@ describe('alternate screen (LINK-32)', () => {
     terminal.buffer.active = normal
     expect(await provideLinks(provider, 1)).toBeUndefined()
     expect(provider.hitTest(10, 1)).toBeNull()
+  })
+})
+
+describe('hitForOscTarget (LINK-20, LINK-21, LINK-22)', () => {
+  it('routes an http or https target to the browser', () => {
+    expect(hitForOscTarget('https://example.com/x')).toEqual({
+      kind: 'url',
+      url: 'https://example.com/x'
+    })
+    expect(hitForOscTarget('http://example.com/x')).toEqual({
+      kind: 'url',
+      url: 'http://example.com/x'
+    })
+  })
+
+  it('routes a file target to the file rules', () => {
+    expect(hitForOscTarget('file:///C:/Users/MAUROP%7E1/a.txt')).toEqual({
+      kind: 'fileUrl',
+      url: 'file:///C:/Users/MAUROP%7E1/a.txt'
+    })
+  })
+
+  it('opens nothing for any other scheme or for text that is not a url', () => {
+    expect(hitForOscTarget('mailto:a@b.c')).toBeNull()
+    expect(hitForOscTarget('vscode://file/E:/x/y.ts')).toBeNull()
+    expect(hitForOscTarget('ms-teams:launch')).toBeNull()
+    expect(hitForOscTarget('not a url')).toBeNull()
   })
 })

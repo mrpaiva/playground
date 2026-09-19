@@ -234,6 +234,7 @@ app.whenReady().then(() => {
   handle('links:probe', ({ cwd, paths }) => linkOpener.probe(cwd, paths))
   handle('links:openUrl', ({ url }) => linkOpener.openUrl(url))
   handle('links:openPath', ({ cwd, pathText }) => linkOpener.openPath(cwd, pathText))
+  handle('links:openFileUrl', ({ url }) => linkOpener.openFileUrl(url))
 
   const adoGateway = new AdoGateway()
   const taskBoard = new TaskBoard(configStore, adoGateway)

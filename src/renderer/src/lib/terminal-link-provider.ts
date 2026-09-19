@@ -18,6 +18,8 @@ import { detectLinkCandidates, type LinkCandidate } from './terminal-links'
 
 export type KnownLinkHit =
   | { kind: 'url'; url: string }
+  /** An OSC 8 `file://` target; main converts it to a path (LINK-21). */
+  | { kind: 'fileUrl'; url: string }
   | { kind: 'path'; pathText: string; state: 'file' | 'dir' }
 
 export type LinkHit =
@@ -44,6 +46,24 @@ type PathCandidate = Extract<LinkCandidate, { kind: 'path' }>
 type Placed = { candidate: LinkCandidate; hit: KnownLinkHit; range: IBufferRange; end: number }
 
 const NOOP = (): void => {}
+
+/**
+ * What a Ctrl+click on an OSC 8 hyperlink opens: `http(s)` in the browser,
+ * `file` through the file rules, anything else nothing — xterm provides every
+ * scheme once `allowNonHttpProtocols` is on, so the pane filters here
+ * (LINK-20, LINK-21, LINK-22).
+ */
+export function hitForOscTarget(target: string): KnownLinkHit | null {
+  let protocol: string
+  try {
+    protocol = new URL(target).protocol
+  } catch {
+    return null
+  }
+  if (protocol === 'http:' || protocol === 'https:') return { kind: 'url', url: target }
+  if (protocol === 'file:') return { kind: 'fileUrl', url: target }
+  return null
+}
 
 export function createTerminalLinkProvider(deps: TerminalLinkProviderDeps): TerminalLinkProvider {
   const cache = new Map<string, PathKind>()

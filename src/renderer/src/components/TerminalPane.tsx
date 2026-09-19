@@ -10,7 +10,11 @@ import {
   rangeContains
 } from '../lib/terminal-buffer-lines'
 import { linkGestureOnMouseDown, linkGestureOnMouseUp } from '../lib/terminal-link-gesture'
-import { createTerminalLinkProvider, type LinkHit } from '../lib/terminal-link-provider'
+import {
+  createTerminalLinkProvider,
+  hitForOscTarget,
+  type LinkHit
+} from '../lib/terminal-link-provider'
 import {
   classifyTerminalKey,
   classifyTerminalMouse,
@@ -155,13 +159,14 @@ export function TerminalPane({
     term.open(container)
     fit.fit()
 
-    // Links (LINK-01..30): xterm only underlines what the provider returns;
+    // Links (LINK-01..33): xterm only underlines what the provider returns;
     // opening is decided here, at the capture-phase mousedown/mouseup on the
     // container, so a Ctrl+click over a link never reaches xterm and, through
     // it, a mouse-tracking agent (LINK-14). `linkHandler.activate` is a no-op
-    // because xterm's default opens an OSC 8 link on a plain click (LINK-16);
-    // `allowNonHttpProtocols` stays off so xterm itself drops every non-http
-    // OSC 8 target (LINK-22).
+    // because xterm's default opens an OSC 8 link on a plain click (LINK-16).
+    // `allowNonHttpProtocols` is on so a `file://` OSC 8 target — every path
+    // Claude Code prints under FORCE_HYPERLINK — reaches `hoveredOsc`; the
+    // scheme filter is `hitForOscTarget` (LINK-21, LINK-22).
     const links = createTerminalLinkProvider({
       buffer: activeBufferOf(term),
       getCols: () => term.cols,
@@ -170,6 +175,7 @@ export function TerminalPane({
     const linkProvider = term.registerLinkProvider(links)
     let hoveredOsc: { text: string; range: IBufferRange } | null = null
     term.options.linkHandler = {
+      allowNonHttpProtocols: true,
       activate: () => {},
       hover: (_event, text, range) => {
         hoveredOsc = { text, range }
@@ -186,7 +192,9 @@ export function TerminalPane({
       const result =
         known.kind === 'url'
           ? await api.invoke('links:openUrl', { url: known.url })
-          : await api.invoke('links:openPath', { cwd, pathText: known.pathText })
+          : known.kind === 'fileUrl'
+            ? await api.invoke('links:openFileUrl', { url: known.url })
+            : await api.invoke('links:openPath', { cwd, pathText: known.pathText })
       if (!result.ok) onToastRef.current(result.error ?? 'Couldn’t open the link')
     }
     const onLinkMouseDown = (event: MouseEvent): void => {
@@ -199,7 +207,7 @@ export function TerminalPane({
       const hit = !cell
         ? null
         : hoveredOsc && rangeContains(hoveredOsc.range, cell.x, cell.y, term.cols)
-          ? { kind: 'url' as const, url: hoveredOsc.text }
+          ? hitForOscTarget(hoveredOsc.text)
           : links.hitTest(cell.x, cell.y)
       // Over nothing, the press stays the agent's (LINK-15).
       if (linkGestureOnMouseDown(event, hit) !== 'intercept' || !hit) return

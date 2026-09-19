@@ -45,6 +45,8 @@ export interface IpcContract {
   'links:openUrl': { req: { url: string }; res: LaunchResult }
   /** Opens a file with its Windows default app (or the "Open with" chooser) and a directory in Explorer. */
   'links:openPath': { req: { cwd: string; pathText: string }; res: LaunchResult }
+  /** Opens an OSC 8 `file://` target through the same rules as `links:openPath`; any other URL is refused (LINK-21). */
+  'links:openFileUrl': { req: { url: string }; res: LaunchResult }
   /** git worktree add at the flat-sibling path; failures are returned, never thrown. */
   'worktrees:create': {
     req: {

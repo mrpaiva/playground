@@ -254,3 +254,72 @@ describe('LinkOpener.openPath (LINK-09, LINK-10, LINK-11, LINK-13, LINK-31)', ()
     expect(fakes.openedPaths).toEqual([script])
   })
 })
+
+describe('LinkOpener.openFileUrl (LINK-21)', () => {
+  const FILE = 'C:\\Users\\MAUROP~1\\scratch\\a.txt'
+  const DIR = 'C:\\Users\\MAUROP~1\\scratch'
+
+  it('converts a file url to the local path and opens it like a printed path', async () => {
+    const fakes = makeFakes({ files: [FILE] })
+    const result = await new LinkOpener(fakes).openFileUrl(
+      'file:///C:/Users/MAUROP%7E1/scratch/a.txt'
+    )
+    expect(result).toEqual({ ok: true })
+    expect(fakes.statCalls).toEqual([FILE])
+    expect(fakes.associationQueries).toEqual(['.txt'])
+    expect(fakes.openedPaths).toEqual([FILE])
+  })
+
+  it('shows the chooser for an unassociated file and Explorer for a directory', async () => {
+    const chooser = makeFakes({ files: [FILE], associated: false })
+    expect(
+      await new LinkOpener(chooser).openFileUrl('file:///C:/Users/MAUROP%7E1/scratch/a.txt')
+    ).toEqual({ ok: true })
+    expect(chooser.spawns).toEqual([['rundll32.exe', ['shell32.dll,OpenAs_RunDLL', FILE]]])
+
+    const explorer = makeFakes({ dirs: [DIR] })
+    expect(
+      await new LinkOpener(explorer).openFileUrl('file:///C:/Users/MAUROP%7E1/scratch')
+    ).toEqual({ ok: true })
+    expect(explorer.spawns).toEqual([['explorer.exe', [DIR]]])
+  })
+
+  it('drops a #L10C5 fragment and a :line:col suffix before opening', async () => {
+    const fakes = makeFakes({ files: [FILE] })
+    const opener = new LinkOpener(fakes)
+    expect(await opener.openFileUrl('file:///C:/Users/MAUROP%7E1/scratch/a.txt#L10C5')).toEqual({
+      ok: true
+    })
+    expect(await opener.openFileUrl('file:///C:/Users/MAUROP%7E1/scratch/a.txt:12:3')).toEqual({
+      ok: true
+    })
+    expect(fakes.openedPaths).toEqual([FILE, FILE])
+  })
+
+  it('refuses a unc host and a non-file scheme without touching the disk', async () => {
+    const fakes = makeFakes({ files: [FILE] })
+    const opener = new LinkOpener(fakes)
+    expect(await opener.openFileUrl('file://server/share/a.txt')).toEqual({
+      ok: false,
+      error: 'Only local file links open here — file://server/share/a.txt'
+    })
+    expect(await opener.openFileUrl('https://example.com/a.txt')).toEqual({
+      ok: false,
+      error: 'Only local file links open here — https://example.com/a.txt'
+    })
+    expect(await opener.openFileUrl('not a url')).toEqual({
+      ok: false,
+      error: 'Only local file links open here — not a url'
+    })
+    expect(fakes.statCalls).toEqual([])
+    expect(fakes.openedPaths).toEqual([])
+    expect(fakes.spawns).toEqual([])
+  })
+
+  it('reports a file that no longer exists', async () => {
+    const fakes = makeFakes()
+    expect(
+      await new LinkOpener(fakes).openFileUrl('file:///C:/Users/MAUROP%7E1/scratch/a.txt')
+    ).toEqual({ ok: false, error: `${FILE} no longer exists` })
+  })
+})
