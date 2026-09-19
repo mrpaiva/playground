@@ -268,7 +268,9 @@ T7 → T8
 
 ---
 
-### T6: Rail rows label, number and describe by the session name
+### T6: Rail rows label, number and describe by the session name ✅ COMPLETE
+
+**Status**: Done — `resolveRows` keys counts/numbering/label on `rowLabel`, tooltip reads `<agent> · <name>` in place of the title; `RailRow` doc comments updated; RAIL-12/13 amended with an AD-022 note. 9 tests; the 59 existing `rail-groups` tests unmodified (0 deletions). Quick gate 68/68, eslint and typecheck clean.
 
 **What**: `resolveRows` counts, numbers and labels by `rowLabel`, and the tooltip reads `<agent> · <name>` in place of the title when a name is present; RAIL-12/13 are amended to say so.
 **Where**: `src/renderer/src/lib/rail-groups.ts` (`resolveRows`, `RailRow.label`/`tooltip` doc comments), `src/renderer/src/lib/rail-groups.test.ts`, `.specs/features/agents-rail-v2/spec.md` (RAIL-12, RAIL-13 wording)
