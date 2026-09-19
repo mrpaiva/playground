@@ -24,6 +24,23 @@ export interface BufferLike {
   getNullCell(): CellLike
 }
 
+export interface BufferHost {
+  buffer: { readonly active: BufferLike }
+}
+
+/**
+ * A `BufferLike` that follows the terminal's active buffer on every call.
+ * `term.buffer.active` is a getter: captured once at pane creation it stays
+ * the normal buffer, and a TUI in the alternate screen (Claude Code) leaves
+ * hover and Ctrl+click reading rows the user is not looking at (LINK-32).
+ */
+export function activeBufferOf(terminal: BufferHost): BufferLike {
+  return {
+    getLine: (y0) => terminal.buffer.active.getLine(y0),
+    getNullCell: () => terminal.buffer.active.getNullCell()
+  }
+}
+
 export interface WindowedLine {
   text: string
   /** 0-based index of the first joined row. */

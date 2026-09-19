@@ -4,7 +4,11 @@ import { UnicodeGraphemesAddon } from '@xterm/addon-unicode-graphemes'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal, type IBufferRange, type ITheme } from '@xterm/xterm'
 import { api } from '../lib/api'
-import { bufferPositionForMouseEvent, rangeContains } from '../lib/terminal-buffer-lines'
+import {
+  activeBufferOf,
+  bufferPositionForMouseEvent,
+  rangeContains
+} from '../lib/terminal-buffer-lines'
 import { linkGestureOnMouseDown, linkGestureOnMouseUp } from '../lib/terminal-link-gesture'
 import { createTerminalLinkProvider, type LinkHit } from '../lib/terminal-link-provider'
 import {
@@ -159,7 +163,7 @@ export function TerminalPane({
     // `allowNonHttpProtocols` stays off so xterm itself drops every non-http
     // OSC 8 target (LINK-22).
     const links = createTerminalLinkProvider({
-      buffer: term.buffer.active,
+      buffer: activeBufferOf(term),
       getCols: () => term.cols,
       probe: (paths) => api.invoke('links:probe', { cwd, paths })
     })

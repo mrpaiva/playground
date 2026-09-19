@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  activeBufferOf,
   bufferPositionForMouseEvent,
   rangeContains,
   rangeForStringSpan,
@@ -228,5 +229,34 @@ describe('bufferPositionForMouseEvent (LINK-28)', () => {
   it('returns null when the screen element is missing', () => {
     const noScreen = { ...terminal(0), element: { querySelector: () => null } }
     expect(bufferPositionForMouseEvent(noScreen, { clientX: 1, clientY: 1 })).toBeNull()
+  })
+})
+
+describe('activeBufferOf (LINK-32)', () => {
+  it('reads whichever buffer is active at the time of each call, not at creation', () => {
+    const normal = makeBuffer(10, [{ text: 'normal' }])
+    const alternate = makeBuffer(10, [{ text: 'alt' }])
+    const terminal = { buffer: { active: normal } }
+    const buffer = activeBufferOf(terminal)
+
+    expect(buffer.getLine(0)?.translateToString(true)).toBe('normal')
+
+    terminal.buffer.active = alternate
+    expect(buffer.getLine(0)?.translateToString(true)).toBe('alt')
+
+    terminal.buffer.active = normal
+    expect(buffer.getLine(0)?.translateToString(true)).toBe('normal')
+  })
+
+  it('takes the null cell from the active buffer too', () => {
+    const marker = makeCell()
+    marker.chars = 'from-alternate'
+    const terminal = {
+      buffer: { active: { getLine: () => undefined, getNullCell: makeCell } as BufferLike }
+    }
+    const buffer = activeBufferOf(terminal)
+    terminal.buffer.active = { getLine: () => undefined, getNullCell: () => marker }
+
+    expect(buffer.getNullCell()).toBe(marker)
   })
 })

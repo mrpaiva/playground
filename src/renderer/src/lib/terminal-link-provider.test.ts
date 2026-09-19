@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { ILink } from '@xterm/xterm'
 import type { PathKind, ProbeResult } from '../../../shared/links'
-import type { BufferLike, BufferLineLike, CellLike } from './terminal-buffer-lines'
+import {
+  activeBufferOf,
+  type BufferLike,
+  type BufferLineLike,
+  type CellLike
+} from './terminal-buffer-lines'
 import { createTerminalLinkProvider, type LinkHit } from './terminal-link-provider'
 
 const COLS = 40
@@ -216,5 +221,28 @@ describe('hitTest (LINK-02, LINK-07, LINK-19, LINK-28)', () => {
     })
     expect(provider.hitTest(3, 1)).toBeNull()
     expect(provider.hitTest(3, 9)).toBeNull()
+  })
+})
+
+describe('alternate screen (LINK-32)', () => {
+  it('follows the buffer that is active at call time, for the hover and the hit test alike', async () => {
+    const normal = makeBuffer(['plain prompt'])
+    const alternate = makeBuffer(['see https://example.com/x now'])
+    const terminal = { buffer: { active: normal } }
+    const provider = createTerminalLinkProvider({
+      buffer: activeBufferOf(terminal),
+      getCols: () => COLS,
+      ...makeProbe({})
+    })
+    expect(await provideLinks(provider, 1)).toBeUndefined()
+    expect(provider.hitTest(10, 1)).toBeNull()
+
+    terminal.buffer.active = alternate
+    expect((await provideLinks(provider, 1))?.map((l) => l.text)).toEqual(['https://example.com/x'])
+    expect(provider.hitTest(10, 1)).toEqual({ kind: 'url', url: 'https://example.com/x' })
+
+    terminal.buffer.active = normal
+    expect(await provideLinks(provider, 1)).toBeUndefined()
+    expect(provider.hitTest(10, 1)).toBeNull()
   })
 })
