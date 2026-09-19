@@ -251,13 +251,13 @@ T17 → T18
 
 **Done when**:
 
-- [ ] In Agents with a session selected, the target is that session's worktree — **not** the tree selection
-- [ ] A session whose cwd is not inside any worktree returns the folder target carrying the path
-- [ ] The other four directions return the tree-selected worktree
-- [ ] No selection anywhere returns the none target
-- [ ] `status-bar.test.ts` covers those four plus a session id that no longer exists
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 775 + 6 = **781**
+- [x] In Agents with a session selected, the target is that session's worktree — **not** the tree selection
+- [x] A session whose cwd is not inside any worktree returns the folder target carrying the path
+- [x] The other four directions return the tree-selected worktree
+- [x] No selection anywhere returns the none target
+- [x] `status-bar.test.ts` covers those four plus a session id that no longer exists
+- [x] Gate passes: `npm test`
+- [x] Test count: 775 + 6 = **781**
 
 **Tests**: unit
 **Gate**: quick
