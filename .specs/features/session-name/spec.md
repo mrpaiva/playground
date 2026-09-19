@@ -118,23 +118,23 @@ Every ambiguity is resolved or recorded here — nothing is left silently unclea
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| SNAME-01 | P1: Row label | Design | Pending |
-| SNAME-02 | P1: Row label | Design | Pending |
-| SNAME-03 | P1: Row label | Design | Pending |
-| SNAME-04 | P1: Row label | Design | Pending |
-| SNAME-05 | P1: Row label | Design | Pending |
-| SNAME-06 | P1: Row label | Design | Pending |
-| SNAME-07 | P1: Row label | Design | Pending |
-| SNAME-08 | P1: Listing | Design | Pending |
-| SNAME-09 | P1: Listing | Design | Pending |
-| SNAME-10 | P1: Listing | Design | Pending |
-| SNAME-11 | P1: Listing | Design | Pending |
-| SNAME-12 | P1: Listing | Design | Pending |
-| SNAME-13 | P1: Listing | Design | Pending |
-| SNAME-14 | P1: Listing | Design | Pending |
-| SNAME-15 | P1: Listing | Design | Pending |
+| SNAME-01 | P1: Row label | Tasks | Mapped → T4, T5, T6, T8 |
+| SNAME-02 | P1: Row label | Tasks | Mapped → T1, T4, T5 |
+| SNAME-03 | P1: Row label | Tasks | Mapped → T5, T6 |
+| SNAME-04 | P1: Row label | Tasks | Mapped → T4 |
+| SNAME-05 | P1: Row label | Tasks | Mapped → T6 |
+| SNAME-06 | P1: Row label | Tasks | Mapped → T6 |
+| SNAME-07 | P1: Row label | Tasks | Mapped → T6 |
+| SNAME-08 | P1: Listing | Tasks | Mapped → T4 |
+| SNAME-09 | P1: Listing | Tasks | Mapped → T3, T4 |
+| SNAME-10 | P1: Listing | Tasks | Mapped → T3, T7 |
+| SNAME-11 | P1: Listing | Tasks | Mapped → T4 |
+| SNAME-12 | P1: Listing | Tasks | Mapped → T3 |
+| SNAME-13 | P1: Listing | Tasks | Mapped → T2 |
+| SNAME-14 | P1: Listing | Tasks | Mapped → T3, T7 |
+| SNAME-15 | P1: Listing | Tasks | Mapped → T1, T4 |
 
-**Coverage:** 15 total, 0 mapped to tasks, 15 unmapped ⚠️
+**Coverage:** 15 total, 15 mapped to tasks, 0 unmapped ✅ (`tasks.md`)
 
 ---
 
