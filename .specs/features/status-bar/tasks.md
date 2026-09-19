@@ -400,13 +400,14 @@ T17 → T18
 
 **Done when**:
 
-- [ ] `StatusBar.css` created, exposing the bar height as a CSS custom property
-- [ ] The head span carries `max-width:50%` + `text-overflow:ellipsis`; the tail span does not shrink
-- [ ] The branch element's `title` is the untruncated name
-- [ ] The counter reads `WorktreeNode.changes`, and `0` renders as `0`
-- [ ] The region carries `role="status"`; light and dark both pass a visual check
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **797** (unchanged — renderer component)
+- [x] `StatusBar.css` created, exposing the bar height as a CSS custom property
+- [x] The head span carries `max-width:50%` + `text-overflow:ellipsis`; the tail span does not shrink (SPEC_DEVIATION in `StatusBar.css`: the 50% cap sits on the branch element holding head + tail, so the whole name stays within half the bar; the head carries the ellipsis)
+- [x] The branch element's `title` is the untruncated name
+- [x] The counter reads `WorktreeNode.changes`, and `0` renders as `0`
+- [x] The region carries `role="status"`
+- [ ] Light and dark both pass a visual check — deferred to the T18 live smoke
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **797** (unchanged — renderer component)
 
 **Tests**: none
 **Gate**: full
