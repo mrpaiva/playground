@@ -89,6 +89,16 @@
   flex: 1 1 auto;
 }
 
+/* Anchors a popover to its trigger (sidebar-ctx-menu pattern, D4). */
+.status-bar-anchor {
+  position: relative;
+  flex: 0 1 auto;
+  max-width: 40%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
 /* The two right-hand triggers: sync section and changed-file counter. */
 .status-bar-sync,
 .status-bar-changes {
@@ -109,7 +119,7 @@
 
 .status-bar-sync.error {
   flex: 0 1 auto;
-  max-width: 40%;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

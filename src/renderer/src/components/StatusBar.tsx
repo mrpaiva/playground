@@ -1,10 +1,12 @@
-import type { JSX } from 'react'
+import { useCallback, useState } from 'react'
+import type { JSX, MouseEvent } from 'react'
 import type { AppConfig, SessionView } from '../../../shared/config'
 import type { SyncState } from '../../../shared/git'
 import type { WorkspaceNode } from '../../../shared/tree'
 import { barTargetFor, splitBranch, syncSectionFor } from '../lib/status-bar'
 import { useGitSync } from '../lib/use-git-sync'
 import { Icon } from './Icon'
+import { SyncPopover } from './SyncPopover'
 import './StatusBar.css'
 
 interface StatusBarProps {
@@ -36,7 +38,21 @@ export function StatusBar({
 }: StatusBarProps): JSX.Element {
   const target = barTargetFor({ direction, tree, selectedId, sessions, selectedSessionId })
   const targetPath = target.kind === 'worktree' ? target.selected.worktree.path : null
-  const sync = useGitSync({ targetPath, tree, popoverPath: null, onToast, onRefreshTree })
+  /** At most one popover is open; opening one closes the other (Edge cases). */
+  const [open, setOpen] = useState<'sync' | null>(null)
+  const popoverPath = open === 'sync' ? targetPath : null
+  const sync = useGitSync({ targetPath, tree, popoverPath, onToast, onRefreshTree })
+  // Close only if this popover is still the open one: a click on the other
+  // trigger has already switched `open` before the outside-click lands.
+  const closeSync = useCallback(() => setOpen((o) => (o === 'sync' ? null : o)), [])
+  const toggleSync = (e: MouseEvent): void => {
+    // The popover's outside-click listener is attached while this very click
+    // is still bubbling; stopping it here keeps the popover from closing at once.
+    e.stopPropagation()
+    if (open === 'sync') return setOpen(null)
+    setOpen('sync')
+    sync.openPopover()
+  }
 
   if (target.kind === 'none') {
     return (
@@ -71,7 +87,19 @@ export function StatusBar({
         {tail && <span className="status-bar-branch-tail">{tail}</span>}
       </span>
       <span className="status-bar-spacer" />
-      <SyncSection state={sync.state} />
+      <span className="status-bar-anchor">
+        <SyncSection state={sync.state} open={open === 'sync'} onToggle={toggleSync} />
+        {open === 'sync' && sync.state && (
+          <SyncPopover
+            state={sync.state}
+            commits={sync.commits}
+            running={sync.running}
+            outcome={sync.outcome}
+            onRun={sync.run}
+            onClose={closeSync}
+          />
+        )}
+      </span>
       <span className="status-bar-changes" title={`${worktree.changes} changed files`}>
         <Icon name="pencil" size={11} />
         {worktree.changes}
@@ -80,19 +108,38 @@ export function StatusBar({
   )
 }
 
-/** The ahead/behind section, or the reason it cannot show counts (STBR-09, 12, 13, 14). */
-function SyncSection({ state }: { state: SyncState | null }): JSX.Element {
+/**
+ * The ahead/behind section, or the reason it cannot show counts (STBR-09, 12,
+ * 13, 14). Only counts and no-upstream open the popover: the other states offer
+ * no operation (STBR-13).
+ */
+function SyncSection({
+  state,
+  open,
+  onToggle
+}: {
+  state: SyncState | null
+  open: boolean
+  onToggle: (e: MouseEvent) => void
+}): JSX.Element {
   if (state === null) return <span className="status-bar-sync muted">…</span>
   const section = syncSectionFor(state)
+  const trigger = (label: string, title: string, muted = false): JSX.Element => (
+    <button
+      type="button"
+      className={`status-bar-sync${muted ? ' muted' : ''}${open ? ' open' : ''}`}
+      title={title}
+      aria-expanded={open}
+      onClick={onToggle}
+    >
+      {label}
+    </button>
+  )
   switch (section.kind) {
     case 'counts':
-      return (
-        <span className="status-bar-sync" title="Commits to pull / to push">
-          ↓{section.behind} ↑{section.ahead}
-        </span>
-      )
+      return trigger(`↓${section.behind} ↑${section.ahead}`, 'Commits to pull / to push')
     case 'no-upstream':
-      return <span className="status-bar-sync muted">no upstream</span>
+      return trigger('no upstream', 'Publish this branch', true)
     case 'detached':
       return <span className="status-bar-sync muted">detached HEAD</span>
     case 'no-remote':

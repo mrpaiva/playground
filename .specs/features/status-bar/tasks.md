@@ -427,13 +427,13 @@ T17 → T18
 
 **Done when**:
 
-- [ ] Publish is disabled until a remote is chosen when `remotes.length > 1`
-- [ ] The error line persists — the popover does not close on failure
-- [ ] Buttons are disabled with an activity indicator while that path's operation runs
-- [ ] A timeout renders as a timeout, naming the terminal as the way out
-- [ ] Escape and an outside click close it; opening it closes the changes popover
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **797** (unchanged — renderer component)
+- [x] Publish is disabled until a remote is chosen when `remotes.length > 1`
+- [x] The error line persists — the popover does not close on failure
+- [x] Buttons are disabled with an activity indicator while that path's operation runs
+- [x] A timeout renders as a timeout, naming the terminal as the way out
+- [x] Escape and an outside click close it; opening it closes the changes popover
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **797** (unchanged — renderer component)
 
 **Tests**: none
 **Gate**: full
