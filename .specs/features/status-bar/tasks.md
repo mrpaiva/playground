@@ -97,13 +97,13 @@ T17 → T18
 
 **Done when**:
 
-- [ ] `git()` keeps `shell:false`, `windowsHide`, `GIT_TERMINAL_PROMPT=0` and gains `opts.timeoutMs`
-- [ ] `isTimeout` returns true for an `execFile` timeout error (`killed === true`) and false for a plain non-zero exit
-- [ ] `worktree-manager.ts` imports both and defines neither; its test file is unmodified
-- [ ] `src/main/git.test.ts` covers `gitFailureLine` (first non-empty stderr line, `Error` fallback, non-Error fallback) and `isTimeout` (timeout, plain failure, non-error value)
-- [ ] Baseline lint warning count recorded in the commit body
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 748 + 6 = **754** (no deletions)
+- [x] `git()` keeps `shell:false`, `windowsHide`, `GIT_TERMINAL_PROMPT=0` and gains `opts.timeoutMs`
+- [x] `isTimeout` returns true for an `execFile` timeout error (`killed === true`) and false for a plain non-zero exit
+- [x] `worktree-manager.ts` imports both and defines neither; its test file is unmodified
+- [x] `src/main/git.test.ts` covers `gitFailureLine` (first non-empty stderr line, `Error` fallback, non-Error fallback) and `isTimeout` (timeout, plain failure, non-error value)
+- [x] Baseline lint warning count recorded in the commit body
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 748 + 6 = **754** (no deletions)
 
 **Tests**: unit
 **Gate**: full
