@@ -376,11 +376,11 @@ T17 → T18
 
 **Done when**:
 
-- [ ] The ops map is keyed by path, never by "current selection"
-- [ ] A successful operation refetches `git:sync-state` and calls `onRefreshTree`
-- [ ] An operation finishing while its popover is closed calls `onToast`; finishing with it open does not
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **797** (unchanged — renderer hooks are hand-verified per the matrix)
+- [x] The ops map is keyed by path, never by "current selection"
+- [x] A successful operation refetches `git:sync-state` and calls `onRefreshTree`
+- [x] An operation finishing while its popover is closed calls `onToast`; finishing with it open does not
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **797** (unchanged — renderer hooks are hand-verified per the matrix)
 
 **Tests**: none
 **Gate**: full
