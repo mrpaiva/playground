@@ -230,11 +230,11 @@ export interface GitOpResult {
 | Op lifetime | Owned by the hook's op map, keyed by worktree path | STBR-26 falls out of it: the promise does not belong to the popover that started it |
 | Test split | Pure parsers + `status-bar.ts` in unit tests; `git-sync.ts` against a real temp repo with a bare remote; the bar and popovers hand-verified + CDP smoke | The project's convention (`TESTING.md`), and the only way to prove ff-only refusal and `push -u` without a network |
 
-> **Project-level decision to record on approval (proposed AD-022):** *every git invocation in this app
-> goes through `src/main/git.ts`* — no module spawns git directly, so `shell:false`,
-> `windowsHide`, `GIT_TERMINAL_PROMPT=0` and the timeout ceiling are guaranteed in one place. It also
-> pins that **the status bar never touches the network without an explicit user action**. Not written
-> to `.specs/STATE.md` yet — it is appended when this design is approved.
+> **Project-level decision — recorded as AD-023 in `.specs/STATE.md` (2026-09-19):** *every git
+> invocation in this app goes through `src/main/git.ts`* — no module spawns git directly, so
+> `shell:false`, `windowsHide`, `GIT_TERMINAL_PROMPT=0` and the timeout ceiling are guaranteed in one
+> place. It also pins that **the status bar never touches the network without an explicit user
+> action**.
 
 ---
 
