@@ -959,6 +959,24 @@ async function main() {
     JSON.stringify({ sync: b.sync, tag: b.syncTag, repo: b.repo, changes: b.changes })
   )
 
+  // --- A worktree whose folder was deleted (spec edge case) ---
+  // Selecting away and straight back is the late-answer race: the slow read for
+  // the other worktree must not replace the deleted one's instant answer.
+  rmSync(wtDir.gone, { recursive: true, force: true })
+  await refresh(ws)
+  await selectWorktree(ws, LONG_BRANCH)
+  await selectWorktree(ws, GONE_BRANCH)
+  await sleep(4000)
+  b = await bar(ws)
+  check(
+    'a deleted worktree folder reads as missing, with no counter and no operation, and stays so',
+    b.branchTitle === GONE_BRANCH &&
+      b.sync === 'The worktree folder no longer exists' &&
+      b.syncTag === 'SPAN' &&
+      b.changes === null,
+    JSON.stringify({ branch: b.branchTitle === GONE_BRANCH, sync: b.sync, changes: b.changes })
+  )
+
   // --- Agents: the session target wins over the tree selection (STBR-03) ---
   await selectWorktree(ws, LONG_BRANCH)
   await spawn(pathOf(SYNC_BRANCH), TARGET_TITLE)
