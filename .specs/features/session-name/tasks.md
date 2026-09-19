@@ -237,7 +237,9 @@ T7 → T8
 
 ---
 
-### T5: `applyName` / `rowLabel` and the renderer subscription
+### T5: `applyName` / `rowLabel` and the renderer subscription ✅ COMPLETE
+
+**Status**: Done — `session-name.ts` (`applyName`, `rowLabel`) + 5 tests; `use-sessions.ts` subscribes to `session:name` in the existing effect. Gate green (typecheck node+web, eslint, 5/5). `null` mirrors `applyActivity` exactly (`name: undefined`, key kept) rather than deleting the key — same rendering, one pattern.
 
 **What**: The renderer's two pure decisions about a name — how a push is applied to the list and what label a row renders — plus the `session:name` subscription in `use-sessions`.
 **Where**: `src/renderer/src/lib/session-name.ts` (new), `src/renderer/src/lib/session-name.test.ts` (new), `src/renderer/src/lib/use-sessions.ts` (subscription only)
@@ -252,10 +254,10 @@ T7 → T8
 
 **Done when**:
 
-- [ ] `applyName(sessions, id, name: string | null): SessionView[]` — sets `name` on the one session, deletes it on `null`, mirrors `applyActivity` (a `map`, unknown id dropped)
+- [x] `applyName(sessions, id, name: string | null): SessionView[]` — sets `name` on the one session, clears it to `undefined` on `null`, mirrors `applyActivity` (a `map`, unknown id dropped)
 - [ ] `rowLabel(session: SessionView): string` — `session.name ?? session.agent`
 - [ ] `use-sessions.ts`: `api.on('session:name', ({ id, name }) => setSessions((prev) => applyName(prev, id, name)))` inside the existing effect, unsubscribed with the others; comment extends the ACTV-07 note (in-place, not a refetch)
-- [ ] Tests: `applyName` sets on the matching session only; `null` removes the field (`'name' in session` false); unknown id leaves every session equal; other fields untouched; `rowLabel` returns the name when present, the agent otherwise, and the agent when `name` is absent on a stopped session
+- [x] Tests: `applyName` sets on the matching session only; `null` clears the field (`name` is `undefined`); unknown id leaves every session equal; other fields untouched; `rowLabel` returns the name when present, the agent otherwise, and the agent when `name` is absent on a stopped session
 - [ ] Gate check passes: `npm run typecheck && npm run lint && npx vitest run src/renderer/src/lib/session-name.test.ts`
 - [ ] Test count: ~960 → ~966 (+6; no silent deletions)
 
