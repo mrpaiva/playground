@@ -147,14 +147,14 @@ T17 → T18
 
 **Done when**:
 
-- [ ] `parseAheadBehind` reads git's `behind<TAB>ahead` order for `@{upstream}...HEAD`
-- [ ] A missing upstream is detected from `rev-list` **failing** (`fatal: no upstream configured`), not from a zero result, and yields `upstream: null` with no `error`
-- [ ] `FETCH_HEAD` is stat'd under `resolve(worktreePath, <git rev-parse --git-common-dir>)` — verified against a primary checkout, where git returns the **relative** `.git`
-- [ ] A repo that never fetched yields `lastFetchAt: null`; a detached HEAD yields `branch: null` + `detachedSha`
-- [ ] Any other git failure yields `error: gitFailureLine(err)` and never throws
-- [ ] `src/main/git-sync.test.ts` covers all six outcomes against a temp repo + bare remote
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 754 + 8 = **762**
+- [x] `parseAheadBehind` reads git's `behind<TAB>ahead` order for `@{upstream}...HEAD`
+- [x] A missing upstream is detected from `rev-list` **failing** (`fatal: no upstream configured`), not from a zero result, and yields `upstream: null` with no `error`
+- [x] `FETCH_HEAD` is stat'd under `resolve(worktreePath, <git rev-parse --git-common-dir>)` — verified against a primary checkout, where git returns the **relative** `.git`
+- [x] A repo that never fetched yields `lastFetchAt: null`; a detached HEAD yields `branch: null` + `detachedSha`
+- [x] Any other git failure yields `error: gitFailureLine(err)` and never throws
+- [x] `src/main/git-sync.test.ts` covers all six outcomes against a temp repo + bare remote
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 754 + 8 = **762**
 
 **Tests**: unit
 **Gate**: full
