@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { SessionView } from '../../../shared/config'
 import type { WorkspaceNode, WorktreeNode } from '../../../shared/tree'
 import type { SyncState } from '../../../shared/git'
-import { BRANCH_TAIL_MAX, barTargetFor, splitBranch, syncSectionFor } from './status-bar'
+import {
+  BRANCH_TAIL_MAX,
+  barTargetFor,
+  fetchAgeLabel,
+  splitBranch,
+  syncSectionFor
+} from './status-bar'
 
 function wt(path: string, branch: string, isDefault = false): WorktreeNode {
   return { id: path, branch, path, isDefault, dirty: false, changes: 0 }
@@ -209,5 +215,22 @@ describe('syncSectionFor', () => {
     expect(
       syncSectionFor({ ...tracking, branch: null, detachedSha: 'abc1234', remotes: [], error })
     ).toEqual({ kind: 'error', message: error })
+  })
+})
+
+describe('fetchAgeLabel', () => {
+  const NOW = 1_700_000_000_000
+
+  it('reads never when the repo has never fetched (STBR-22)', () => {
+    expect(fetchAgeLabel(null, NOW)).toBe('never')
+  })
+
+  it('reads the relative time of the last fetch (STBR-22)', () => {
+    expect(fetchAgeLabel(NOW - 5 * 60_000, NOW)).toBe('5m ago')
+    expect(fetchAgeLabel(NOW - 3 * 86_400_000, NOW)).toBe('3d ago')
+  })
+
+  it('reads just now for a timestamp in the future, never a negative', () => {
+    expect(fetchAgeLabel(NOW + 10 * 60_000, NOW)).toBe('just now')
   })
 })

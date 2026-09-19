@@ -1,6 +1,7 @@
 import type { AppConfig, SessionView } from '../../../shared/config'
 import type { SyncState } from '../../../shared/git'
 import type { WorkspaceNode } from '../../../shared/tree'
+import { relativeTime } from './relative-time'
 import { findWorktree, type SelectedWorktree } from './tree-selection'
 
 /** What the status bar describes (STBR-02..05). */
@@ -88,4 +89,13 @@ export function syncSectionFor(state: SyncState): SyncSection {
   if (state.remotes.length === 0) return { kind: 'no-remote' }
   if (state.upstream === null) return { kind: 'no-upstream', remotes: state.remotes }
   return { kind: 'counts', behind: state.behind, ahead: state.ahead }
+}
+
+/**
+ * How stale the fetch is (STBR-22). `never` is decided here, not by
+ * `relativeTime`: a repo that never fetched is not one fetched long ago. A
+ * future mtime (clock skew) reads `just now`, as `relativeTime` floors it.
+ */
+export function fetchAgeLabel(lastFetchAt: number | null, nowMs: number): string {
+  return lastFetchAt === null ? 'never' : relativeTime(lastFetchAt, nowMs)
 }

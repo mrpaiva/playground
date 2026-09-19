@@ -352,11 +352,11 @@ T17 → T18
 
 **Done when**:
 
-- [ ] `null` yields `never` — the repo that has never fetched is not the same as one fetched long ago
-- [ ] A timestamp yields the `relativeTime` string
-- [ ] A timestamp in the future yields `just now` rather than a negative
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 794 + 3 = **797**
+- [x] `null` yields `never` — the repo that has never fetched is not the same as one fetched long ago
+- [x] A timestamp yields the `relativeTime` string
+- [x] A timestamp in the future yields `just now` rather than a negative
+- [x] Gate passes: `npm test`
+- [x] Test count: 794 + 3 = **797**
 
 **Tests**: unit
 **Gate**: quick
