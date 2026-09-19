@@ -228,10 +228,10 @@ T17 → T18
 
 **Done when**:
 
-- [ ] Three handlers registered, each a one-line delegation with no logic of its own
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: **775** (unchanged — thin wiring is hand-verified per the matrix)
+- [x] Three handlers registered, each a one-line delegation with no logic of its own
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: **775** (unchanged — thin wiring is hand-verified per the matrix)
 
 **Tests**: none
 **Gate**: build
