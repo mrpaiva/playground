@@ -105,6 +105,8 @@ T17 → T18
 - [x] Gate passes: `npm run typecheck && npm run lint && npm test`
 - [x] Test count: 748 + 6 = **754** (no deletions)
 
+> **Fix iteration 1 (2026-09-19)**, after the verifier's FAIL: `git.test.ts` gained two real-git tests for STBR-27. A `!` alias echoes `GIT_TERMINAL_PROMPT` as git received it (`0`, although the parent env says `1`), and an argument full of shell metacharacters comes back from `rev-parse --sq-quote` untouched. They kill mutant M18 (the env var dropped), and a `shell: true` mutant too. Commit `10998b9`; 976 → 978 tests.
+
 **Tests**: unit
 **Gate**: full
 **Commit**: `refactor(main): extract the git invoker into its own module`
@@ -209,6 +211,8 @@ T17 → T18
 - [x] Tests cover all six against a temp repo + bare remote
 - [x] Gate passes: `npm run typecheck && npm run lint && npm test`
 - [x] Test count: 767 + 8 = **775**
+
+> **Fix iteration 1 (2026-09-19)**: `OP_TIMEOUT_MS` is exported and pinned to the literal `120_000`, and a spy on `git()` proves that `runGitOp` passes it when no `timeoutMs` is given (STBR-24). This kills mutant M17 and a mutant whose default ignores the constant. Commit `3ebe6b3`; 975 → 976 tests.
 
 **Tests**: unit
 **Gate**: full
@@ -529,6 +533,8 @@ T17 → T18
 - [x] Unregisters the temp workspace and restores the owner's direction and theme on the way out
 - [x] The script prints a numbered pass/fail line per check, like the existing smokes
 - [x] Run against a live dev app: all checks pass — 36/36 on 2026-09-19, after the fixes `0c73b2e` (fetch age in linked worktrees), `ede6df8` (session in a worktree subfolder) and `36ed0fb` (branch gap) that its first run exposed. Harness taken from `smoke-activity.mjs`: `smoke-time.mjs` does not exist on this branch
+
+> **Fix iteration 1 (2026-09-19)**: the smoke went from 36 to 46 checks, all passing against the live dev app (commit `4dc1131`). Fixture additions: a detached worktree; a worktree whose upstream ref is deleted on the remote and locally; one 23 commits behind; and a sleeping `pre-push` hook in the common dir for a slow Push. New checks: STBR-23 (every button disabled and the loader visible while the Push runs, re-enabled after; kills M19, confirmed by running the smoke against the mutant); STBR-26 through a selection change mid-Push (the bar follows, the push completes, and a toast reports it); STBR-16 (20 rows with relative ages and `+3 more`); STBR-31 (`0` and `No changes.`); STBR-32 (no control and no React click handler in the rows); STBR-08/13 (the detached label, a plain-text `detached HEAD` that opens nothing); and STBR-14 (git's `fatal:` line beside a still-rendered repo, branch and counter). A check for a worktree whose folder was deleted was tried and left out, because it exposed a stale-read race in `use-git-sync.ts` (see the edge case in spec.md).
 
 **Tests**: manual
 **Gate**: manual
