@@ -405,7 +405,7 @@ T17 → T18
 - [x] The branch element's `title` is the untruncated name
 - [x] The counter reads `WorktreeNode.changes`, and `0` renders as `0`
 - [x] The region carries `role="status"`
-- [ ] Light and dark both pass a visual check — deferred to the T18 live smoke
+- [x] Light and dark both pass a visual check — done in the T18 live smoke (2026-09-19); it caught a flex gap splitting the branch name, fixed in `36ed0fb`
 - [x] Gate passes: `npm run typecheck && npm run lint && npm test`
 - [x] Test count: **797** (unchanged — renderer component)
 
@@ -500,7 +500,7 @@ T17 → T18
 
 **Done when**:
 
-- [ ] A toast raised while the bar is visible clears it in both themes — deferred to the T18 live smoke
+- [x] A toast raised while the bar is visible clears it in both themes — done in the T18 live smoke (2026-09-19)
 - [x] No other toast call site changes
 - [x] Gate passes: `npm run typecheck && npm run lint && npm test`
 - [x] Phase gate passes: `npx electron-vite build`
@@ -524,11 +524,11 @@ T17 → T18
 
 **Done when**:
 
-- [ ] Seeds its own temp repo + bare remote and **never touches a real remote**
-- [ ] Checks: the bar in all five directions; the Agents session target; the non-worktree folder state; a long branch truncated with the full name in `title`; `↓n ↑n` after a remote commit; the sync popover's lists; Sync moving both ways; a diverged branch refusing with git's line; Publish requiring a remote choice; the changes popover's five statuses; the toast clearing the bar
-- [ ] Unregisters the temp workspace and restores the owner's direction and theme on the way out
-- [ ] The script prints a numbered pass/fail line per check, like the existing smokes
-- [ ] Run against a live dev app: all checks pass
+- [x] Seeds its own temp repo + bare remote and **never touches a real remote**
+- [x] Checks: the bar in all five directions (four on this branch — Hours is not merged); the Agents session target; the non-worktree folder state; a long branch truncated with the full name in `title`; `↓n ↑n` after a remote commit; the sync popover's lists; Sync moving both ways; a diverged branch refusing with git's line; Publish requiring a remote choice; the changes popover's five statuses; the toast clearing the bar
+- [x] Unregisters the temp workspace and restores the owner's direction and theme on the way out
+- [x] The script prints a numbered pass/fail line per check, like the existing smokes
+- [x] Run against a live dev app: all checks pass — 36/36 on 2026-09-19, after the fixes `0c73b2e` (fetch age in linked worktrees), `ede6df8` (session in a worktree subfolder) and `36ed0fb` (branch gap) that its first run exposed. Harness taken from `smoke-activity.mjs`: `smoke-time.mjs` does not exist on this branch
 
 **Tests**: manual
 **Gate**: manual
