@@ -299,7 +299,9 @@ T7 → T8
 
 ---
 
-### T7: Wire the poller in main
+### T7: Wire the poller in main ✅ COMPLETE
+
+**Status**: Done — `resolveClaude` hoisted above the `SessionManager` (body unchanged, runner still receives it); module-level `namePoller` constructed with `spawnAgent`/`resolveClaude`/`scrubAuthEnv(process.env)`/`userData`, passed as `names`, `onListing → applyNames`, `dispose()` in `window-all-closed`; `spawnAgent` wires `onError`. Build gate: typecheck, lint 0 errors, **986/986**, `electron-vite build` green.
 
 **What**: Construct the `SessionNamePoller` in `index.ts` with the production spawn, resolver and env, hand it to the `SessionManager`, route listings to `applyNames`, and dispose it on `window-all-closed`.
 **Where**: `src/main/index.ts`
