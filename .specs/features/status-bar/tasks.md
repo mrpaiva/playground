@@ -123,11 +123,11 @@ T17 → T18
 
 **Done when**:
 
-- [ ] Every field carries the doc comment naming the AC it serves, per the file's convention
-- [ ] `ipc-contract.ts` imports the types and declares the three request/response channels
-- [ ] No renderer or main code imports them yet — this task adds types only
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **754** (unchanged — types carry no tests per the matrix)
+- [x] Every field carries the doc comment naming the AC it serves, per the file's convention
+- [x] `ipc-contract.ts` imports the types and declares the three request/response channels
+- [x] No renderer or main code imports them yet — this task adds types only
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **754** (unchanged — types carry no tests per the matrix)
 
 **Tests**: none
 **Gate**: full
