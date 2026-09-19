@@ -49,7 +49,7 @@ Every ambiguity is resolved or recorded here — nothing is left silently unclea
 | Failure posture | A failed call (spawn error, non-zero exit, timeout, invalid JSON) keeps every current name, logs once per failure streak, and the next tick retries. A **successful** listing without an entry for a known `session_id` clears that session's name | Never show a stale name as if it were live when the listing says the session is gone; never drop names because a call hiccupped | y |
 | Timeout of one call | 20 s, then the child is killed and the call counts as failed | 10× the measured ~2 s; bounds a hung binary without turning a slow machine into a failure streak | y |
 | Lifetime | Ephemeral, held in main on the running session, pushed to the renderer in place (`session:name`, the `session:activity` pattern), never written to `config.json`. Cleared when the session stops or its PTY exits | ACTV-09 posture; a persisted name could only ever be stale | y |
-| Where it renders | The rail row label only; tooltip and accessible name read `<agent> · <name>`. The detail bar, the removal dialog and the worktree detail keep `PersistedSession.title` | Owner decision (two rounds, 2026-09-18). The tile already identifies the agent | y |
+| Where it renders | The rail row label only; the tooltip (the row's `title`) reads `<agent> · <name>`, and the row's accessible name stays its content — the label — as before. The detail bar, the removal dialog and the worktree detail keep `PersistedSession.title` | Owner decision (two rounds, 2026-09-18; the `title`-only reading confirmed at task approval, 2026-09-19 — the row has no `aria-label` of its own and gains none). The tile already identifies the agent | y |
 | Duplicate labels in one group | RAIL-13 numbering applies to the rendered label, whatever it is: two rows named `refactor` become `refactor 1` / `refactor 2` | Same rule the agent name follows today; a name and an agent name never collide within the rule because a row has exactly one label | y |
 | Whitespace and length | The name is trimmed; an empty result means no name. Long names are clipped by the row's existing label styling; the tooltip carries the full text | No new layout | y |
 | Token cost | None. The listing is a local process; tests use listing-shaped fixtures and a fake spawner | Owner concern in ACTV, same answer | y |
@@ -74,7 +74,7 @@ Every ambiguity is resolved or recorded here — nothing is left silently unclea
 2. WHEN a later listing returns a different non-empty `name` for that `sessionId` THEN the row SHALL update to the new name in place, without refetching the session list. <!-- SNAME-02 -->
 3. WHEN a session has no name — no hook event yet, not a Claude registry agent, ad-hoc, stopped, or absent from the last successful listing — THEN the row SHALL render today's label: the agent's display name with RAIL-13 numbering. <!-- SNAME-03 -->
 4. WHEN a named session stops or its PTY exits THEN its name SHALL be cleared and the row SHALL fall back to the agent's display name. <!-- SNAME-04 -->
-5. WHEN a row renders a Claude name THEN its tooltip and accessible name SHALL read `<agent display name> · <name>`. <!-- SNAME-05 -->
+5. WHEN a row renders a Claude name THEN its tooltip (the row's `title`) SHALL read `<agent display name> · <name>`, and the action buttons' labels SHALL name the rendered label. <!-- SNAME-05 -->
 6. WHEN two rows in one group render the same label THEN RAIL-13 numbering SHALL apply to that label (`<label> 1`, `<label> 2`), and a label unique within its group SHALL stay unsuffixed. <!-- SNAME-06 -->
 7. WHEN a name is set, changed or cleared THEN the rail header counts, the group heads, the detail bar title, the removal dialog and the worktree detail SHALL be unchanged. <!-- SNAME-07 -->
 
@@ -109,7 +109,7 @@ Every ambiguity is resolved or recorded here — nothing is left silently unclea
 - WHEN the listing carries the same `sessionId` twice (a session resumed in two terminals, or an interactive and a background entry) THEN the first entry with a non-empty `name` wins.
 - WHEN two app sessions hold the same `session_id` THEN both receive the name.
 - WHEN a `name` is whitespace only THEN it counts as empty (no name).
-- WHEN the listing binary is not the registry command (the agent's `command` is a full path or `.exe`) THEN main SHALL spawn the registry command as configured, directly and without a shell (AD-007), with `--json` appended to `agents`.
+- WHEN main calls the listing THEN it SHALL spawn the binary the app already resolves for headless steps (`resolveClaude`: the first `where claude` hit on PATH, else `agent.claudePath`), directly and without a shell (AD-007), with argv `agents --json`. Accepted v1 deviation from "the registry command as configured" (design.md Risks): a registry `command` pointing at a different install lists that install's sessions and no entry matches — the failure mode is *no name*, never a wrong name.
 - WHEN a 30 s tick fires while the previous call is still running THEN main SHALL skip the tick rather than overlap calls.
 
 ---
@@ -118,23 +118,23 @@ Every ambiguity is resolved or recorded here — nothing is left silently unclea
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| SNAME-01 | P1: Row label | Tasks | Mapped → T4, T5, T6, T8 |
-| SNAME-02 | P1: Row label | Tasks | Mapped → T1, T4, T5 |
-| SNAME-03 | P1: Row label | Tasks | Mapped → T5, T6 |
-| SNAME-04 | P1: Row label | Tasks | Mapped → T4 |
-| SNAME-05 | P1: Row label | Tasks | Mapped → T6 |
-| SNAME-06 | P1: Row label | Tasks | Mapped → T6 |
-| SNAME-07 | P1: Row label | Tasks | Mapped → T6 |
-| SNAME-08 | P1: Listing | Tasks | Mapped → T4 |
-| SNAME-09 | P1: Listing | Tasks | Mapped → T3, T4 |
-| SNAME-10 | P1: Listing | Tasks | Mapped → T3, T7 |
-| SNAME-11 | P1: Listing | Tasks | Mapped → T4 |
-| SNAME-12 | P1: Listing | Tasks | Mapped → T3 |
-| SNAME-13 | P1: Listing | Tasks | Mapped → T2 |
-| SNAME-14 | P1: Listing | Tasks | Mapped → T3, T7 |
-| SNAME-15 | P1: Listing | Tasks | Mapped → T1, T4 |
+| SNAME-01 | P1: Row label | Tasks | ✅ Verified (T4, T5, T6, T8) |
+| SNAME-02 | P1: Row label | Tasks | ✅ Verified (T1, T4, T5) |
+| SNAME-03 | P1: Row label | Tasks | ✅ Verified (T5, T6) |
+| SNAME-04 | P1: Row label | Tasks | ✅ Verified (T4) |
+| SNAME-05 | P1: Row label | Tasks | ✅ Verified (T6) |
+| SNAME-06 | P1: Row label | Tasks | ✅ Verified (T6) |
+| SNAME-07 | P1: Row label | Tasks | ✅ Verified (T6) |
+| SNAME-08 | P1: Listing | Tasks | ✅ Verified (T4) |
+| SNAME-09 | P1: Listing | Tasks | ✅ Verified (T3, T4) |
+| SNAME-10 | P1: Listing | Tasks | ✅ Verified (T3, T7) |
+| SNAME-11 | P1: Listing | Tasks | ✅ Verified (T4) |
+| SNAME-12 | P1: Listing | Tasks | ✅ Verified (T3) |
+| SNAME-13 | P1: Listing | Tasks | ✅ Verified (T2) |
+| SNAME-14 | P1: Listing | Tasks | ✅ Verified (T3, T7) |
+| SNAME-15 | P1: Listing | Tasks | ✅ Verified (T1, T4) |
 
-**Coverage:** 15 total, 15 mapped to tasks, 0 unmapped ✅ (`tasks.md`)
+**Coverage:** 15 total, 15 verified, 0 unmapped ✅ (`validation.md`, 2026-09-19)
 
 ---
 
