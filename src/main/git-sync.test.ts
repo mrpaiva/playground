@@ -2,14 +2,22 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { git as runGit } from './git'
 import {
+  OP_TIMEOUT_MS,
   parseAheadBehind,
   parseCommitLines,
   readCommits,
   readSyncState,
   runGitOp
 } from './git-sync'
+
+// The real git(), wrapped in a spy so a test can read the options runGitOp passes it (STBR-24).
+vi.mock('./git', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./git')>()
+  return { ...actual, git: vi.fn(actual.git) }
+})
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', ['-c', 'user.name=Dev', '-c', 'user.email=dev@example.com', ...args], {
@@ -370,6 +378,15 @@ describe('runGitOp', () => {
     expect(await first).toEqual({ ok: true })
     expect(sha(remote, 'main')).toBe(remoteBefore)
     expect(await runGitOp(repo, 'push')).toEqual({ ok: true })
+  })
+
+  it('kills an operation after 120 s by default', async () => {
+    expect(OP_TIMEOUT_MS).toBe(120_000)
+    vi.mocked(runGit).mockClear()
+
+    expect(await runGitOp(repo, 'push')).toEqual({ ok: true })
+
+    expect(vi.mocked(runGit)).toHaveBeenCalledWith(repo, ['push'], { timeoutMs: 120_000 })
   })
 
   it('reports an operation that outlives its ceiling as timed out', async () => {

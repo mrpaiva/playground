@@ -4,7 +4,7 @@ import type { CommitLine, CommitLists, GitOp, GitOpResult, SyncState } from '../
 import { git, gitFailureLine, isTimeout } from './git'
 
 /** The ceiling on one network operation before it is killed and reported as a timeout (STBR-24). */
-const OP_TIMEOUT_MS = 120_000
+export const OP_TIMEOUT_MS = 120_000
 
 /** Worktree paths with an operation in flight — at most one per worktree (STBR-28). */
 const running = new Set<string>()
