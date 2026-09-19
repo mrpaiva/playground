@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionView } from '../../../shared/config'
 import type { WorkspaceNode, WorktreeNode } from '../../../shared/tree'
-import { BRANCH_TAIL_MAX, barTargetFor, splitBranch } from './status-bar'
+import type { SyncState } from '../../../shared/git'
+import { BRANCH_TAIL_MAX, barTargetFor, splitBranch, syncSectionFor } from './status-bar'
 
 function wt(path: string, branch: string, isDefault = false): WorktreeNode {
   return { id: path, branch, path, isDefault, dirty: false, changes: 0 }
@@ -151,5 +152,62 @@ describe('splitBranch', () => {
 
   it('passes a detached label through untouched', () => {
     expect(splitBranch('(detached abc1234)')).toEqual({ head: '(detached abc1234)', tail: '' })
+  })
+})
+
+describe('syncSectionFor', () => {
+  const tracking: SyncState = {
+    branch: 'user/dev/4821-fix-login/12345-endpoint',
+    upstream: 'origin/user/dev/4821-fix-login/12345-endpoint',
+    behind: 2,
+    ahead: 1,
+    remotes: ['origin'],
+    lastFetchAt: 1_700_000_000_000
+  }
+
+  it('carries both counts while the branch has an upstream (STBR-09)', () => {
+    expect(syncSectionFor(tracking)).toEqual({ kind: 'counts', behind: 2, ahead: 1 })
+  })
+
+  it('carries 0 / 0 when the branch is in sync (STBR-09)', () => {
+    expect(syncSectionFor({ ...tracking, behind: 0, ahead: 0 })).toEqual({
+      kind: 'counts',
+      behind: 0,
+      ahead: 0
+    })
+  })
+
+  it('reads no-upstream when a remote exists, carrying the remotes Publish offers (STBR-12)', () => {
+    const state: SyncState = { ...tracking, upstream: null, behind: 0, ahead: 0 }
+    expect(syncSectionFor({ ...state, remotes: ['origin', 'fork'] })).toEqual({
+      kind: 'no-upstream',
+      remotes: ['origin', 'fork']
+    })
+  })
+
+  it('reads no-remote only when the repository has no remote (STBR-13)', () => {
+    const state: SyncState = { ...tracking, upstream: null, behind: 0, ahead: 0, remotes: [] }
+    expect(syncSectionFor(state)).toEqual({ kind: 'no-remote' })
+  })
+
+  it('ranks detached above no-upstream (STBR-08, STBR-13)', () => {
+    const state: SyncState = {
+      branch: null,
+      detachedSha: 'abc1234',
+      upstream: null,
+      behind: 0,
+      ahead: 0,
+      remotes: ['origin'],
+      lastFetchAt: null
+    }
+    expect(syncSectionFor(state)).toEqual({ kind: 'detached', sha: 'abc1234' })
+  })
+
+  it('lets an error win over every other case, so no stale counts show (STBR-14)', () => {
+    const error = "fatal: ambiguous argument '@{upstream}': unknown revision"
+    expect(syncSectionFor({ ...tracking, error })).toEqual({ kind: 'error', message: error })
+    expect(
+      syncSectionFor({ ...tracking, branch: null, detachedSha: 'abc1234', remotes: [], error })
+    ).toEqual({ kind: 'error', message: error })
   })
 })

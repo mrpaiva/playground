@@ -302,13 +302,13 @@ T17 → T18
 
 **Done when**:
 
-- [ ] `error` wins over every other case, so a failing repo never shows stale counts
-- [ ] `detached` outranks `no-upstream` (a detached HEAD has no branch to have an upstream)
-- [ ] `no-remote` is returned only when `remotes` is empty; `no-upstream` only when there is at least one remote
-- [ ] `counts` carries both numbers, including the `0 / 0` in-sync case
-- [ ] Tests cover all five outcomes plus the two precedence rules
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 786 + 6 = **792**
+- [x] `error` wins over every other case, so a failing repo never shows stale counts
+- [x] `detached` outranks `no-upstream` (a detached HEAD has no branch to have an upstream)
+- [x] `no-remote` is returned only when `remotes` is empty; `no-upstream` only when there is at least one remote
+- [x] `counts` carries both numbers, including the `0 / 0` in-sync case
+- [x] Tests cover all five outcomes plus the two precedence rules
+- [x] Gate passes: `npm test`
+- [x] Test count: 786 + 6 = **792**
 
 **Tests**: unit
 **Gate**: quick

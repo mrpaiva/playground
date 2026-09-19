@@ -1,4 +1,5 @@
 import type { AppConfig, SessionView } from '../../../shared/config'
+import type { SyncState } from '../../../shared/git'
 import type { WorkspaceNode } from '../../../shared/tree'
 import { findWorktree, type SelectedWorktree } from './tree-selection'
 
@@ -66,4 +67,25 @@ export function splitBranch(branch: string): { head: string; tail: string } {
   if (cut === -1) return { head: branch, tail: '' }
   const at = Math.max(cut + 1, branch.length - BRANCH_TAIL_MAX)
   return { head: branch.slice(0, at), tail: branch.slice(at) }
+}
+
+/** What the ahead/behind section renders — one outcome per state (STBR-09, 12, 13, 14). */
+export type SyncSection =
+  | { kind: 'counts'; behind: number; ahead: number }
+  | { kind: 'no-upstream'; remotes: string[] }
+  | { kind: 'detached'; sha: string }
+  | { kind: 'no-remote' }
+  | { kind: 'error'; message: string }
+
+/**
+ * Decide the section. Precedence: an error first, so a failing repo never shows
+ * stale counts; then detached, which has no branch to track anything; then no
+ * remote; then no upstream; otherwise the counts.
+ */
+export function syncSectionFor(state: SyncState): SyncSection {
+  if (state.error !== undefined) return { kind: 'error', message: state.error }
+  if (state.branch === null) return { kind: 'detached', sha: state.detachedSha ?? '' }
+  if (state.remotes.length === 0) return { kind: 'no-remote' }
+  if (state.upstream === null) return { kind: 'no-upstream', remotes: state.remotes }
+  return { kind: 'counts', behind: state.behind, ahead: state.ahead }
 }
