@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -119,6 +119,30 @@ describe('readSyncState', () => {
     const state = await readSyncState(linked)
 
     expect(state.lastFetchAt).toBe(statSync(join(repo, '.git', 'FETCH_HEAD')).mtimeMs)
+  })
+
+  it("reads a fetch run inside a linked worktree, whose FETCH_HEAD is the worktree's own", async () => {
+    const linked = join(root, 'repo-linked')
+    git(repo, 'worktree', 'add', '-q', '-b', 'user/dev/4821-fix-login', linked)
+    git(linked, 'fetch', '-q', 'origin')
+    const own = statSync(join(repo, '.git', 'worktrees', 'repo-linked', 'FETCH_HEAD')).mtimeMs
+
+    expect((await readSyncState(linked)).lastFetchAt).toBe(own)
+    expect((await readSyncState(repo)).lastFetchAt).toBe(own)
+  })
+
+  it('reads the newest FETCH_HEAD in the repo when several worktrees fetched', async () => {
+    const linked = join(root, 'repo-linked')
+    git(repo, 'worktree', 'add', '-q', '-b', 'user/dev/4821-fix-login', linked)
+    git(repo, 'fetch', '-q', 'origin')
+    git(linked, 'fetch', '-q', 'origin')
+    const primaryHead = join(repo, '.git', 'FETCH_HEAD')
+    const newer = new Date(Date.now() + 60_000)
+    utimesSync(primaryHead, newer, newer)
+
+    const state = await readSyncState(linked)
+
+    expect(state.lastFetchAt).toBe(statSync(primaryHead).mtimeMs)
   })
 
   it('reads lastFetchAt as null when the repo never fetched', async () => {

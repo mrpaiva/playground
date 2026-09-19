@@ -1,5 +1,5 @@
-import { stat } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { readdir, stat } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import type { CommitLine, CommitLists, GitOp, GitOpResult, SyncState } from '../shared/git'
 import { git, gitFailureLine, isTimeout } from './git'
 
@@ -206,15 +206,28 @@ async function readUpstream(worktreePath: string, state: SyncState): Promise<voi
 }
 
 /**
- * `FETCH_HEAD` lives in the repo's common git dir — a linked worktree has none
- * of its own — and git prints that dir relative (`.git`) in a primary checkout,
- * so it is resolved against the worktree before the stat (STBR-22).
+ * The repo's most recent fetch (STBR-22). Git writes `FETCH_HEAD` into the git
+ * dir of the worktree that fetched — the common dir for the primary checkout,
+ * `<common>/worktrees/<name>` for a linked one — while the remote refs a fetch
+ * updates are shared by every worktree, so the age is the newest of them all.
+ * Git prints the common dir relative (`.git`) in a primary checkout, so it is
+ * resolved against the worktree before the stat.
  */
 async function lastFetchAt(worktreePath: string): Promise<number | null> {
-  const commonDir = (await git(worktreePath, ['rev-parse', '--git-common-dir'])).stdout.trim()
-  try {
-    return (await stat(resolve(worktreePath, commonDir, 'FETCH_HEAD'))).mtimeMs
-  } catch {
-    return null
-  }
+  const commonDir = resolve(
+    worktreePath,
+    (await git(worktreePath, ['rev-parse', '--git-common-dir'])).stdout.trim()
+  )
+  const linked = await readdir(join(commonDir, 'worktrees')).catch(() => [] as string[])
+  const candidates = [commonDir, ...linked.map((name) => join(commonDir, 'worktrees', name))]
+  const times = await Promise.all(
+    candidates.map((dir) =>
+      stat(join(dir, 'FETCH_HEAD')).then(
+        (s) => s.mtimeMs,
+        () => null
+      )
+    )
+  )
+  const known = times.filter((t): t is number => t !== null)
+  return known.length > 0 ? Math.max(...known) : null
 }

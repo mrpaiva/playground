@@ -82,7 +82,7 @@ graph TD
 
 - **Purpose**: Read a worktree's position against its upstream, and run the four operations.
 - **Interfaces**:
-  - `readSyncState(worktreePath: string): Promise<SyncState>` — `rev-parse --abbrev-ref HEAD` (detached → `rev-parse --short HEAD`), `rev-parse --abbrev-ref @{upstream}`, `rev-list --count --left-right @{upstream}...HEAD`, `remote`, and `FETCH_HEAD` mtime under `resolve(worktreePath, <git-common-dir>)`
+  - `readSyncState(worktreePath: string): Promise<SyncState>` — `rev-parse --abbrev-ref HEAD` (detached → `rev-parse --short HEAD`), `rev-parse --abbrev-ref @{upstream}`, `rev-list --count --left-right @{upstream}...HEAD`, `remote`, and the newest `FETCH_HEAD` mtime under `resolve(worktreePath, <git-common-dir>)` and its `worktrees/*/`
   - `readCommits(worktreePath: string, limit = 20): Promise<CommitLists>` — `log --format=%h%x1f%s%x1f%ct <range>` for `@{upstream}..HEAD` and `HEAD..@{upstream}`, plus a `rev-list --count` for the "+N more" tail
   - `runGitOp(worktreePath: string, op: GitOp, remote?: string): Promise<GitOpResult>` — `sync` = `pull --ff-only` then `push`; `pull` / `push` / `fetch <remote> <branch>` / `publish` = `push -u <remote> <branch>`; every call carries `timeoutMs: 120_000`
   - `parseAheadBehind(stdout: string): { behind: number; ahead: number }` — **pure, unit-tested** (`--left-right` prints `behind<TAB>ahead` for `@{upstream}...HEAD`)
@@ -224,7 +224,7 @@ export interface GitOpResult {
 | -------- | ------ | --------- |
 | Where the file count comes from | `WorktreeNode.changes`, already in the tree snapshot | Zero new calls for the always-visible number; `worktrees:changes` runs only when the popover opens |
 | Ahead/behind command | `rev-list --count --left-right @{upstream}...HEAD` (three dots) | One call for both numbers; its failure **is** the no-upstream signal (verified) |
-| Fetch age source | `FETCH_HEAD` mtime under the resolved git common dir | A linked worktree has no `FETCH_HEAD` of its own; the common dir is the repo's |
+| Fetch age source | Newest `FETCH_HEAD` mtime under the resolved git common dir and its `worktrees/*/` | Git writes `FETCH_HEAD` into the fetching worktree's own git dir, but the remote refs are shared; corrected 2026-09-19 after the T18 smoke |
 | Sync order | `pull --ff-only` then `push`, aborting the push if the pull failed | Matches the app's existing `merge --ff-only` posture; cannot conflict, cannot create a merge commit |
 | Publish remote | Required choice when `remotes.length > 1` | This repo's `origin` is someone else's upstream — a default would push the owner's work to the wrong place |
 | Op lifetime | Owned by the hook's op map, keyed by worktree path | STBR-26 falls out of it: the promise does not belong to the popover that started it |
