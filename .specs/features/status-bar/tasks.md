@@ -200,15 +200,15 @@ T17 → T18
 
 **Done when**:
 
-- [ ] A diverged branch makes `sync` and `pull` fail with git's own first line and **leaves the worktree unchanged** (asserted on the worktree's HEAD, not only on the returned string)
-- [ ] `sync` does not push when the pull failed
-- [ ] `publish` runs `push -u` and the branch has an upstream afterwards
-- [ ] `fetch` targets only the current branch's upstream remote and branch
-- [ ] A second `runGitOp` for a path already running resolves `{ ok:false, busy:true }` and spawns no git
-- [ ] A timeout maps to `{ ok:false, timedOut:true }` via `isTimeout`
-- [ ] Tests cover all six against a temp repo + bare remote
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 767 + 8 = **775**
+- [x] A diverged branch makes `sync` and `pull` fail with git's own first line and **leaves the worktree unchanged** (asserted on the worktree's HEAD, not only on the returned string)
+- [x] `sync` does not push when the pull failed
+- [x] `publish` runs `push -u` and the branch has an upstream afterwards
+- [x] `fetch` targets only the current branch's upstream remote and branch
+- [x] A second `runGitOp` for a path already running resolves `{ ok:false, busy:true }` and spawns no git
+- [x] A timeout maps to `{ ok:false, timedOut:true }` via `isTimeout`
+- [x] Tests cover all six against a temp repo + bare remote
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 767 + 8 = **775**
 
 **Tests**: unit
 **Gate**: full

@@ -3,7 +3,13 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { parseAheadBehind, parseCommitLines, readCommits, readSyncState } from './git-sync'
+import {
+  parseAheadBehind,
+  parseCommitLines,
+  readCommits,
+  readSyncState,
+  runGitOp
+} from './git-sync'
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', ['-c', 'user.name=Dev', '-c', 'user.email=dev@example.com', ...args], {
@@ -217,5 +223,134 @@ describe('readCommits', () => {
       moreIncoming: 0,
       moreOutgoing: 0
     })
+  })
+})
+
+describe('runGitOp', () => {
+  let root: string
+  let remote: string
+  let repo: string
+
+  beforeEach(() => {
+    ;({ root, remote, repo } = seedRepo())
+  })
+
+  afterEach(() => {
+    // A killed git (the timeout case) can leave a child briefly holding the dir on Windows.
+    rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  })
+
+  const sha = (cwd: string, rev: string): string => git(cwd, 'rev-parse', rev).trim()
+
+  it("fails a diverged pull with git's error line and leaves the worktree unchanged", async () => {
+    pushFromElsewhere(root, remote, 1)
+    commit(repo, 'local work')
+    const before = sha(repo, 'HEAD')
+
+    const result = await runGitOp(repo, 'pull')
+
+    expect(result).toEqual({ ok: false, error: 'fatal: Not possible to fast-forward, aborting.' })
+    expect(sha(repo, 'HEAD')).toBe(before)
+  })
+
+  it('fails a diverged sync without pushing and leaves the worktree unchanged', async () => {
+    pushFromElsewhere(root, remote, 1)
+    commit(repo, 'local work')
+    const before = sha(repo, 'HEAD')
+    const remoteBefore = sha(remote, 'main')
+
+    const result = await runGitOp(repo, 'sync')
+
+    expect(result).toEqual({ ok: false, error: 'fatal: Not possible to fast-forward, aborting.' })
+    expect(sha(repo, 'HEAD')).toBe(before)
+    expect(sha(remote, 'main')).toBe(remoteBefore)
+  })
+
+  it('does not push when the pull half of a sync failed', async () => {
+    // Fetching from origin fails while its push URL still works, so only the abort stops a push.
+    commit(repo, 'local work')
+    const remoteBefore = sha(remote, 'main')
+    git(repo, 'remote', 'set-url', 'origin', join(root, 'missing.git'))
+    git(repo, 'remote', 'set-url', '--push', 'origin', remote)
+
+    const result = await runGitOp(repo, 'sync')
+
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(/^fatal: /)
+    expect(sha(remote, 'main')).toBe(remoteBefore)
+  })
+
+  it('syncs by fast-forwarding from the upstream, then pushing local commits to it', async () => {
+    pushFromElsewhere(root, remote, 1)
+    expect(await runGitOp(repo, 'sync')).toEqual({ ok: true })
+    expect(sha(repo, 'HEAD')).toBe(sha(remote, 'main'))
+
+    commit(repo, 'local work')
+    expect(await runGitOp(repo, 'sync')).toEqual({ ok: true })
+    expect(sha(remote, 'main')).toBe(sha(repo, 'HEAD'))
+  })
+
+  it('publishes to the only remote with push -u, leaving the branch with an upstream', async () => {
+    git(repo, 'switch', '-q', '-c', 'user/dev/4821-fix-login')
+
+    expect(await runGitOp(repo, 'publish')).toEqual({ ok: true })
+
+    expect(git(repo, 'rev-parse', '--abbrev-ref', '@{upstream}').trim()).toBe(
+      'origin/user/dev/4821-fix-login'
+    )
+    expect(sha(remote, 'user/dev/4821-fix-login')).toBe(sha(repo, 'HEAD'))
+  })
+
+  it('refuses to publish without a chosen remote when there are several', async () => {
+    const fork = join(root, 'fork.git')
+    git(root, 'init', '-q', '--bare', '-b', 'main', fork)
+    git(repo, 'remote', 'add', 'fork', fork)
+    git(repo, 'switch', '-q', '-c', 'user/dev/4821-fix-login')
+
+    const refused = await runGitOp(repo, 'publish')
+
+    expect(refused.ok).toBe(false)
+    expect(refused.error).toBeTruthy()
+    expect(git(repo, 'for-each-ref', '--format=%(upstream)', 'refs/heads/user').trim()).toBe('')
+
+    expect(await runGitOp(repo, 'publish', 'fork')).toEqual({ ok: true })
+    expect(git(repo, 'rev-parse', '--abbrev-ref', '@{upstream}').trim()).toBe(
+      'fork/user/dev/4821-fix-login'
+    )
+  })
+
+  it("fetches only the current branch's upstream remote and branch", async () => {
+    pushFromElsewhere(root, remote, 1)
+    git(join(root, 'other'), 'push', '-q', 'origin', 'HEAD:release')
+    const fork = join(root, 'fork.git')
+    git(root, 'init', '-q', '--bare', '-b', 'main', fork)
+    git(join(root, 'other'), 'push', '-q', fork, 'main')
+    git(repo, 'remote', 'add', 'fork', fork)
+
+    expect(await runGitOp(repo, 'fetch')).toEqual({ ok: true })
+
+    expect(git(repo, 'for-each-ref', '--format=%(refname)', 'refs/remotes').trim()).toBe(
+      'refs/remotes/origin/main'
+    )
+    expect(sha(repo, 'origin/main')).toBe(sha(remote, 'main'))
+  })
+
+  it('resolves busy without running git while the same worktree has an operation in flight', async () => {
+    commit(repo, 'local work')
+    const remoteBefore = sha(remote, 'main')
+
+    const first = runGitOp(repo, 'fetch')
+    const second = await runGitOp(repo, 'push')
+
+    expect(second).toEqual({ ok: false, busy: true })
+    expect(await first).toEqual({ ok: true })
+    expect(sha(remote, 'main')).toBe(remoteBefore)
+    expect(await runGitOp(repo, 'push')).toEqual({ ok: true })
+  })
+
+  it('reports an operation that outlives its ceiling as timed out', async () => {
+    const result = await runGitOp(repo, 'push', undefined, 1)
+
+    expect(result).toMatchObject({ ok: false, timedOut: true })
   })
 })

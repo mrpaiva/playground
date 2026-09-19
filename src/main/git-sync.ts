@@ -1,7 +1,97 @@
 import { stat } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import type { CommitLine, CommitLists, SyncState } from '../shared/git'
-import { git, gitFailureLine } from './git'
+import type { CommitLine, CommitLists, GitOp, GitOpResult, SyncState } from '../shared/git'
+import { git, gitFailureLine, isTimeout } from './git'
+
+/** The ceiling on one network operation before it is killed and reported as a timeout (STBR-24). */
+const OP_TIMEOUT_MS = 120_000
+
+/** Worktree paths with an operation in flight — at most one per worktree (STBR-28). */
+const running = new Set<string>()
+
+/**
+ * Run one sync-popover operation (STBR-17–21). `sync` is `pull --ff-only`
+ * then `push`, and the push never runs when the pull failed. Never throws: a
+ * failure carries git's error line, a timeout sets `timedOut` (STBR-24), and a
+ * second call for a worktree already running resolves `busy` without spawning
+ * git (STBR-28). `timeoutMs` exists so tests need not wait 120 s.
+ */
+export async function runGitOp(
+  worktreePath: string,
+  op: GitOp,
+  remote?: string,
+  timeoutMs = OP_TIMEOUT_MS
+): Promise<GitOpResult> {
+  if (running.has(worktreePath)) return { ok: false, busy: true }
+  running.add(worktreePath)
+  const run = (args: string[]): Promise<{ stdout: string }> =>
+    git(worktreePath, args, { timeoutMs })
+  try {
+    switch (op) {
+      case 'sync':
+        await run(['pull', '--ff-only'])
+        await run(['push'])
+        break
+      case 'pull':
+        await run(['pull', '--ff-only'])
+        break
+      case 'push':
+        await run(['push'])
+        break
+      case 'fetch': {
+        // Only the current branch's upstream remote and branch (STBR-21).
+        const branch = await currentBranch(worktreePath)
+        const upstreamRemote = await configValue(worktreePath, `branch.${branch}.remote`)
+        const merge = await configValue(worktreePath, `branch.${branch}.merge`)
+        await run(['fetch', upstreamRemote, merge.replace(/^refs\/heads\//, '')])
+        break
+      }
+      case 'publish': {
+        const target = remote ?? (await soleRemote(worktreePath))
+        if (target === null) {
+          // STBR-20: with several remotes a default could push to someone else's upstream.
+          return { ok: false, error: 'Choose the remote to publish to.' }
+        }
+        await run(['push', '-u', target, await currentBranch(worktreePath)])
+        break
+      }
+    }
+    return { ok: true }
+  } catch (err) {
+    return isTimeout(err)
+      ? { ok: false, timedOut: true, error: `Timed out after ${timeoutMs / 1000} s.` }
+      : { ok: false, error: errorLine(err) }
+  } finally {
+    running.delete(worktreePath)
+  }
+}
+
+/**
+ * Git's first `fatal:`/`error:` stderr line, else `gitFailureLine`.
+ * SPEC_DEVIATION: the design names `gitFailureLine` for every failure.
+ * Reason: `pull` and `push` write progress (`From …`, `To …`) and `hint:`
+ * lines to stderr before the error, so the first line is not git's error
+ * line that STBR-18 requires (measured with git 2.55 on a diverged pull).
+ */
+function errorLine(err: unknown): string {
+  const stderr = (err as { stderr?: string }).stderr ?? ''
+  const line = stderr.split(/\r?\n/).find((l) => /^(fatal|error):/.test(l.trim()))
+  return line?.trim() ?? gitFailureLine(err)
+}
+
+async function currentBranch(worktreePath: string): Promise<string> {
+  return (await git(worktreePath, ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim()
+}
+
+async function configValue(worktreePath: string, key: string): Promise<string> {
+  return (await git(worktreePath, ['config', '--get', key])).stdout.trim()
+}
+
+/** The only remote when there is exactly one — publishing needs no choice then (STBR-19). */
+async function soleRemote(worktreePath: string): Promise<string | null> {
+  const remotes = (await git(worktreePath, ['remote'])).stdout.split(/\r?\n/).filter(Boolean)
+  return remotes.length === 1 ? remotes[0] : null
+}
 
 /** Unit separator between `%h`, `%s` and `%ct` — a byte no commit subject carries. */
 const FIELD = '\x1f'
