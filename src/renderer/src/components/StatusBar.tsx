@@ -5,6 +5,7 @@ import type { SyncState } from '../../../shared/git'
 import type { WorkspaceNode } from '../../../shared/tree'
 import { barTargetFor, splitBranch, syncSectionFor } from '../lib/status-bar'
 import { useGitSync } from '../lib/use-git-sync'
+import { ChangesPopover } from './ChangesPopover'
 import { Icon } from './Icon'
 import { SyncPopover } from './SyncPopover'
 import './StatusBar.css'
@@ -39,7 +40,7 @@ export function StatusBar({
   const target = barTargetFor({ direction, tree, selectedId, sessions, selectedSessionId })
   const targetPath = target.kind === 'worktree' ? target.selected.worktree.path : null
   /** At most one popover is open; opening one closes the other (Edge cases). */
-  const [open, setOpen] = useState<'sync' | null>(null)
+  const [open, setOpen] = useState<'sync' | 'changes' | null>(null)
   const popoverPath = open === 'sync' ? targetPath : null
   const sync = useGitSync({ targetPath, tree, popoverPath, onToast, onRefreshTree })
   // Close only if this popover is still the open one: a click on the other
@@ -52,6 +53,11 @@ export function StatusBar({
     if (open === 'sync') return setOpen(null)
     setOpen('sync')
     sync.openPopover()
+  }
+  const closeChanges = useCallback(() => setOpen((o) => (o === 'changes' ? null : o)), [])
+  const toggleChanges = (e: MouseEvent): void => {
+    e.stopPropagation()
+    setOpen(open === 'changes' ? null : 'changes')
   }
 
   if (target.kind === 'none') {
@@ -100,9 +106,20 @@ export function StatusBar({
           />
         )}
       </span>
-      <span className="status-bar-changes" title={`${worktree.changes} changed files`}>
-        <Icon name="pencil" size={11} />
-        {worktree.changes}
+      <span className="status-bar-anchor">
+        <button
+          type="button"
+          className={`status-bar-changes${open === 'changes' ? ' open' : ''}`}
+          title={`${worktree.changes} changed files`}
+          aria-expanded={open === 'changes'}
+          onClick={toggleChanges}
+        >
+          <Icon name="pencil" size={11} />
+          {worktree.changes}
+        </button>
+        {open === 'changes' && (
+          <ChangesPopover worktreePath={worktree.path} onClose={closeChanges} />
+        )}
       </span>
     </footer>
   )

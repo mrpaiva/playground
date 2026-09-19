@@ -453,11 +453,11 @@ T17 → T18
 
 **Done when**:
 
-- [ ] All five `ChangeStatus` values render, not three
-- [ ] `worktrees:changes` is called when the popover opens, never on every render
-- [ ] No row is clickable and no row carries an action button — the next feature owns that
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **797** (unchanged — renderer component)
+- [x] All five `ChangeStatus` values render, not three
+- [x] `worktrees:changes` is called when the popover opens, never on every render
+- [x] No row is clickable and no row carries an action button — the next feature owns that
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **797** (unchanged — renderer component)
 
 **Tests**: none
 **Gate**: full
