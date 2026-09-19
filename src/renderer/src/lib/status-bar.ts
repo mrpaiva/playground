@@ -21,32 +21,54 @@ export interface BarTargetInput {
   selectedSessionId: string | null
 }
 
+/** A Windows path in one comparable form: forward slashes, lower case, no trailing slash. */
+function comparablePath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+}
+
+/**
+ * The worktree a folder is inside (STBR-03, 04): the worktree root itself or
+ * any folder below it, matched on a whole path segment so `widget-12345` is
+ * not inside `widget`. When worktrees nest, the deepest one wins.
+ */
+function worktreeContaining(tree: WorkspaceNode[], folder: string): SelectedWorktree | null {
+  const target = comparablePath(folder)
+  let best: SelectedWorktree | null = null
+  let bestLength = -1
+  for (const workspace of tree) {
+    for (const repo of workspace.repos) {
+      for (const worktree of repo.worktrees) {
+        const root = comparablePath(worktree.path)
+        const inside = target === root || target.startsWith(`${root}/`)
+        if (inside && root.length > bestLength) {
+          bestLength = root.length
+          best = {
+            workspaceName: workspace.displayName,
+            repoName: repo.name,
+            repoPath: repo.path,
+            worktree
+          }
+        }
+      }
+    }
+  }
+  return best
+}
+
 /**
  * Resolve what the bar describes. In Agents a selected session wins over the
- * tree selection (STBR-03); its cwd is matched to a worktree by the same exact
- * path comparison `deriveAttribution` uses. Everywhere else, and in Agents when
- * no live session is selected, the tree selection is described (STBR-02).
+ * tree selection (STBR-03) and describes the worktree its cwd is inside, or
+ * the bare folder when it is inside none (STBR-04). Everywhere else, and in
+ * Agents when no live session is selected, the tree selection is described
+ * (STBR-02).
  */
 export function barTargetFor(input: BarTargetInput): BarTarget {
   const { direction, tree, selectedId, sessions, selectedSessionId } = input
   if (direction === 'agents') {
     const session = sessions.find((s) => s.id === selectedSessionId)
     if (session) {
-      for (const workspace of tree) {
-        for (const repo of workspace.repos) {
-          const worktree = repo.worktrees.find((w) => w.path === session.cwd)
-          if (worktree) {
-            const selected = {
-              workspaceName: workspace.displayName,
-              repoName: repo.name,
-              repoPath: repo.path,
-              worktree
-            }
-            return { kind: 'worktree', selected }
-          }
-        }
-      }
-      return { kind: 'folder', path: session.cwd }
+      const selected = worktreeContaining(tree, session.cwd)
+      return selected ? { kind: 'worktree', selected } : { kind: 'folder', path: session.cwd }
     }
   }
   const selected = findWorktree(tree, selectedId)

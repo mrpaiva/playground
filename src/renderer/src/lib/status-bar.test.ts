@@ -65,6 +65,57 @@ describe('barTargetFor', () => {
     expect(target).toEqual({ kind: 'folder', path: 'C:/Windows' })
   })
 
+  const agentsTargetFor = (cwd: string, worktrees = tree): ReturnType<typeof barTargetFor> =>
+    barTargetFor({
+      direction: 'agents',
+      tree: worktrees,
+      selectedId: null,
+      sessions: [session('s', cwd)],
+      selectedSessionId: 's'
+    })
+
+  it("describes the worktree when the session's cwd is a folder inside it (STBR-04)", () => {
+    const target = agentsTargetFor('C:/work/acme/widget-12345/src/main')
+    expect(target.kind).toBe('worktree')
+    if (target.kind !== 'worktree') return
+    expect(target.selected.worktree.path).toBe('C:/work/acme/widget-12345')
+  })
+
+  it('matches a cwd written with backslashes, another drive-letter case and a trailing slash', () => {
+    const target = agentsTargetFor('c:\\work\\acme\\widget-12345\\src\\')
+    expect(target.kind).toBe('worktree')
+    if (target.kind !== 'worktree') return
+    expect(target.selected.worktree.path).toBe('C:/work/acme/widget-12345')
+  })
+
+  it('does not treat a sibling folder sharing a name prefix as inside the worktree', () => {
+    expect(agentsTargetFor('C:/work/acme/widget-123456')).toEqual({
+      kind: 'folder',
+      path: 'C:/work/acme/widget-123456'
+    })
+  })
+
+  it('describes the deepest worktree when worktrees nest', () => {
+    const nested: WorkspaceNode[] = [
+      {
+        ...tree[0],
+        repos: [
+          {
+            ...tree[0].repos[0],
+            worktrees: [
+              wt('C:/work/acme/widget', 'main', true),
+              wt('C:/work/acme/widget/.worktrees/12345', 'user/dev/4821-fix-login/12345-endpoint')
+            ]
+          }
+        ]
+      }
+    ]
+    const target = agentsTargetFor('C:/work/acme/widget/.worktrees/12345/src', nested)
+    expect(target.kind).toBe('worktree')
+    if (target.kind !== 'worktree') return
+    expect(target.selected.worktree.path).toBe('C:/work/acme/widget/.worktrees/12345')
+  })
+
   it('returns the tree-selected worktree in every other direction, ignoring the session (STBR-02)', () => {
     for (const direction of ['tree', 'board', 'workflows'] as const) {
       const target = barTargetFor({
