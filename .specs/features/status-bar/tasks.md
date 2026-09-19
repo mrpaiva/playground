@@ -328,11 +328,11 @@ T17 → T18
 
 **Done when**:
 
-- [ ] Under 24 h is unchanged (`just now`, `Nm ago`, `Nh ago`) and every pre-existing test passes unedited
-- [ ] 24 h and beyond reads `Nd ago`
-- [ ] Two tests added: the 24 h boundary and a multi-day value
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 792 + 2 = **794**
+- [x] Under 24 h is unchanged (`just now`, `Nm ago`, `Nh ago`) and every pre-existing test passes unedited
+- [x] 24 h and beyond reads `Nd ago`
+- [x] Two tests added: the 24 h boundary and a multi-day value
+- [x] Gate passes: `npm test`
+- [x] Test count: 792 + 2 = **794**
 
 **Tests**: unit
 **Gate**: quick
