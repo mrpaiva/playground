@@ -1,6 +1,6 @@
 # Terminal Links Validation
 
-**Result**: ❌ FAIL (1 gap, Minor, evidence-only) — 29/30 active ACs spec-anchored (24/24 P1, 8/9 edge, 1/2 P2); gate 1021/1021 green; sensor 8/8 mutants killed. The one gap is `LINK-20` (P2, OSC 8 Ctrl+click): wiring-only, no unit seam, and no smoke row — implemented by inspection, never exercised. Fix is a smoke run, not code (see §Fix Plans). Verifier report below the owner smoke.
+**Result**: ✅ PASS (pass 2, `49a70c1..626762f`) — 30/30 active ACs spec-anchored (19/19 P1, 2/2 P2, 9/9 edge); gate 1021/1021 green (typecheck 0, lint 0 errors); sensor 9/9 mutants killed (8 in pass 1, +1 in pass 2). Pass 1 (`6ecd19c..49a70c1`) returned FAIL on one evidence-only gap (`LINK-20`, no smoke row) and one optional inspection finding (stale `pendingLink`); both closed by `9afe7f6` (one-line reset) and `626762f` (smoke rows 18–21, two spec assumptions). 0 spec-precision gaps open. Pass-1 report and the pass-2 re-verification below the owner smoke.
 
 **Date**: 2026-09-18
 **Spec**: `.specs/features/terminal-links/spec.md`
@@ -329,3 +329,114 @@ and record it (Fix 1). Optional: clear `pendingLink` on every `mousedown` (Fix 2
 
 **Next steps**: Fix 1 (smoke rows for LINK-20/22) → re-verify; then update `spec.md` statuses per the
 table above.
+
+---
+
+## Re-verification (pass 2)
+
+**Date**: 2026-09-18
+**Delta range**: `49a70c1..626762f` — 2 commits on top of the pass-1 range: `9afe7f6 fix(terminal): forget a
+link press released outside the pane` (1 file, +3 lines) and `626762f docs(specs): close the terminal-links
+verifier gaps …` (`.specs/` only: `validation.md` +4 smoke rows, `spec.md` +2 assumptions + traceability,
+`design.md` `settled` type + Status Approved, `tasks.md` Status Done). Full feature range `6ecd19c..626762f`,
+17 commits. No test file changed.
+**Verifier**: independent sub-agent (author ≠ verifier), second pass; read-only over the real tree except
+this file; one scratch mutation, `git restore`d, `git status --porcelain` empty at the end.
+
+### Fix review — `9afe7f6` (pass-1 Fix 2 / Observation 1)
+
+The diff is exactly the recommended one-liner plus a two-line comment, at the top of `onLinkMouseDown`
+(`src/renderer/src/components/TerminalPane.tsx:189-191`), before the chord check (`:193`).
+
+**Closes the corner case.** Sequence: Ctrl+press over a link → `pendingLink` set (`:204`); release over the
+sidebar → the container's capture `mouseup` (`:206`) never fires, `pendingLink` stays; next **plain** press
+in the pane → `:191` clears it, then `:193` returns `'pass'` (no Ctrl); its release → `:207` `if (!pendingLink)
+return` → the plain `mouseup` is neither `preventDefault`ed nor stopped, and `activateLink` is never
+reached. Before the fix that release was swallowed and, within 4 px of the stale press, opened the link on a
+plain click (LINK-16 corner). Now the agent receives the plain press and its release.
+
+**No regression on the gestures it touches, by trace:**
+
+- LINK-14 (Ctrl+press over a link stopped for press and release): `:191` is a no-op when nothing is pending;
+  `:193` `'intercept'`, hit test `:194-199`, `preventDefault`/`stopPropagation` `:202-203`, pending set
+  `:204`; release stopped at `:208-209`. Unchanged. Smoke rows 12 and 19 measured it (no bytes reach the
+  mouse-tracking probe).
+- LINK-17 (≥ 4 px → not opened): decided on `mouseup` by `linkGestureOnMouseUp` (`:211`,
+  `terminal-link-gesture.ts:38-45`); the new reset runs on a *later* `mousedown`, so it cannot change the
+  outcome of the release it was armed for.
+- LINK-18 (blur forgets): `forgetPendingLink` (`:219-221`) still registered on `window` `blur` (`:224`) and
+  removed at `:405`. The new reset is a second, independent forget site.
+- LINK-30 (never open on `mousedown`): `activateLink` (`:179`) is still called only from `onLinkMouseUp`
+  (`:214`); the reset adds no call.
+
+**Adversarial check on the one new behaviour.** The reset runs for *every* button, before the chord check.
+So a secondary press while a Ctrl+primary press is still pending (right-click during the hold) now retires
+the pending link; the primary release then propagates to xterm unstopped. Verified in the installed
+`@xterm/xterm` 6.0.0 bundle (`lib/xterm.js`) that this orphan release is inert: xterm attaches its
+mouse-report `mouseup` to `document` only from inside its own `mousedown` handler (`s.mouseup &&
+this._document.addEventListener("mouseup", s.mouseup)` after `sendEvent`), and the selection service does the
+same from its `mousedown`; both were skipped because the press was stopped in capture. The only element-level
+`mouseup` is the Linkifier's activation path, and every link here carries a no-op `activate` (`:169` for OSC 8,
+provider links by design). Net: that exotic chord opens nothing and reports nothing — more conservative than
+before, consistent with LINK-17's intent. Not a defect.
+
+**Citation shift.** The 3 inserted lines move every pass-1 `TerminalPane.tsx` citation after line 188 by +3
+(`:190`→`:193`, `:194-195`→`:197-198`, `:197-198`→`:200-201`, `:199-201`→`:202-204`, `:203-215`→`:206-218`,
+`:205-206`→`:208-209`, `:210-211`→`:213-214`, `:216-218,221`→`:219-221,224`, `:219-220`→`:222-223`,
+`:388`→`:391`, `:400-404`→`:403-407`, `:402`→`:405`, `:413`→`:416`). Citations at or before `:186` are
+unchanged. The pass-1 report is left as written; this table is the map.
+
+### Evidence verdicts — LINK-20 / LINK-22 / LINK-23
+
+| Criterion | Spec-defined outcome | New evidence | Result |
+| --------- | -------------------- | ------------ | ------ |
+| LINK-20 OSC 8 `http(s)` target: Ctrl+click on its text opens the target regardless of the visible text | target opened per LINK-02 (default browser); press stopped before xterm (LINK-14) | Smoke row 18: OSC 8 `https://www.iana.org/domains/reserved` with visible text `iana link` → `cursor: pointer` on hover. Row 19: Ctrl+click on `iana link` (the URL appears nowhere in the visible text, so text detection cannot have produced the hit) → browser opened "IANA-managed Reserved Domains"; raw-mode probe received **no** bytes. Wiring `TerminalPane.tsx:168-176` (`hoveredOsc`), `:197-198` (range containment → `{ kind: 'url', url: hoveredOsc.text }`), `:183-184` (`links:openUrl`) | ✅ PASS — the P2 Independent Test was run (target substituted for `example.com`, same outcome class); "regardless of the visible text" is exactly what the fixture isolates |
+| LINK-22 OSC 8 target with any other scheme: not a link — no underline, Ctrl+click passes through | not provided as a link; Ctrl+click reaches xterm/agent as an ordinary click | Smoke row 20: OSC 8 `mailto:a@b.c` → `cursor: text` on hover (no provided link); Ctrl+click passed through as `ESC[<16;7;2M` / `m` (button 0 + Ctrl, same encoding as row 13's LINK-15 pass-through); nothing opened, no toast. Row 21 + new spec assumption "xterm's static OSC 8 decoration is out of our hands": xterm draws its own dotted underline on every OSC 8 cell regardless of scheme; the assumption (owner-accepted, `y`) scopes LINK-22's "no underline" to the **link** underline/pointer a provider grants. Text half unchanged (`terminal-links.test.ts:35-40`, `link-opener.test.ts:152-161`) | ✅ PASS — pass-through measured; "no underline" is now precise by assumption. Nit (cosmetic): the AC text still reads "no underline"; the assumption row is the disambiguation — "no link underline" in the AC would spare the next reader the lookup |
+| LINK-23 trailing `.`/`,`/`;`/`:` or unmatched `)`/`]` excluded — pass-1 ⚠️ spec-precision flag on **balanced** parentheses | unmatched trailing char excluded (tested, `terminal-links.test.ts:22-33`); balanced case previously undefined | New spec assumption "Parentheses inside a URL" (owner-accepted, `y`): the ported regex stops a URL at `(`; `https://en.wikipedia.org/wiki/Foo_(bar)` links as `…/Foo_`; LINK-23 covers the unmatched trailing bracket only, balanced ones are upstream behaviour. Re-evaluated the regex at `terminal-links.ts:30` directly: `see https://en.wikipedia.org/wiki/Foo_(bar) now` → `["https://en.wikipedia.org/wiki/Foo_"]`; `(https://x.y/a)` → `["https://x.y/a"]` — the assumption states the implementation's actual behaviour, not a wish. No test asserts the balanced case (grep for `(bar)`/`wikipedia` in the test file: none) | ✅ PASS — the spec now defines the balanced outcome explicitly, so the ⚠️ flag is closed; evidence-or-zero applies to ACs, and the balanced case is an assumption, not an AC. Suggestion (not a gap): one `it` pinning `…/Foo_(bar)` → `…/Foo_` would turn the assumption into a guarded fact |
+
+Pass-1 Observation 2 (first Ctrl+click on an **un-hovered** OSC 8 link whose visible text is not itself a
+URL/path falls through) is unchanged and stays outside the ACs: LINK-19 is worded for path candidates, and
+the new smoke rows hovered before clicking. Recorded, not counted.
+
+**Spec-anchored status after pass 2**: 30/30 active ACs evidenced (19/19 P1, 2/2 P2, 9/9 edge); 0
+spec-precision gaps open. `spec.md` traceability (30 × Verified, `626762f`) is consistent with this verdict.
+Count re-derived from the spec's traceability table (LINK-01..19 P1, LINK-20/22 P2, LINK-23..31 edge) and
+the pass-1 per-AC tables (19 + 2 + 9 rows). The pass-1 summary breakdown "24/24 P1, 8/9 edge, 1/2 P2" did
+not sum to its own 29/30 (it is 33); the tables, not that line, were the authority — corrected here, the
+pass-1 text left as written.
+`design.md` drift (pass-1 Observation 3) closed: `settled: Promise<KnownLinkHit | null>` matches
+`terminal-link-provider.ts`.
+
+### Gate (Build level, re-run on `626762f`)
+
+- **typecheck**: exit 0 (`tsconfig.node.json` + `tsconfig.web.json`)
+- **lint**: exit 0 — **0 errors, 18 warnings**, all `prettier/prettier`, same four pre-existing files as pass 1
+  (`scripts/fixtures/implement-ticket/workflow.ts` 1, `scripts/smoke-agent-config.mjs` 12,
+  `scripts/smoke-agents.mjs` 4, `src/shared/tasks.test.ts` 1); none in feature files
+- **tests**: `npx vitest run --reporter=json` → exit 0, **236/236 suites, 1021 passed, 0 failed, 0 skipped,
+  0 todo** (`scratchpad/verify2.json`); the five feature files unchanged at 27 + 32 + 18 + 12 + 15 = 104
+- **Test integrity**: 1021 → 1021 (no test added, removed or weakened in the delta — it is 1 source line +
+  docs); baseline 917 at `985621d` still holds as the pre-feature count
+
+### Discrimination Sensor (pass 2, +1)
+
+| # | File:line | Mutation | Killed by | Result |
+| - | --------- | -------- | --------- | ------ |
+| 9 | `src/renderer/src/lib/terminal-link-gesture.ts:34` | dropped the hit gate: `bareCtrl && hit !== null` → `bareCtrl` (the `mousedown` classifier the fix sits in front of) | `passes a Ctrl press over nothing to the agent (LINK-15)` — `expected 'intercept' to be 'pass'` (11/12) | ✅ Killed |
+
+`TerminalPane.tsx` not mutated (hand-verified by convention, `vitest.config.ts:15-18`). Scratch only:
+`git restore` after the run; `git status --porcelain` → 0 lines.
+
+**Cumulative**: 9/9 killed — PASS ✅
+
+### Verdict
+
+**✅ PASS.** Both pass-1 findings are closed with the minimum change: a one-line reset that closes the
+release-outside-the-pane corner without touching any tested gesture, and smoke rows that exercise the OSC 8
+path end-to-end with the agent's mouse-report probe listening. The two new assumptions state what the
+implementation does (verified against the regex and the smoke), are owner-accepted, and turn the pass-1 ⚠️
+into defined behaviour. Gate green, sensor 9/9, tree clean. Ready.
+
+**Non-blocking, for the owner** (no fix task): (a) LINK-22 AC wording "no underline" vs the assumption's
+"link underline" — cosmetic; (b) optional test pinning the balanced-parentheses URL behaviour; (c) pass-1
+Observation 2 (un-hovered OSC 8 first click) remains a known, out-of-AC limit of Design approach B.
