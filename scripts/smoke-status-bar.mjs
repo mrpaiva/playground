@@ -11,6 +11,9 @@
  *   <tmp>/wt/long     a very long branch, tracking origin, diverged 1/1
  *   <tmp>/wt/sync     tracking origin, 1 behind → Sync → 1 ahead → Sync
  *   <tmp>/wt/publish  no upstream, two remotes → Publish needs a choice
+ *   <tmp>/wt/detached a detached HEAD → no sync operation offered
+ *   <tmp>/wt/gone     upstream configured, its tracking ref deleted → git error
+ *   <tmp>/wt/many     23 commits behind → 20 listed, `+3 more`
  *   <tmp>/other       a second clone that pushes the "remote" commits
  *   <tmp>/loose       a plain folder, the cwd of the non-worktree session
  *
@@ -43,6 +46,10 @@ const LONG_BRANCH =
   'user/dev/4821-fix-login-redirect-after-session-timeout-on-the-legacy-portal-and-new-dashboard/12345-endpoint-with-a-long-name'
 const SYNC_BRANCH = 'user/dev/4821-fix-login/12346-sync-both-ways'
 const PUBLISH_BRANCH = 'user/dev/4821-fix-login/12347-publish-me'
+const GONE_BRANCH = 'user/dev/4821-fix-login/12348-upstream-ref-gone'
+const MANY_BRANCH = 'user/dev/4821-fix-login/12349-many-incoming'
+/** Commits pushed to MANY_BRANCH from the other clone: 20 listed, `+3 more` (STBR-16). */
+const MANY_COMMITS = 23
 const TARGET_TITLE = 'stbr-smoke target'
 const FOLDER_TITLE = 'stbr-smoke folder'
 const SUBFOLDER_TITLE = 'stbr-smoke subfolder'
@@ -131,10 +138,25 @@ function git(cwd, ...args) {
   return execFileSync('git', args, { cwd, env: GIT_ENV, encoding: 'utf8', stdio: 'pipe' }).trim()
 }
 
+/**
+ * The app runs `git status` on refresh, which briefly holds the worktree's
+ * index.lock; a fixture commit racing it retries instead of failing the run.
+ */
+function gitRetryingLock(cwd, ...args) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return git(cwd, ...args)
+    } catch (err) {
+      if (attempt >= 10 || !/index\.lock/.test(String(err.stderr ?? err.message))) throw err
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200)
+    }
+  }
+}
+
 function commit(cwd, file, subject) {
   writeFileSync(join(cwd, file), `${subject}\n`)
-  git(cwd, 'add', file)
-  git(cwd, 'commit', '-q', '-m', subject)
+  gitRetryingLock(cwd, 'add', file)
+  gitRetryingLock(cwd, 'commit', '-q', '-m', subject)
 }
 
 const root = realpathSync.native(mkdtempSync(join(TMP, 'stbr-smoke-')))
@@ -147,7 +169,10 @@ const loose = join(root, 'loose')
 const wtDir = {
   long: join(root, 'wt', 'long'),
   sync: join(root, 'wt', 'sync'),
-  pub: join(root, 'wt', 'publish')
+  pub: join(root, 'wt', 'publish'),
+  detached: join(root, 'wt', 'detached'),
+  gone: join(root, 'wt', 'gone'),
+  many: join(root, 'wt', 'many')
 }
 
 function seed() {
@@ -175,6 +200,20 @@ function seed() {
   git(primary, 'worktree', 'add', '-q', '-b', SYNC_BRANCH, wtDir.sync, 'main')
   git(wtDir.sync, 'push', '-q', '-u', 'origin', SYNC_BRANCH)
   git(primary, 'worktree', 'add', '-q', '-b', PUBLISH_BRANCH, wtDir.pub, 'main')
+  // STBR-08/13: a detached HEAD offers no remote-writing operation.
+  git(primary, 'worktree', 'add', '-q', '--detach', wtDir.detached, 'main')
+  // STBR-14: an upstream is configured but its remote-tracking ref is gone
+  // locally (a deleted remote branch, pruned), so `rev-list` fails for real.
+  // The untracked file proves the counter keeps rendering beside the error.
+  git(primary, 'worktree', 'add', '-q', '-b', GONE_BRANCH, wtDir.gone, 'main')
+  git(wtDir.gone, 'push', '-q', '-u', 'origin', GONE_BRANCH)
+  // Deleted on the remote too, so a later `pull` (a full fetch) cannot bring it back.
+  git(root, '--git-dir', originBare, 'update-ref', '-d', `refs/heads/${GONE_BRANCH}`)
+  git(primary, 'update-ref', '-d', `refs/remotes/origin/${GONE_BRANCH}`)
+  writeFileSync(join(wtDir.gone, 'notes.txt'), 'untracked\n')
+  // STBR-16: the other clone lands more than 20 commits here.
+  git(primary, 'worktree', 'add', '-q', '-b', MANY_BRANCH, wtDir.many, 'main')
+  git(wtDir.many, 'push', '-q', '-u', 'origin', MANY_BRANCH)
 
   // Diverge the long branch: one local commit, one pushed from another clone.
   commit(wtDir.long, 'local.txt', 'Local tweak to the login endpoint')
@@ -186,6 +225,9 @@ function seed() {
   git(other, 'push', '-q')
   git(other, 'checkout', '-q', SYNC_BRANCH)
   commit(other, 'down.txt', 'Remote change to sync down')
+  git(other, 'push', '-q')
+  git(other, 'checkout', '-q', MANY_BRANCH)
+  for (let i = 1; i <= MANY_COMMITS; i++) commit(other, 'many.txt', `Remote batch commit ${i}`)
   git(other, 'push', '-q')
 
   // The primary checkout carries one change of each status (STBR-30).
@@ -270,7 +312,17 @@ async function selectWorktree(ws, branch) {
        return Boolean(row)
      })()`
   )
-  if (!found) throw new Error(`sidebar row for ${branch} not found`)
+  if (!found) {
+    const seen = await evaluate(
+      ws,
+      `(async () => {
+         const node = (await window.api.invoke('tree:get')).find((w) => w.path === ${J(wsDir)})
+         const rows = [...document.querySelectorAll('.sidebar-worktree-branch')].map((r) => r.textContent)
+         return JSON.stringify({ tree: node?.repos?.[0]?.worktrees?.map((w) => w.branch), rows })
+       })()`
+    )
+    throw new Error(`sidebar row for ${branch} not found: ${seen}`)
+  }
   await waitBar(ws, (b) => b.branchTitle === branch)
 }
 
@@ -306,14 +358,19 @@ const POP = `(() => {
     title: l.querySelector('.section-label')?.textContent ?? null,
     commits: [...l.querySelectorAll('.sync-pop-commit')].map((c) => ({
       sha: c.querySelector('.sync-pop-sha')?.textContent ?? '',
-      subject: c.querySelector('.sync-pop-subject')?.textContent ?? ''
+      subject: c.querySelector('.sync-pop-subject')?.textContent ?? '',
+      age: c.querySelector('.sync-pop-age')?.textContent ?? ''
     })),
+    more: l.querySelector('.sync-pop-more')?.textContent ?? null,
     empty: l.querySelector('.sync-pop-empty')?.textContent ?? null
   }))
   const status = pop.querySelector('.sync-pop-status')
   const select = pop.querySelector('select.sync-pop-remote')
+  const loader = pop.querySelector('.sync-pop-loader')
+  const lr = loader?.getBoundingClientRect()
   return JSON.stringify({
     open: true,
+    loader: Boolean(lr && lr.width > 0 && lr.height > 0 && getComputedStyle(loader).visibility !== 'hidden'),
     buttons: [...pop.querySelectorAll('.sync-pop-btn')].map((b) => ({ label: b.textContent, disabled: b.disabled })),
     fetched: pop.querySelector('.sync-pop-fetched')?.textContent ?? null,
     status: status?.textContent ?? null,
@@ -397,6 +454,13 @@ async function setTheme(ws, theme) {
   await sleep(300)
 }
 
+/** The toast on screen, if any, with its position against the bar. */
+const TOAST = `(() => {
+  const t = document.querySelector('.toast')
+  const b = document.querySelector('footer.status-bar')
+  return JSON.stringify(t ? { text: t.textContent, bottom: t.getBoundingClientRect().bottom, barTop: b.getBoundingClientRect().top } : null)
+})()`
+
 /** Start a Fetch on the selected worktree and close the popover before it answers (STBR-26). */
 async function toastFromClosedPopover(ws) {
   await openSync(ws)
@@ -408,17 +472,16 @@ async function toastFromClosedPopover(ws) {
        return true
      })()`
   )
-  return waitFor(
-    ws,
-    `(() => {
-       const t = document.querySelector('.toast')
-       const b = document.querySelector('footer.status-bar')
-       return JSON.stringify(t ? { text: t.textContent, bottom: t.getBoundingClientRect().bottom, barTop: b.getBoundingClientRect().top } : null)
-     })()`,
-    (v) => v !== null,
-    10000
-  )
+  return waitFor(ws, TOAST, (v) => v !== null, 10000)
 }
+
+/** A `pre-push` hook in the common git dir (so every linked worktree runs it) that sleeps. */
+const slowHook = join(primary, '.git', 'hooks', 'pre-push')
+const slowPushOn = () => writeFileSync(slowHook, '#!/bin/sh\nsleep 4\nexit 0\n')
+const slowPushOff = () => rmSync(slowHook, { force: true })
+
+const originTip = (branch) =>
+  git(root, '--git-dir', originBare, 'rev-parse', `refs/heads/${branch}`)
 
 // ---------------------------------------------------------------- run
 
@@ -499,9 +562,12 @@ async function main() {
     )
   )
   const pathOf = (branch) => tree.find((w) => w.branch === branch)?.path
+  const detachedLabel = tree.find((w) => w.branch.startsWith('(detached '))?.branch
   check(
-    'the temp workspace lists its four worktrees',
-    [LONG_BRANCH, SYNC_BRANCH, PUBLISH_BRANCH, 'main'].every(pathOf),
+    'the temp workspace lists its seven worktrees',
+    tree.length === 7 &&
+      [LONG_BRANCH, SYNC_BRANCH, PUBLISH_BRANCH, GONE_BRANCH, MANY_BRANCH, 'main'].every(pathOf) &&
+      detachedLabel !== undefined,
     tree.map((w) => w.branch.slice(0, 40)).join(', ')
   )
 
@@ -644,6 +710,100 @@ async function main() {
     toast ? `toast bottom ${toast.bottom.toFixed(1)} / bar top ${toast.barTop.toFixed(1)}` : ''
   )
 
+  // --- A slow Push: buttons disabled and a loader while it runs (STBR-23) ---
+  slowPushOn()
+  commit(wtDir.sync, 'slow-1.txt', 'Slow push one')
+  await refresh(ws)
+  await waitBar(ws, (v) => v.sync === '↓0 ↑1')
+  await openSync(ws)
+  const pushStart = Date.now()
+  await clickPopButton(ws, 'Push')
+  pop = await waitFor(ws, POP, (p) => p.status === 'Pushing…', 3000)
+  check(
+    'while a Push runs every operation button is disabled and the loader shows (STBR-23)',
+    pop.status === 'Pushing…' &&
+      pop.buttons.length === 4 &&
+      pop.buttons.every((x) => x.disabled) &&
+      pop.loader === true,
+    JSON.stringify({ status: pop.status, buttons: pop.buttons, loader: pop.loader })
+  )
+  pop = await waitOutcome(ws)
+  const pushMs = Date.now() - pushStart
+  check(
+    'when the slow Push finishes the buttons re-enable and the loader goes (STBR-23)',
+    pop.status === 'Done.' &&
+      pop.buttons.length === 4 &&
+      pop.buttons.every((x) => !x.disabled) &&
+      pop.loader === false &&
+      pushMs >= 3500 &&
+      originTip(SYNC_BRANCH) === git(wtDir.sync, 'rev-parse', 'HEAD'),
+    `${pop.status}; took ${pushMs} ms; ${JSON.stringify(pop.buttons.map((x) => x.disabled))}`
+  )
+  await closePopovers(ws)
+
+  // --- Selection change during a slow Push: it continues, the bar follows, a toast reports (STBR-26) ---
+  commit(wtDir.sync, 'slow-2.txt', 'Slow push two')
+  await refresh(ws)
+  await waitBar(ws, (v) => v.sync === '↓0 ↑1')
+  await openSync(ws)
+  await clickPopButton(ws, 'Push')
+  await waitFor(ws, POP, (p) => p.status === 'Pushing…', 3000)
+  await selectWorktree(ws, LONG_BRANCH)
+  b = await bar(ws)
+  pop = JSON.parse(await evaluate(ws, POP))
+  const midPush = originTip(SYNC_BRANCH) !== git(wtDir.sync, 'rev-parse', 'HEAD')
+  check(
+    'selecting another worktree mid-Push: the bar follows it while the push is still running (STBR-26)',
+    b.branchTitle === LONG_BRANCH && !pop.open && midPush,
+    JSON.stringify({
+      bar: b.branchTitle?.slice(-30),
+      popoverOpen: pop.open,
+      pushStillRunning: midPush
+    })
+  )
+  const pushToast = await waitFor(
+    ws,
+    TOAST,
+    (v) => v !== null && /^Push finished in sync/.test(v.text),
+    10000
+  )
+  check(
+    'the Push completes after the selection moved and reports in a toast (STBR-26)',
+    pushToast !== null &&
+      /^Push finished in sync/.test(pushToast.text) &&
+      originTip(SYNC_BRANCH) === git(wtDir.sync, 'rev-parse', 'HEAD') &&
+      (await bar(ws)).branchTitle === LONG_BRANCH,
+    pushToast?.text ?? '(no toast)'
+  )
+  slowPushOff()
+  await sleep(2400)
+
+  // --- More than 20 incoming commits (STBR-16) ---
+  await selectWorktree(ws, MANY_BRANCH)
+  await openSync(ws)
+  await clickPopButton(ws, 'Fetch')
+  await waitOutcome(ws)
+  b = await waitBar(ws, (v) => v.sync === `↓${MANY_COMMITS} ↑0`)
+  pop = await waitFor(ws, POP, (p) => p.lists[0]?.commits.length > 0)
+  const many = pop.lists[0]
+  const expectedSubjects = Array.from(
+    { length: 20 },
+    (_, i) => `Remote batch commit ${MANY_COMMITS - i}`
+  )
+  check(
+    `${MANY_COMMITS} incoming: 20 rows with hash, subject and relative age, then "+${MANY_COMMITS - 20} more" (STBR-16)`,
+    b.sync === `↓${MANY_COMMITS} ↑0` &&
+      many.title === 'To pull' &&
+      many.commits.length === 20 &&
+      many.commits.map((c) => c.subject).join('|') === expectedSubjects.join('|') &&
+      many.commits.every((c) => /^[0-9a-f]{7,}$/.test(c.sha)) &&
+      many.commits.every((c) => /^(just now|\d+[mhd] ago)$/.test(c.age)) &&
+      many.more === `+${MANY_COMMITS - 20} more` &&
+      pop.lists[1]?.more === null,
+    `${b.sync}; ${many.commits.length} rows; first ${J(many.commits[0])}; tail "${many.more}"`
+  )
+  await closePopovers(ws)
+
   // --- Publish with two remotes (STBR-12, 19, 20) ---
   await selectWorktree(ws, PUBLISH_BRANCH)
   b = await waitBar(ws, (v) => v.sync === 'no upstream')
@@ -715,7 +875,89 @@ async function main() {
       rows.every((r) => r.cls.includes(r.label.toLowerCase())),
     rows.map((r) => `${r.label}:${r.path}`).join(', ')
   )
+  // React keeps a node's handlers on its `__reactProps$…` key, so a row wired
+  // to a click shows up here even though the DOM carries no onclick attribute.
+  const inert = JSON.parse(
+    await evaluate(
+      ws,
+      `(() => {
+         const pop = document.querySelector('.changes-pop')
+         const rows = [...pop.querySelectorAll('.changes-pop-row')]
+         const nodes = [...pop.querySelectorAll('.changes-pop-list, .changes-pop-list *')]
+         const handlers = nodes.filter((el) => {
+           const key = Object.keys(el).find((k) => k.startsWith('__reactProps'))
+           const props = key ? el[key] : {}
+           return Object.keys(props).some((k) => /^on(Click|MouseDown|MouseUp|DoubleClick|KeyDown|ContextMenu)/.test(k))
+         })
+         return JSON.stringify({
+           rows: rows.length,
+           rowTags: [...new Set(rows.map((r) => r.tagName))],
+           controls: pop.querySelectorAll('button, a, input, select, [role=button], [role=link], [tabindex], [onclick]').length,
+           handlers: handlers.map((el) => el.className)
+         })
+       })()`
+    )
+  )
+  check(
+    'no changed-file row is, or holds, a control or a click handler (STBR-32)',
+    inert.rows === 5 &&
+      inert.rowTags.join() === 'DIV' &&
+      inert.controls === 0 &&
+      inert.handlers.length === 0,
+    JSON.stringify(inert)
+  )
   await closePopovers(ws)
+
+  // --- A clean worktree: counter 0, popover says so (STBR-31) ---
+  await selectWorktree(ws, PUBLISH_BRANCH)
+  b = await bar(ws)
+  await evaluate(ws, `(document.querySelector('button.status-bar-changes').click(), true)`)
+  const emptyText = await waitFor(
+    ws,
+    `JSON.stringify(document.querySelector('.changes-pop .changes-pop-empty')?.textContent ?? null)`,
+    (v) => v !== null && v !== 'Loading…'
+  )
+  check(
+    'a clean worktree counts 0 and its popover says "No changes." (STBR-31)',
+    b.changes === '0' &&
+      emptyText === 'No changes.' &&
+      git(wtDir.pub, 'status', '--porcelain') === '',
+    `counter ${b.changes}; popover "${emptyText}"`
+  )
+  await closePopovers(ws)
+
+  // --- Detached HEAD: its label, and no operation offered (STBR-08, 13) ---
+  await selectWorktree(ws, detachedLabel)
+  b = await waitBar(ws, (v) => v.sync === 'detached HEAD')
+  check(
+    'a detached worktree shows "(detached <short-sha>)", the sidebar label (STBR-08)',
+    b.branchTitle === detachedLabel &&
+      detachedLabel === `(detached ${git(wtDir.detached, 'rev-parse', 'HEAD').slice(0, 7)})` &&
+      b.head + (b.tail ?? '') === detachedLabel,
+    `${b.branchTitle}`
+  )
+  await evaluate(ws, `(document.querySelector('.status-bar-sync')?.click(), true)`)
+  await sleep(400)
+  pop = JSON.parse(await evaluate(ws, POP))
+  check(
+    'a detached worktree reads "detached HEAD" as plain text; clicking it opens no operations (STBR-13)',
+    b.sync === 'detached HEAD' && b.syncTag === 'SPAN' && !pop.open,
+    `${b.sync} <${b.syncTag}>; popover open ${pop.open}`
+  )
+
+  // --- A real git failure: git's line in the section, the rest keeps rendering (STBR-14) ---
+  await selectWorktree(ws, GONE_BRANCH)
+  b = await waitBar(ws, (v) => v.sync !== null && v.sync !== '…')
+  check(
+    "a failing rev-list shows git's fatal: line in the sync section; repo, branch and counter still render (STBR-14)",
+    /^fatal: /.test(b.sync ?? '') &&
+      b.syncTag === 'SPAN' &&
+      b.syncClass?.includes('error') &&
+      b.repo === 'acme-widget' &&
+      b.branchTitle === GONE_BRANCH &&
+      b.changes === '1',
+    JSON.stringify({ sync: b.sync, tag: b.syncTag, repo: b.repo, changes: b.changes })
+  )
 
   // --- Agents: the session target wins over the tree selection (STBR-03) ---
   await selectWorktree(ws, LONG_BRANCH)
