@@ -35,55 +35,73 @@ Handoff snapshot.
 
 ## Handoff
 
-**Status (current, 2026-09-18): `terminal-links` EXECUTED + independent Verifier **PASS** (pass 2)
-on branch `feature/terminal-links`, cut from `main` `6ecd19c` (fork synced to `obogoni/main` the same
-day). 18 commits, tree clean. PR not opened — push to `fork` (mrpaiva) and the PR need an explicit
-go-ahead.**
+**Status (2026-09-19, paused until Wed 2026-09-23): `terminal-links` amendment — T12, T13, T14 committed
+on `feature/terminal-links` (`f3436bf`, 23 commits over `main` `6ecd19c`, tree clean, upstream `main`
+unchanged, PR #95 still open). Build gate green after T14: typecheck, lint 0 errors, `npm test`
+1034/1034 (baseline 1021). NOT done: T15 (live smoke + `validation.md` rows), the Verifier re-run
+over the amendment, and the push/PR — none of which was started.**
 
-In the embedded agent terminal, `http(s)` URLs, OSC 8 `http(s)` hyperlinks and file paths that exist
-on disk become links; **Ctrl+click** opens a URL in the default browser and a path with the Windows
-default app (no association → the native "Open with" chooser, launched explicitly because
-`shell.openPath` no-ops on Windows 11; directory → Explorer). Everything else about the mouse is
-untouched: a plain click, a Ctrl+click off a link, Shift+drag and right-click still reach the agent
-(measured with a raw-mode probe: Ctrl+click on a link sends **no** mouse report, the others do).
-Detection and geometry are pure libs in `src/renderer/src/lib/` (URL regex + soft-wrap mapping ported
-from `@xterm/addon-web-links` 0.12.0, MIT); scheme validation, path resolution, stat and launch live
-in main (`src/main/link-opener.ts`, DI with fakes). No xterm private API, no new dependency, xterm
-stays 6.0.0. Suite 917 → **1021** (+104 in five new test files), typecheck + lint clean. Verifier:
-30/30 ACs evidenced, 9/9 mutants killed, gaps closed in pass 2 (`9afe7f6` stale-press fix; OSC 8 smoke
-rows). Owner smoke was run by the author through the Chrome DevTools Protocol against the dev app
-(`validation.md` rows 1–21).
+**What the amendment is** (`tasks.md` §Amendment 2026-09-19; spec LINK-21 reinstated, LINK-22
+amended, LINK-32, LINK-33; AD-022, AD-023):
 
-**Decisions this feature added:** AD-021 (file links open through the Windows association, no
-executable block list). Spec assumptions worth knowing before touching this again: `.ts` on the
-owner's machine is associated to Windows Media Player, so Ctrl+click on a `.ts` path opens it —
-by design; the exits (VS Code at line via `code -g`, Shift+Ctrl alternate, tooltip, single-click
-popover, hard-wrapped links, OSC 7 cwd, MSBuild `Foo.cs(40,12)`) are in
-`.specs/features/terminal-links/context.md` §Deferred Ideas.
+- **T12 `6b2e493`** — the delivered branch was blind in every real Claude Code session: the pane passed
+  `term.buffer.active` (a getter) once, and Claude Code 2.1.278 runs in the **alternate screen**
+  (`?1049h`), so hover and Ctrl+click read the empty normal buffer. `activeBufferOf(term)` now delegates
+  per call. Measured before the fix with the xterm module patched in-page: `provideLinks(13)` →
+  `undefined`, `normal.getLine(12) = ""`, `alternate.getLine(12) = "  https://github.com/…/pull/95"`.
+  Mouse tracking (`?1003h`) was ruled out as the cause in the same instance.
+- **T13 `1182ca1`** — `FORCE_HYPERLINK=1` in `PTY_ENV_FORCED`. This, not a link provider, is the
+  "Orca look" the owner asked for: Orca (`stablyai/orca` 1.4.203, source readable in its `app.asar`)
+  forces the same variable; Claude Code's binary inlines `supports-hyperlinks` and checks it before
+  `TERM_PROGRAM`; with it every path in a tool header is an OSC 8 `file:///C:/…` and a markdown link is
+  OSC 8 `https://` in `blueBright`; xterm draws every OSC 8 cell with `UnderlineStyle.DASHED`
+  (`xterm-underline-5`). Verified live in the playground on 2026-09-19 before coding.
+- **T14 `f3436bf`** — `allowNonHttpProtocols: true`; `hitForOscTarget` (in `terminal-link-provider.ts`,
+  **not** `terminal-links.ts` as `design.md`/`tasks.md` T14 still say — fix those two lines in T15);
+  `LinkOpener.openFileUrl` + `links:openFileUrl` (`fileURLToPath(url, { windows: true })`, UNC host and
+  non-file refused, `#L10C5`/`:l:c` dropped, then the `openPath` body via a private `openAbsolute`).
 
-**Also in the range (not the feature):** `7e498c5 test(main)` — `dir-remover.test.ts` swapped a fixed
-2.5 s pwsh delay for a lock probe; under a full parallel run the old delay was overrun and the
-"counts every leftover entry" test failed 4/4 while passing in isolation (L-005 class).
+**Next steps (Wednesday):**
 
-**Lessons NOT yet recorded with `scripts/lessons.py`** — the installed script rewrote
-`.specs/lessons.json` on a plain `list` in this checkout (candidates L-003/L-004 dropped; restored
-with `git restore`), so the orchestrator did not run `add`. Candidates, grounded in `validation.md`:
-1. A task marked "no tests, hand-verified" must enumerate its requirement IDs against the smoke
-   checklist before Execute — the smoke list was derived from the Test Coverage Matrix and silently
-   dropped the P2 story (LINK-20/22); a story's "Independent Test" is a smoke row by definition.
-2. Gesture state held across `mousedown`/`mouseup` needs its release sites enumerated at design
-   time (container `mouseup`, window `blur`, **and** a release outside the container) — the
-   stale-press corner was found only by inspection.
-3. When a port keeps upstream behaviour that an AC's wording can be read to contradict, write the
-   assumption at Design time (URL parentheses vs. LINK-23's "unmatched").
+1. **T15** — start the dev app **on a free CDP port** (`npx electron-vite dev -- --remote-debugging-port=9223`;
+   see trap below), spawn an Ad-hoc session `claude --model haiku` (the app now forces
+   `FORCE_HYPERLINK` itself), and drive through `Runtime.evaluate`/`Input.dispatchMouseEvent`:
+   plain-URL hover + Ctrl+click in the alternate buffer (LINK-32); `Write(C:\…)` header dashed, hover
+   underline, Ctrl+click → `links:openFileUrl` + file opens (LINK-21/33); markdown link blue + dashed →
+   `links:openUrl` (LINK-20); `[mail](mailto:a@b.c)` → no invoke, nothing opens (LINK-22). Record as
+   rows 22+ in `validation.md`; flip LINK-21/22/32/33 to Verified in `spec.md` traceability; commit
+   `docs(specs): record the hyperlink smoke for terminal-links`. Scratch driver from this session:
+   `cdp.mjs` (`shot|eval|move|click [ctrl]`), `spawn-claude.js`, `instrument2.js` (records
+   `window.api.invoke` calls — `window.api` is patchable in dev), `patch-xterm.js` (wraps
+   `registerLinkProvider` to expose `window.__term`; needs the current Vite dep hash from
+   `curl localhost:<port>/src/components/TerminalPane.tsx`).
+2. **Verifier** over `3563b91..HEAD` (spec-anchored check + discrimination sensor on the 13 new tests),
+   then `validation.md` §Summary and the `STATE.md` handoff.
+3. Owner decides push to `fork` + draft PR to `obogoni/playground` (title from the feature; description
+   from `validation.md` §Summary; rebase if #95 lands first). Lessons from the first delivery are still
+   unrecorded (see the 2026-09-18 handoff in git history, `cb18b7a`); add: "the owner smoke must run
+   against the real agent (alternate screen, mouse tracking), not a plain shell".
 
-**Next steps:**
-1. Owner decides: push `feature/terminal-links` to `fork` and open the PR to `obogoni/playground`
-   (draft; title from the feature; description from `validation.md` §Summary). Upstream PR #95
-   (`terminal-scroll-paste`) also edits `TerminalPane.tsx` — rebase if it lands first.
-2. Owner decides whether to record the three lessons above (`lessons.py add`) after checking that
-   the installed script version matches the one that wrote `.specs/lessons.json`.
-3. Optional follow-ups from the Verifier: one `it` pinning `…/Foo_(bar)` → `…/Foo_` in
-   `terminal-links.test.ts`; AC LINK-22 wording ("no underline") could say "no link underline".
+**Traps met this session (save time on Wednesday):**
 
-**Uncommitted files:** none. **Branch:** `feature/terminal-links` @ `9839e22`.
+- **Another dev instance may own 5173 and 9222.** `E:\Triade\.worktrees\session-name` was running with
+  `--remote-debugging-port=9222`; a second `electron-vite dev` silently takes 5174 and **fails to bind
+  9222** (`Cannot start http server for devtools` in the log), so a CDP driver on 9222 drives the _other_
+  app. Both apps share `%APPDATA%\playground\config.json`, so sessions created in one appear in both.
+  Check `curl localhost:5173/src/components/TerminalPane.tsx` for the `/@fs/` path before driving.
+- **Residual sessions in the shared config**: "Ad-hoc · playground" (pwsh, stopped) and the haiku smoke
+  session `5278c393-c708-4f9a-8c3c-d4e09973a69b` (stopped when the app died) — remove via the rail or
+  `sessions:remove`. No orphan processes were left running.
+- **Editing the main process while the dev app runs restarts Electron**, and the restart died with an
+  unhandled `ERR_SERVER_NOT_RUNNING` (the activity-hook HTTP server on close) — relaunch instead of
+  relying on the hot restart.
+- **ConPTY drops DECSET mouse requests** (`?1000h`/`?1003h`) from a process that has not enabled
+  `ENABLE_VIRTUAL_TERMINAL_INPUT`; `[Console]::Write` and `process.stdout.write` never reached xterm.
+  A Python probe with `SetConsoleMode(h, mode | 0x200)` did (`mouse.py` in the scratchpad).
+- **Bash-tool heredocs halve backslashes** (a `'C:\\Users'` literal in a Python-written TS test arrived
+  as `'C:\Users'`); write TS/JS through the Edit/Write tools. Python text writes on Windows produce CRLF —
+  `newline=''` or normalize; the repo is `eol=lf` (git normalizes on commit, `git ls-files --eol` to check).
+- Pre-existing, untouched: 18 prettier warnings in `scripts/smoke-agent-config.mjs` /
+  `scripts/smoke-agents.mjs` (lint still exits 0).
+
+**Uncommitted files:** none. **Branch:** `feature/terminal-links` @ `f3436bf`.
