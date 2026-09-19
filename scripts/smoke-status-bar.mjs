@@ -269,6 +269,16 @@ const BAR = `(() => {
     head: head?.textContent ?? null,
     tail: q('.status-bar-branch-tail')?.textContent ?? null,
     headTruncated: head ? head.scrollWidth > head.clientWidth : null,
+    tailTruncated: q('.status-bar-branch-tail')
+      ? q('.status-bar-branch-tail').scrollWidth > q('.status-bar-branch-tail').clientWidth
+      : null,
+    headWidth: head ? head.getBoundingClientRect().width : null,
+    tailWidth: q('.status-bar-branch-tail')?.getBoundingClientRect().width ?? null,
+    // 0 when the tail shows its last character: it is clipped at the start, not the end.
+    tailEndGap: q('.status-bar-branch-tail bdi')
+      ? q('.status-bar-branch-tail').getBoundingClientRect().right -
+        q('.status-bar-branch-tail bdi').getBoundingClientRect().right
+      : null,
     branchWidth: branch ? branch.getBoundingClientRect().width : null,
     headTailGap:
       head && q('.status-bar-branch-tail')
@@ -604,9 +614,18 @@ async function main() {
     'a long branch is truncated in the middle, full name in title (STBR-06)',
     long.headTruncated === true &&
       long.head + long.tail === LONG_BRANCH &&
-      long.tail === '12345-endpoint-with-a-long-name'.slice(-24) &&
+      long.head === LONG_BRANCH.slice(0, Math.ceil(LONG_BRANCH.length / 2)) &&
       long.branchTitle === LONG_BRANCH,
-    `tail "${long.tail}", head truncated ${long.headTruncated}`
+    `head truncated ${long.headTruncated}, tail "…${long.tail?.slice(-20)}"`
+  )
+  check(
+    'the start and the end of a long branch get equal widths, the end shown to its last character (STBR-06)',
+    long.tailTruncated === true &&
+      // The head holds the odd character, so the halves may differ by one
+      // 12px monospace character (about 7 px), never more.
+      Math.abs(long.headWidth - long.tailWidth) <= 8 &&
+      Math.abs(long.tailEndGap) < 0.5,
+    `head ${long.headWidth?.toFixed(1)}px, tail ${long.tailWidth?.toFixed(1)}px, end gap ${long.tailEndGap?.toFixed(1)}px`
   )
   check(
     'the branch element is no wider than half the bar (STBR-06)',

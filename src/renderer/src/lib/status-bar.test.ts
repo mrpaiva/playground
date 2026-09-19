@@ -2,13 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { SessionView } from '../../../shared/config'
 import type { WorkspaceNode, WorktreeNode } from '../../../shared/tree'
 import type { SyncState } from '../../../shared/git'
-import {
-  BRANCH_TAIL_MAX,
-  barTargetFor,
-  fetchAgeLabel,
-  splitBranch,
-  syncSectionFor
-} from './status-bar'
+import { barTargetFor, fetchAgeLabel, splitBranch, syncSectionFor } from './status-bar'
 
 function wt(path: string, branch: string, isDefault = false): WorktreeNode {
   return { id: path, branch, path, isDefault, dirty: false, changes: 0 }
@@ -182,33 +176,25 @@ describe('barTargetFor', () => {
 })
 
 describe('splitBranch', () => {
-  it('splits so the tail is the final segment (STBR-06)', () => {
+  it('splits an even-length name into two equal halves (STBR-06)', () => {
     expect(splitBranch('user/dev/4821-fix-login/12345-endpoint')).toEqual({
-      head: 'user/dev/4821-fix-login/',
-      tail: '12345-endpoint'
+      head: 'user/dev/4821-fix-l',
+      tail: 'ogin/12345-endpoint'
     })
   })
 
-  it('returns a name with no slash whole as the head, with an empty tail', () => {
-    expect(splitBranch('main')).toEqual({ head: 'main', tail: '' })
+  it('gives the extra character of an odd-length name to the head', () => {
+    expect(splitBranch('widget')).toEqual({ head: 'wid', tail: 'get' })
+    expect(splitBranch('widgets')).toEqual({ head: 'widg', tail: 'ets' })
   })
 
-  it('returns a single segment longer than the cap whole, leaving the ellipsis to the CSS', () => {
-    const long = 'a-very-long-single-segment-branch-name-for-acme-widget'
-    expect(long.length).toBeGreaterThan(BRANCH_TAIL_MAX)
-    expect(splitBranch(long)).toEqual({ head: long, tail: '' })
-  })
-
-  it('caps the tail to the end of an over-long final segment, losing no characters', () => {
-    const leaf = '12345-endpoint-with-a-description-far-longer-than-the-cap'
-    const branch = `user/dev/${leaf}`
-    const { head, tail } = splitBranch(branch)
-    expect(tail).toBe(leaf.slice(-BRANCH_TAIL_MAX))
-    expect(head + tail).toBe(branch)
-  })
-
-  it('passes a detached label through untouched', () => {
-    expect(splitBranch('(detached abc1234)')).toEqual({ head: '(detached abc1234)', tail: '' })
+  it('loses no character, whatever the length', () => {
+    for (const branch of ['', 'm', 'main', '(detached abc1234)', 'user/dev/12345-endpoint']) {
+      const { head, tail } = splitBranch(branch)
+      expect(head + tail).toBe(branch)
+      expect(head.length - tail.length).toBeGreaterThanOrEqual(0)
+      expect(head.length - tail.length).toBeLessThanOrEqual(1)
+    }
   })
 })
 

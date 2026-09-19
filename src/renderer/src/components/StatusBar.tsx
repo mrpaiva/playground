@@ -90,7 +90,11 @@ export function StatusBar({
       <span className="status-bar-branch" title={worktree.branch}>
         <Icon name="git-branch" size={12} />
         <span className="status-bar-branch-head">{head}</span>
-        {tail && <span className="status-bar-branch-tail">{tail}</span>}
+        {tail && (
+          <span className="status-bar-branch-tail">
+            <bdi>{tail}</bdi>
+          </span>
+        )}
       </span>
       <span className="status-bar-spacer" />
       <span className="status-bar-anchor">

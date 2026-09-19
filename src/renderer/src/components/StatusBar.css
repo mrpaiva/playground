@@ -37,8 +37,8 @@
 /* SPEC_DEVIATION: tasks.md T13 puts `max-width:50%` on the head span.
    Reason: the cap sits on the branch element, which holds head + tail, so the
    whole name never passes half the bar (STBR-06); a 50% head plus a
-   non-shrinking tail could. The head still carries the ellipsis, so the cut
-   falls in the middle and the tail stays whole. */
+   non-shrinking tail could. Head and tail are each half the name and each at
+   most half the element, so a long name keeps as much start as end. */
 .status-bar-branch {
   flex: 0 1 auto;
   max-width: 50%;
@@ -46,7 +46,7 @@
   display: flex;
   align-items: center;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text);
 }
 
@@ -58,16 +58,23 @@
   color: var(--text-faint);
 }
 
-.status-bar-branch-head {
+.status-bar-branch-head,
+.status-bar-branch-tail {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 100%;
+  max-width: 50%;
   overflow: hidden;
+  white-space: nowrap;
+}
+
+.status-bar-branch-head {
   text-overflow: ellipsis;
 }
 
+/* Right-to-left so the overflow is cut at the start; the bdi inside keeps the
+   text itself left-to-right, so `-` and `/` at the edges stay in place. */
 .status-bar-branch-tail {
-  flex: 0 0 auto;
+  direction: rtl;
 }
 
 .status-bar-folder {

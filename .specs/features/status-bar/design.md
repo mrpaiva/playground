@@ -110,7 +110,7 @@ belongs to the hook's op map, not to the rendered popover.
 ### `src/renderer/src/lib/status-bar.ts` (new — pure, unit-tested)
 
 - `barTargetFor(input): BarTarget` — resolves what the bar describes from `{ direction, tree, selectedId, sessions, selectedSessionId }`: a worktree (STBR-02), the Agents session's worktree (STBR-03), a non-worktree folder (STBR-04), or nothing (STBR-05). A session's `cwd` belongs to the worktree it is inside: the root or any folder below it, compared case- and separator-insensitively on whole path segments, deepest worktree winning (corrected 2026-09-19: the exact match `session-attribution.ts` uses showed a session in `<worktree>/src` as a bare folder, against STBR-04).
-- `splitBranch(branch: string): { head: string; tail: string }` — tail is the last `/`-delimited segment (capped); head is the rest (STBR-06). The CSS does the ellipsis; this function decides where the cut may fall.
+- `splitBranch(branch: string): { head: string; tail: string }` — the name split in half, the head taking the odd character (STBR-06). Each half is at most half the branch element; the head is cut at its end with the ellipsis and the tail at its start, so a long name shows as much start as end (changed 2026-09-19 at the owner's request: the earlier last-segment tail left the head far wider than the tail).
 - `fetchAgeLabel(lastFetchAt: number | null, nowMs: number): string` — `never` when null, otherwise `relativeTime` (STBR-22).
 - `syncSectionFor(state: SyncState): SyncSection` — one discriminated union deciding what the section renders: `counts` / `no-upstream` / `detached` / `no-remote` / `error` (STBR-09, 12, 13, 14). **This is the seam that keeps the degraded modes honest**: one function, five outcomes, all testable.
 
