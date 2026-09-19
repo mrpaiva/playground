@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { git as runGit } from './git'
 import {
+  MISSING_FOLDER,
   OP_TIMEOUT_MS,
   parseAheadBehind,
   parseCommitLines,
@@ -177,6 +178,13 @@ describe('readSyncState', () => {
 
     expect(state.error).toMatch(/^fatal: /)
     expect(state).toMatchObject({ branch: 'main', upstream: null, behind: 0, ahead: 0 })
+  })
+
+  it('reports a deleted worktree folder as missing, in words rather than spawn git ENOENT', async () => {
+    const state = await readSyncState(join(root, 'deleted-worktree'))
+
+    expect(state).toMatchObject({ missing: true, error: MISSING_FOLDER })
+    expect(MISSING_FOLDER).toBe('The worktree folder no longer exists')
   })
 })
 

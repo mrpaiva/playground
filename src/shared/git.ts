@@ -16,6 +16,8 @@ export interface SyncState {
   lastFetchAt: number | null
   /** Git's first error line; set means the section degrades to it (STBR-14). */
   error?: string
+  /** The worktree folder no longer exists: no counters, no operations (spec edge case). */
+  missing?: true
 }
 
 /** The operations the sync popover offers (STBR-15/17/19/21). */

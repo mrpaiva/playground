@@ -6,6 +6,9 @@ import { git, gitFailureLine, isTimeout } from './git'
 /** The ceiling on one network operation before it is killed and reported as a timeout (STBR-24). */
 export const OP_TIMEOUT_MS = 120_000
 
+/** The sync section's line for a worktree whose folder was deleted (spec edge case). */
+export const MISSING_FOLDER = 'The worktree folder no longer exists'
+
 /** Worktree paths with an operation in flight — at most one per worktree (STBR-28). */
 const running = new Set<string>()
 
@@ -167,6 +170,16 @@ export async function readSyncState(worktreePath: string): Promise<SyncState> {
     ahead: 0,
     remotes: [],
     lastFetchAt: null
+  }
+  // Without the folder, git cannot even start in it and Node reports
+  // `spawn git ENOENT`, which reads as if git were missing.
+  if (
+    !(await stat(worktreePath).then(
+      (s) => s.isDirectory(),
+      () => false
+    ))
+  ) {
+    return { ...state, missing: true, error: MISSING_FOLDER }
   }
   try {
     const head = (await git(worktreePath, ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim()

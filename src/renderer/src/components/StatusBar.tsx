@@ -106,21 +106,24 @@ export function StatusBar({
           />
         )}
       </span>
-      <span className="status-bar-anchor">
-        <button
-          type="button"
-          className={`status-bar-changes${open === 'changes' ? ' open' : ''}`}
-          title={`${worktree.changes} changed files`}
-          aria-expanded={open === 'changes'}
-          onClick={toggleChanges}
-        >
-          <Icon name="pencil" size={11} />
-          {worktree.changes}
-        </button>
-        {open === 'changes' && (
-          <ChangesPopover worktreePath={worktree.path} onClose={closeChanges} />
-        )}
-      </span>
+      {/* A deleted folder has no changes to count or list (spec edge case). */}
+      {!sync.state?.missing && (
+        <span className="status-bar-anchor">
+          <button
+            type="button"
+            className={`status-bar-changes${open === 'changes' ? ' open' : ''}`}
+            title={`${worktree.changes} changed files`}
+            aria-expanded={open === 'changes'}
+            onClick={toggleChanges}
+          >
+            <Icon name="pencil" size={11} />
+            {worktree.changes}
+          </button>
+          {open === 'changes' && (
+            <ChangesPopover worktreePath={worktree.path} onClose={closeChanges} />
+          )}
+        </span>
+      )}
     </footer>
   )
 }

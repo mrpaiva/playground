@@ -156,8 +156,7 @@ into a full explorer with diffs.
 
 ## Edge Cases
 
-- IF the selected worktree's path no longer exists THEN the bar SHALL show the path-missing state the tree already derives, with no counters and no operations
-  - **Open (2026-09-19), not yet rewritten.** The tree derives no path-missing state for a worktree: `missing` exists only on a workspace (`src/shared/tree.ts:35`). Observed in the live app: the row stays, the counter reads `0`, and the sync section shows `spawn git ENOENT` as a plain-text error with no operation offered. After a moment it often falls back to `…` and stays there, because a late sync-state answer for the previously selected worktree overwrites this one's (`use-git-sync.ts`). Settle the wording after that race is fixed.
+- IF the selected worktree's folder no longer exists THEN the bar SHALL keep its repo and branch, replace the sync section with `The worktree folder no longer exists`, and show no changed-file counter and no operation (settled 2026-09-19: the tree derives no path-missing state for a worktree, only for a workspace, so `readSyncState` detects the missing folder itself instead of surfacing Node's `spawn git ENOENT`)
 - IF the worktree is dirty and `pull --ff-only` would overwrite a local change THEN the pull SHALL fail with git's message and change nothing
 - WHEN the user presses Escape or clicks outside an open popover THEN that popover SHALL close
 - WHEN one popover is opened while the other is open THEN the first SHALL close
