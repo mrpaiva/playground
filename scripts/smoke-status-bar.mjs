@@ -57,6 +57,8 @@ const TARGET_TITLE = 'stbr-smoke target'
 const FOLDER_TITLE = 'stbr-smoke folder'
 const SUBFOLDER_TITLE = 'stbr-smoke subfolder'
 const DUMMY_TITLE = 'stbr-smoke nudge'
+/** A window narrow enough that LONG_BRANCH overflows 70% of the bar (STBR-06). */
+const NARROW_WIDTH = 900
 
 // ---------------------------------------------------------------- CDP harness
 
@@ -609,7 +611,18 @@ async function main() {
     )
   }
   await direction(ws, 'Tree')
+  // The longest branch Windows allows (MAX_PATH on the ref's lock file) fits in
+  // 70% of a 1280 px bar, so the window is narrowed to force the cut.
+  await send(ws, 'Emulation.setDeviceMetricsOverride', {
+    width: NARROW_WIDTH,
+    height: 800,
+    deviceScaleFactor: 1,
+    mobile: false
+  })
+  await sleep(300)
   const long = await bar(ws)
+  await send(ws, 'Emulation.clearDeviceMetricsOverride')
+  await sleep(300)
   check(
     'a long branch is truncated in the middle, full name in title (STBR-06)',
     long.headTruncated === true &&
@@ -628,8 +641,8 @@ async function main() {
     `head ${long.headWidth?.toFixed(1)}px, tail ${long.tailWidth?.toFixed(1)}px, end gap ${long.tailEndGap?.toFixed(1)}px`
   )
   check(
-    'the branch element is no wider than half the bar (STBR-06)',
-    long.branchWidth <= long.barWidth / 2 + 0.5,
+    'a long branch uses up to 70% of the bar and no more (STBR-06)',
+    long.branchWidth <= long.barWidth * 0.7 + 0.5 && long.branchWidth > long.barWidth * 0.6,
     `${long.branchWidth.toFixed(1)}px of ${long.barWidth.toFixed(1)}px`
   )
   check(
@@ -1262,6 +1275,7 @@ try {
   )
 } finally {
   try {
+    await send(ws, 'Emulation.clearDeviceMetricsOverride').catch(() => {})
     await closePopovers(ws)
     await removeMySessions()
     if (registered) {

@@ -41,7 +41,7 @@ and outgoing commits, changed-file count. This feature brings that bar to Playgr
 | What the bar describes | The globally selected worktree, except in the Agents direction, where it follows the selected session's worktree | `selectedId` is already global (`use-tree.ts:27`); in Agents the session is what the user is looking at, and the tree selection may be another worktree entirely | y |
 | Session whose cwd is not a worktree | Bar shows the folder path and says it is not a worktree; no ahead/behind, no file counter | The ad-hoc session case (a `pwsh` in `C:\Windows`) is real and common in this app | y |
 | Empty state | The bar is always mounted; with no selection it shows neutral text | A bar that appears and disappears reflows the content height on every selection change | y |
-| Branch truncation | Hard cap at 50% of the bar width, ellipsis in the middle, full name in `title` | Preserves both the prefix (`user/<dev>/…`) and the leaf (`…/12345-endpoint`), which is where the meaning lives in the owner's branch convention | y |
+| Branch truncation | Hard cap at 70% of the bar width (raised from 50% by the owner on 2026-09-19), ellipsis in the middle, full name in `title` | Preserves both the prefix (`user/<dev>/…`) and the leaf (`…/12345-endpoint`), which is where the meaning lives in the owner's branch convention | y |
 | Ahead/behind source | `git rev-list --count --left-right <upstream>...HEAD` on local refs only | Local, cheap, and honest: it reports what the repo knows, and the popover says when it last learned it | y |
 | Fetch staleness | The newest `FETCH_HEAD` modification time across the repo (common git dir plus every `worktrees/<name>/`), rendered with the existing `relative-time.ts`; never fetched reads `never` | The standard proxy. Git writes `FETCH_HEAD` into the git dir of the worktree that fetched, while the remote refs it updates are shared, so any worktree's fetch refreshes what all of them compare against (corrected 2026-09-19: the T18 smoke showed a linked worktree's fetch age stuck at `never`) | y |
 | Where staleness is shown | Inside the popover, beside Fetch | Keeps the bar itself to `↓2 ↑1` and puts the age where it informs a decision | y |
@@ -77,7 +77,7 @@ the branch and how far it is from its upstream, so that I know where I am withou
 3. WHILE the Agents direction is active with a session selected the bar SHALL describe that session's worktree rather than the tree selection <!-- state-driven -->
 4. IF the selected session's working directory is not inside a git worktree THEN the bar SHALL show that directory's path and render neither the ahead/behind section nor the changed-file counter <!-- unwanted-behavior -->
 5. WHILE nothing is selected the bar SHALL stay mounted and show a neutral empty state <!-- state-driven -->
-6. WHEN the branch name would occupy more than half the bar's width THEN the bar SHALL truncate it in the middle with a single ellipsis, preserving its start and its end <!-- event-driven -->
+6. WHEN the branch name would occupy more than 70% of the bar's width THEN the bar SHALL truncate it in the middle with a single ellipsis, preserving its start and its end <!-- event-driven -->
 7. WHILE a branch name is shown the bar SHALL expose the untruncated name as that element's `title` <!-- state-driven -->
 8. WHERE HEAD is detached the bar SHALL show `(detached <short-sha>)` exactly as the sidebar already does <!-- optional-feature -->
 
@@ -209,7 +209,7 @@ into a full explorer with diffs.
 ## Success Criteria
 
 - [ ] Every direction shows repo and branch for the current selection, and the Agents direction follows the session
-- [ ] A long branch name is cut in the middle, never past half the bar, and hovering shows it whole
+- [ ] A long branch name is cut in the middle, never past 70% of the bar, and hovering shows it whole
 - [ ] `↓n ↑n` is correct against local refs and never triggers a fetch on its own
 - [ ] Sync, pull, push, fetch and publish all work against a bare remote in a temp repo, and every failure shows git's own first line
 - [ ] A divergence, a missing upstream, a missing remote and a 120 s hang each produce a distinct, readable state

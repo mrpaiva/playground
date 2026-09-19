@@ -292,7 +292,7 @@ T17 → T18
 **Gate**: quick
 **Commit**: `feat(renderer): split a branch name for middle truncation`
 
-> **Changed 2026-09-19 (owner request, after the Verifier PASS):** `splitBranch` now splits the name in half, the head taking the odd character, and each half is capped at half the branch element (head clipped at its end with the ellipsis, tail at its start). The last-segment tail above left the head far wider than the tail. The branch font went from 11 px to 12 px.
+> **Changed 2026-09-19 (owner request, after the Verifier PASS):** `splitBranch` now splits the name in half, the head taking the odd character, and each half is capped at half the branch element (head clipped at its end with the ellipsis, tail at its start). The last-segment tail above left the head far wider than the tail. The owner then raised the branch element's cap from 50% to 70% of the bar (the font stays 11 px).
 
 ---
 

@@ -32,7 +32,7 @@ graph TD
 | ---- | ------ | -------- |
 | D1 git invoker | Extract the private `git()` / `gitFailureLine()` out of `worktree-manager.ts` into `src/main/git.ts`, add an optional timeout | A private copy inside `git-sync.ts` (two definitions of how the app calls git — and the one that must not diverge is exactly the one carrying `GIT_TERMINAL_PROMPT=0` and no shell); growing `worktree-manager.ts` |
 | D2 sync computation | On demand, for the selected worktree only, over a new `git:sync-state` channel | Folding upstream/ahead/behind into `tree:get` — 2 git calls × N worktrees on every focus refresh |
-| D3 branch truncation | Two spans: a head span with `max-width:50%` + `text-overflow:ellipsis`, and a non-shrinking tail span; a pure function decides the split | Canvas measurement + `ResizeObserver`; a fixed character budget |
+| D3 branch truncation | Two spans: a head span with `max-width:50%` + `text-overflow:ellipsis`, and a non-shrinking tail span; a pure function decides the split (as built: the cap sits on the branch element, 70% of the bar since 2026-09-19, and each span is half the name — see `splitBranch`) | Canvas measurement + `ResizeObserver`; a fixed character budget |
 | D4 popovers | Reuse the `sidebar-ctx-menu` pattern — a positioned div dismissed by any click or Escape (`Sidebar.tsx:56-72,139`) | A new reusable `Popover` abstraction before a second consumer exists |
 
 ---

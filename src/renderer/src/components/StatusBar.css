@@ -34,19 +34,19 @@
   color: var(--text);
 }
 
-/* SPEC_DEVIATION: tasks.md T13 puts `max-width:50%` on the head span.
+/* SPEC_DEVIATION: tasks.md T13 puts the width cap on the head span.
    Reason: the cap sits on the branch element, which holds head + tail, so the
-   whole name never passes half the bar (STBR-06); a 50% head plus a
+   whole name never passes 70% of the bar (STBR-06); a capped head plus a
    non-shrinking tail could. Head and tail are each half the name and each at
    most half the element, so a long name keeps as much start as end. */
 .status-bar-branch {
   flex: 0 1 auto;
-  max-width: 50%;
+  max-width: 70%;
   min-width: 0;
   display: flex;
   align-items: center;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
 }
 
