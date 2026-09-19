@@ -277,12 +277,12 @@ T17 → T18
 
 **Done when**:
 
-- [ ] `user/dev/4821-fix-login/12345-endpoint` splits so the tail is the final segment
-- [ ] A branch with no `/` returns the whole name as head and an empty tail
-- [ ] A single segment longer than the cap is still returned whole (the CSS, not this function, decides where the ellipsis falls)
-- [ ] `(detached abc1234)` passes through untouched
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 781 + 5 = **786**
+- [x] `user/dev/4821-fix-login/12345-endpoint` splits so the tail is the final segment
+- [x] A branch with no `/` returns the whole name as head and an empty tail
+- [x] A single segment longer than the cap is still returned whole (the CSS, not this function, decides where the ellipsis falls)
+- [x] `(detached abc1234)` passes through untouched
+- [x] Gate passes: `npm test`
+- [x] Test count: 781 + 5 = **786**
 
 **Tests**: unit
 **Gate**: quick

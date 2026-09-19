@@ -50,3 +50,20 @@ export function barTargetFor(input: BarTargetInput): BarTarget {
   const selected = findWorktree(tree, selectedId)
   return selected ? { kind: 'worktree', selected } : { kind: 'none' }
 }
+
+/** Longest tail kept whole; the tail span never shrinks, so it must stay short (STBR-06). */
+export const BRANCH_TAIL_MAX = 24
+
+/**
+ * Split a branch for middle truncation (STBR-06): the tail is the last
+ * `/`-delimited segment, capped at `BRANCH_TAIL_MAX` characters from its end,
+ * and the head is everything before it, so `head + tail` is always the full
+ * name. A name with no `/` (including `(detached <sha>)`) is all head. The
+ * CSS, not this function, decides where the ellipsis falls.
+ */
+export function splitBranch(branch: string): { head: string; tail: string } {
+  const cut = branch.lastIndexOf('/')
+  if (cut === -1) return { head: branch, tail: '' }
+  const at = Math.max(cut + 1, branch.length - BRANCH_TAIL_MAX)
+  return { head: branch.slice(0, at), tail: branch.slice(at) }
+}

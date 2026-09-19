@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionView } from '../../../shared/config'
 import type { WorkspaceNode, WorktreeNode } from '../../../shared/tree'
-import { barTargetFor } from './status-bar'
+import { BRANCH_TAIL_MAX, barTargetFor, splitBranch } from './status-bar'
 
 function wt(path: string, branch: string, isDefault = false): WorktreeNode {
   return { id: path, branch, path, isDefault, dirty: false, changes: 0 }
@@ -120,5 +120,36 @@ describe('barTargetFor', () => {
       selectedSessionId: 's-gone'
     })
     expect(withoutSelection).toEqual({ kind: 'none' })
+  })
+})
+
+describe('splitBranch', () => {
+  it('splits so the tail is the final segment (STBR-06)', () => {
+    expect(splitBranch('user/dev/4821-fix-login/12345-endpoint')).toEqual({
+      head: 'user/dev/4821-fix-login/',
+      tail: '12345-endpoint'
+    })
+  })
+
+  it('returns a name with no slash whole as the head, with an empty tail', () => {
+    expect(splitBranch('main')).toEqual({ head: 'main', tail: '' })
+  })
+
+  it('returns a single segment longer than the cap whole, leaving the ellipsis to the CSS', () => {
+    const long = 'a-very-long-single-segment-branch-name-for-acme-widget'
+    expect(long.length).toBeGreaterThan(BRANCH_TAIL_MAX)
+    expect(splitBranch(long)).toEqual({ head: long, tail: '' })
+  })
+
+  it('caps the tail to the end of an over-long final segment, losing no characters', () => {
+    const leaf = '12345-endpoint-with-a-description-far-longer-than-the-cap'
+    const branch = `user/dev/${leaf}`
+    const { head, tail } = splitBranch(branch)
+    expect(tail).toBe(leaf.slice(-BRANCH_TAIL_MAX))
+    expect(head + tail).toBe(branch)
+  })
+
+  it('passes a detached label through untouched', () => {
+    expect(splitBranch('(detached abc1234)')).toEqual({ head: '(detached abc1234)', tail: '' })
   })
 })
