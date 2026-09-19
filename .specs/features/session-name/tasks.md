@@ -202,7 +202,9 @@ T7 → T8
 
 ---
 
-### T4: `SessionManager` learns and applies names [P]
+### T4: `SessionManager` learns and applies names [P] ✅ COMPLETE
+
+**Status**: Done — `SessionNames` exported, `claudeSessionId`/`name` on `RunningSession`, `handleHookEvent` watch/nudge, `applyNames`, `#setName`, `#finalize` clears + unwatches, `#toView` carries `name`. 18 tests (planned 14; the `session_id` guard is `it.each` ×3, plus PTY-exit and respawn cases); 43 existing tests unmodified. Phase 2 build gate: typecheck clean, lint 0 errors, **972/972** (917 + 17 + 20 + 18).
 
 **What**: The manager records each session's Claude `session_id` from hook payloads, tells the `SessionNames` collaborator what to watch, applies a listing to its sessions, emits on change and clears on stop.
 **Where**: `src/main/session-manager.ts`, `src/main/session-manager.test.ts`
