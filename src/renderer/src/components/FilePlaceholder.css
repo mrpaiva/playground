@@ -48,28 +48,4 @@
   font-variant-numeric: tabular-nums;
 }
 
-.file-placeholder-launchers {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.file-placeholder-launcher {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--text);
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color 0.12s;
-}
-
-.file-placeholder-launcher:hover {
-  border-color: var(--border-strong);
-}
+/* The launcher row lives in `FileTabs`, once per column (FXPL-25, T18). */

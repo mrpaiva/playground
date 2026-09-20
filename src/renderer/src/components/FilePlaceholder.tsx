@@ -1,5 +1,4 @@
 import type { JSX } from 'react'
-import type { ShortcutTool } from '../../../shared/shortcuts'
 import { Icon, type IconName } from './Icon'
 import './FilePlaceholder.css'
 
@@ -17,17 +16,7 @@ interface FilePlaceholderProps {
   kind: PlaceholderKind
   /** Bytes, for the two kinds that have a file on disk to measure. */
   size?: number
-  /** Launches a tool on this file. Absent for the kinds that have no file. */
-  onLaunch?: (tool: ShortcutTool) => void
 }
-
-/** The launchers of FXPL-25, minus Terminal: a file is not a working directory. */
-const LAUNCHERS: { tool: ShortcutTool; label: string; icon: IconName }[] = [
-  { tool: 'explorer', label: 'File Explorer', icon: 'folder' },
-  { tool: 'vscode', label: 'VS Code', icon: 'code' },
-  { tool: 'vs2022', label: 'VS 2022', icon: 'shield' },
-  { tool: 'vs2026', label: 'VS 2026', icon: 'shield' }
-]
 
 const WORDING: Record<PlaceholderKind, { icon: IconName; headline: string; detail: string }> = {
   binary: {
@@ -78,12 +67,12 @@ function fileType(name: string): string {
  * open and keeps its place in the strip, which is what FXPL-24 requires of a
  * file deleted underneath the user.
  *
- * The launchers render only for `binary` and `too-large`. For the two deleted
- * kinds the path does not exist, and every launcher here targets the file
- * itself — File Explorer selects it, the editors open it — so offering them
- * would mean offering an action that can only fail.
+ * The launchers of FXPL-20 are not here. `FileTabs` owns the one launcher row
+ * FXPL-25 puts under the tabs, in this same column and always visible, and it
+ * targets this file: a second row inside the card would have shown the same
+ * four buttons twice (T18).
  */
-export function FilePlaceholder({ path, kind, size, onLaunch }: FilePlaceholderProps): JSX.Element {
+export function FilePlaceholder({ path, kind, size }: FilePlaceholderProps): JSX.Element {
   const name = path.split('/').pop() ?? path
   const { icon, headline, detail } = WORDING[kind]
   const hasFile = kind === 'binary' || kind === 'too-large'
@@ -99,21 +88,6 @@ export function FilePlaceholder({ path, kind, size, onLaunch }: FilePlaceholderP
           <div className="file-placeholder-meta">
             <span>{fileType(name)}</span>
             {size !== undefined && <span>{formatSize(size)}</span>}
-          </div>
-        )}
-        {hasFile && onLaunch && (
-          <div className="file-placeholder-launchers">
-            {LAUNCHERS.map((launcher) => (
-              <button
-                key={launcher.tool}
-                type="button"
-                className="file-placeholder-launcher"
-                onClick={() => onLaunch(launcher.tool)}
-              >
-                <Icon name={launcher.icon} size={14} />
-                <span>{launcher.label}</span>
-              </button>
-            ))}
           </div>
         )}
       </div>

@@ -708,15 +708,40 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] Clicking an already-open file focuses its tab instead of opening another
-- [ ] The launcher row acts on the folder when a folder was selected after the active tab was opened
-- [ ] A failed launch shows the existing toast
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **850** (unchanged)
+- [x] Clicking an already-open file focuses its tab instead of opening another — `openFile` finds the tab by path and only re-stamps it (T16); verified by the T23 smoke
+- [x] The launcher row acts on the folder when a folder was selected after the active tab was opened — the row launches `files.launchTarget`, which is `launcherTarget(activeTab, lastFolder)` by recency
+- [x] A failed launch shows the existing toast — `launch` surfaces `result.error` and a rejected invoke through `onToast`
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **850** (unchanged) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): render file tabs and launchers`
+**Status**: Complete
+
+> **The duplicated launcher row is settled: `FilePlaceholder` lost its own.**
+> FXPL-25 puts the row under the tabs unconditionally, so hiding the strip for a
+> binary or too-large tab was not available — that would breach the requirement
+> that owns the row. The placeholder's row was the removable one, and removing it
+> costs FXPL-20 nothing: the strip sits in the same column, directly above the
+> placeholder, always visible, and targets the same file. The alternative was the
+> same four buttons twice on one screen. `onLaunch` and the row's CSS are gone
+> rather than left unused.
+>
+> **Only the active tab is mounted**, keyed by path, so Monaco holds one editor at
+> a time and T14's disposal runs on every tab switch. The `followAppTheme` note
+> from T14 therefore still stands: one mounted viewer, so the call stays inside
+> `CodeViewer`.
+>
+> **The launchers are disabled, not hidden, when nothing is picked.** FXPL-25 says
+> the column shows them; a row that appears and disappears reads as a fault. Their
+> tooltip carries the absolute target, which is also how the file/folder switch of
+> FXPL-26 is visible without a second label.
+>
+> **A `FileContent` of kind `error` has no placeholder.** The four kinds of
+> `PlaceholderKind` are the spec's; a read that failed for another reason (the
+> `resolveInside` guard) renders git's message in the tab body instead of being
+> mapped onto a kind that would misdescribe it.
 
 ---
 
