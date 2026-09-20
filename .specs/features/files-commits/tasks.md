@@ -282,7 +282,7 @@ T15 → T16
 
 ---
 
-### T9: Decide the list's rows and actions
+### T9: Decide the list's rows and actions ✅
 
 **What**: Add `mergePages(current, next)`, `uncommittedRowLabel(n)` and `browseState(row, page)` to `commit-view.ts`.
 **Where**: `src/renderer/src/lib/commit-view.ts`
@@ -294,11 +294,11 @@ T15 → T16
 
 **Done when**:
 
-- [ ] `mergePages` appends in order and drops a sha already present
-- [ ] `uncommittedRowLabel(3)` is `Uncommitted changes (3)`; `0` yields null (no row)
-- [ ] `browseState`: `hidden` when `browse` is null, `disabled` for an unpushed row, `enabled` otherwise
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 936 + 7 = **943**
+- [x] `mergePages` appends in order and drops a sha already present
+- [x] `uncommittedRowLabel(3)` is `Uncommitted changes (3)`; `0` yields null (no row)
+- [x] `browseState`: `hidden` when `browse` is null, `disabled` for an unpushed row, `enabled` otherwise
+- [x] Gate passes: `npm test`
+- [x] Test count: 1158 + 7 = **1165**
 
 **Tests**: unit
 **Gate**: quick

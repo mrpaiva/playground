@@ -1,4 +1,10 @@
-import type { ChangedPath, CommitRow, DiffRef, DiffRequest } from '../../../shared/files'
+import type {
+  ChangedPath,
+  CommitPage,
+  CommitRow,
+  DiffRef,
+  DiffRequest
+} from '../../../shared/files'
 
 /**
  * The two sides of one file's diff inside a commit's tab (FCMT-17/18).
@@ -41,4 +47,47 @@ function originalRef(changed: ChangedPath, parent: string | null): DiffRef | nul
 export function commitTabTitle(row: Pick<CommitRow, 'shortSha' | 'subject'>): string {
   const subject = row.subject.trim() === '' ? '(no subject)' : row.subject
   return `${row.shortSha} · ${subject}`
+}
+
+/**
+ * The list after Load more (FCMT-09): the page just fetched appended below
+ * what is already shown, in order.
+ *
+ * Cursor paging cannot hand back a row the list already holds, so dropping
+ * duplicates is defensive — but the cheap defence is worth having, because the
+ * alternative failure is two rows with the same key in one list.
+ *
+ * Pure.
+ */
+export function mergePages(current: readonly CommitRow[], next: readonly CommitRow[]): CommitRow[] {
+  const seen = new Set(current.map((row) => row.sha))
+  return [...current, ...next.filter((row) => !seen.has(row.sha))]
+}
+
+/**
+ * The row that heads the list while the worktree is dirty (FCMT-14), or null
+ * when it is clean and there is no such row. `n` is the changed-file count the
+ * tree snapshot already carries, so this costs no git call.
+ */
+export function uncommittedRowLabel(n: number): string | null {
+  return n > 0 ? `Uncommitted changes (${n})` : null
+}
+
+/** What a row's Open in browser looks like (FCMT-23/25/26). */
+export type BrowseState = 'hidden' | 'disabled' | 'enabled'
+
+/**
+ * Whether a row offers Open in browser, and whether it is usable.
+ *
+ * Hidden and disabled say different things and are not interchangeable: with
+ * no upstream or an unrecognized host there is nothing to disable *toward*, so
+ * the action is absent; a commit that simply has not been pushed gets a
+ * disabled button that can explain itself (F3-Q10).
+ */
+export function browseState(
+  row: Pick<CommitRow, 'pushed'>,
+  page: Pick<CommitPage, 'browse'>
+): BrowseState {
+  if (page.browse === null) return 'hidden'
+  return row.pushed ? 'enabled' : 'disabled'
 }
