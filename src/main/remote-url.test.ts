@@ -57,6 +57,10 @@ describe('parseRemote', () => {
     '',
     // Right host, wrong shape: an Azure DevOps path without `_git` names no repo.
     'https://dev.azure.com/acme/platform/widget',
+    // The same, at the RIGHT length. The three-segment case above is rejected
+    // for being too short and never reaches the `_git` guard, so deleting that
+    // guard passed the whole suite until this row existed (sensor mutant M1).
+    'https://dev.azure.com/acme/platform/notgit/widget',
     // A GitHub URL with an owner and no repository.
     'https://github.com/acme'
   ]
