@@ -233,7 +233,7 @@ T15 → T16
 
 ---
 
-### T7: Serve the commits channels
+### T7: Serve the commits channels ✅
 
 **What**: Register `commits:list`, `commits:files` and `commits:open` in `index.ts`, injecting `shell.openExternal` as the opener.
 **Where**: `src/main/index.ts`
@@ -245,11 +245,11 @@ T15 → T16
 
 **Done when**:
 
-- [ ] Three one-line delegations; `shell.openExternal` is reached only through `openCommit`
-- [ ] The template's `setWindowOpenHandler` is **not** used by anything F3 adds
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: **930** (unchanged)
+- [x] Three one-line delegations; `shell.openExternal` is reached only through `openCommit`
+- [x] The template's `setWindowOpenHandler` is **not** used by anything F3 adds
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: **1151** (unchanged)
 
 **Tests**: none
 **Gate**: build

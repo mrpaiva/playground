@@ -13,6 +13,7 @@ import { AgentStepRunner, type AgentChild, type AgentSpawn } from './agent-step-
 import { createActivityHookServer } from './activity-hook-server'
 import { buildClaudeHookSettings } from './claude-hook-settings'
 import { ConfigStore } from './config-store'
+import { commitFiles, listCommits, openCommit } from './commit-log'
 import { diffStats, readDiffSides } from './file-diff'
 import { readForView } from './file-reader'
 import { changedSince, listBases, listDir } from './file-tree'
@@ -266,6 +267,16 @@ app.whenReady().then(() => {
   handle('files:watch', ({ worktreePath }) => fileWatcher.select(worktreePath))
   handle('files:diff-sides', ({ worktreePath, request }) => readDiffSides(worktreePath, request))
   handle('files:diff-stats', ({ worktreePath, mode, base }) => diffStats(worktreePath, mode, base))
+  handle('commits:list', ({ worktreePath, base, cursor }) =>
+    listCommits(worktreePath, base, cursor)
+  )
+  handle('commits:files', ({ worktreePath, sha }) => commitFiles(worktreePath, sha))
+  // The renderer sends a sha, never an address: `shell.openExternal` is only
+  // ever reached through `openCommit`, which builds the URL itself and refuses
+  // anything that is not https (FCMT-28).
+  handle('commits:open', ({ worktreePath, sha }) =>
+    openCommit(worktreePath, sha, (url) => shell.openExternal(url))
+  )
   // Close every watch handle before the process goes away (FXPL-23).
   app.on('will-quit', () => {
     void fileWatcher.select(null)
