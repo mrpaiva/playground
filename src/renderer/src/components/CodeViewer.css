@@ -1,0 +1,30 @@
+/*
+ * The read-only file viewer (FXPL-17). The editor fills whatever the tab gives
+ * it; Monaco's `automaticLayout` needs a sized box, so the column is a flex
+ * parent and the editor takes the remaining height.
+ */
+
+.code-viewer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+/*
+ * The "not a diff" note (FXPL-14). Advisory, not a failure: it explains what
+ * the view is while F2 has not shipped, so it reads as a quiet caption rather
+ * than a warning banner.
+ */
+.code-viewer-note {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: none;
+}
+
+.code-viewer-editor {
+  flex: 1;
+  min-height: 0;
+}

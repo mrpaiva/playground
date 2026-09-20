@@ -509,15 +509,36 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] Replacing the content keeps the scroll position (checked by hand with a long file)
-- [ ] The editor is created once per tab and disposed on unmount — no model leak across tab switches
-- [ ] The diff-mode label renders only when the tab was opened from a diff mode
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **850** (unchanged)
+- [x] Replacing the content keeps the scroll position (checked by hand with a long file) — 400-line file, `scrollTop` 2400 to 2400 and first visible line 128 to 128
+- [x] The editor is created once per tab and disposed on unmount — no model leak across tab switches — one live editor measured, inside `.code-viewer-editor`
+- [x] The diff-mode label renders only when the tab was opened from a diff mode
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **850** (unchanged) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): render a file read-only`
+**Status**: Complete
+
+> **Monaco scrolls virtually, so the scroll check needs the editor API.** The
+> `.monaco-scrollable-element` keeps `scrollTop` at 0 and assigning to it does
+> nothing; the offset only moves through `editor.setScrollTop`. A first version
+> of this hand check drove the DOM, measured 0 before and 0 after, and would
+> have reported the criterion as met without ever scrolling. The check now
+> asserts `getVisibleRanges()[0].startLineNumber` as well as the offset, so a
+> viewport that silently returns to the top fails even when the number is right.
+>
+> **`setValue` resets the scroll**, which is why `CodeViewer` captures and
+> restores the offset around the edit rather than relying on Monaco to hold it.
+>
+> **`followAppTheme` runs per mounted viewer.** Monaco's theme is global, so
+> once F2 mounts a diff editor beside a file tab, move the call up to the
+> direction root (T19/T21) instead of running one observer per viewer.
+>
+> **`languageForPath` lives in `monaco-setup.ts`, untested.** It reads
+> `monaco.languages.getLanguages()`, so it needs Monaco loaded and is not the
+> pure helper the Test Coverage Matrix would require a unit test for. Covered by
+> the T23 smoke.
 
 ---
 

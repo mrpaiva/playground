@@ -43,4 +43,26 @@ export function followAppTheme(): () => void {
   return () => observer.disconnect()
 }
 
+/**
+ * The language id Monaco should use for a path (FXPL-17), matched against the
+ * Monarch contributions actually loaded — by filename first (`Dockerfile`,
+ * `Makefile` carry no extension), then by extension. Unknown means plain text,
+ * which still renders; highlighting is the only thing lost.
+ */
+export function languageForPath(path: string): string {
+  const name = (path.split(/[\\/]/).pop() ?? '').toLowerCase()
+  const dot = name.lastIndexOf('.')
+  const ext = dot > 0 ? name.slice(dot) : ''
+  const languages = monaco.languages.getLanguages()
+  const byFilename = languages.find((l) =>
+    (l.filenames ?? []).some((f) => f.toLowerCase() === name)
+  )
+  if (byFilename) return byFilename.id
+  if (!ext) return 'plaintext'
+  const byExtension = languages.find((l) =>
+    (l.extensions ?? []).some((e) => e.toLowerCase() === ext)
+  )
+  return byExtension?.id ?? 'plaintext'
+}
+
 export { monaco }
