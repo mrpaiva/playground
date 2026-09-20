@@ -24,10 +24,6 @@
 }
 
 .commit-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding-right: 6px;
   border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
 }
 
@@ -35,14 +31,15 @@
   background: var(--panel-2);
 }
 
-/* The clickable body of the row. Its own button so the two actions beside it
-   are not nested inside it. */
+/* The whole row is the button. The two actions moved to the right-click menu:
+   as buttons beside this they reserved their width even while hidden, and the
+   author's name was squeezed down to one letter. */
 .commit-open {
-  flex: 1;
-  min-width: 0;
   display: flex;
+  width: 100%;
+  min-width: 0;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   padding: 7px 10px;
   border: none;
   background: none;
@@ -52,24 +49,10 @@
   cursor: pointer;
 }
 
-.commit-head {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  min-width: 0;
-}
-
-.commit-sha {
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--accent-text);
-}
-
+/* What the reader is scanning for, so it leads. */
 .commit-subject {
-  flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -80,23 +63,27 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-size: 11px;
   color: var(--text-faint);
-  min-width: 0;
 }
 
+/* Shrinks last and keeps a readable floor: a name cut to its first letter
+   names nobody. */
 .commit-author {
+  flex: 0 1 auto;
+  min-width: 5.5em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.commit-date {
+.commit-date,
+.commit-badge {
   flex: none;
 }
 
 .commit-badge {
-  flex: none;
   padding: 0 5px;
   border-radius: 3px;
   font-size: 10px;
@@ -114,40 +101,6 @@
   color: var(--amber);
 }
 
-.commit-actions {
-  flex: none;
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-}
-
-.commit-row:hover .commit-actions,
-.commit-actions:focus-within {
-  opacity: 1;
-}
-
-.commit-actions button {
-  padding: 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.commit-actions button:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-/* FCMT-25: still there, so it can say why it does nothing. */
-.commit-actions button:disabled {
-  color: var(--text-faint);
-  cursor: default;
-}
-
 .commit-more {
   margin: 6px 10px;
   padding: 5px 10px;
@@ -163,4 +116,43 @@
 .commit-more:hover {
   border-color: var(--border-strong);
   color: var(--text);
+}
+
+/* Same geometry as the sidebar's row menu, so the two read as one control. */
+.commit-ctx-menu {
+  position: fixed;
+  z-index: 70;
+  min-width: 168px;
+  padding: 5px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 36px var(--shadow);
+}
+
+.commit-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.commit-ctx-item:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+/* FCMT-25: still offered, so it can say why it does nothing. */
+.commit-ctx-item:disabled {
+  color: var(--text-faint);
+  cursor: default;
 }

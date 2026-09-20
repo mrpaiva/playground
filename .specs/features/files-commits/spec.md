@@ -78,7 +78,7 @@ base, so that I can see how the branch got to where it is.
 
 1. F1's mode selector SHALL offer a fourth mode, **Commits** <!-- ubiquitous -->
 2. WHILE in Commits mode the left column SHALL list the first-parent commits from the merge base to `HEAD`, newest first <!-- state-driven -->
-3. Each commit row SHALL show the short sha, the subject, the author and the relative commit date <!-- ubiquitous -->
+3. Each commit row SHALL lead with the subject, and show the author and the relative commit date **[amended 2026-09-20, AD-038: the short sha left the row for the tooltip and the row menu]** <!-- ubiquitous -->
 4. WHEN the user hovers a commit row THEN the view SHALL show the full commit message <!-- event-driven -->
 5. The system SHALL mark a merge commit's row as a merge <!-- ubiquitous -->
 6. WHILE in Commits mode the view SHALL show the base picker, sharing the base persisted for diff-to-origin mode <!-- state-driven -->
@@ -138,9 +138,9 @@ DevOps or GitHub, so that I can share or review it where the team works.
 
 **Acceptance Criteria**:
 
-21. Each commit row SHALL offer **Copy sha** <!-- ubiquitous -->
+21. Each commit row's context menu SHALL offer **Copy sha** **[amended 2026-09-20, AD-038]** <!-- ubiquitous -->
 22. WHEN the user activates Copy sha THEN the system SHALL put the full 40-character sha on the clipboard <!-- event-driven -->
-23. WHERE the branch's upstream remote is a recognized GitHub or Azure DevOps remote, each commit row SHALL offer **Open in browser** <!-- optional-feature -->
+23. WHERE the branch's upstream remote is a recognized GitHub or Azure DevOps remote, each commit row's context menu SHALL offer **Open in browser** **[amended 2026-09-20, AD-038]** <!-- optional-feature -->
 24. WHEN the user activates Open in browser on a pushed commit THEN the system SHALL open that commit's page on the upstream remote in the default browser <!-- event-driven -->
 25. IF the commit is not pushed THEN Open in browser SHALL be disabled with a tooltip saying the commit has not been pushed <!-- unwanted-behavior -->
 26. IF the branch has no upstream, or its upstream host is not recognized, THEN Open in browser SHALL NOT be offered <!-- unwanted-behavior -->

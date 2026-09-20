@@ -215,23 +215,63 @@ const clickBranch = (branch) => `
 
 /** Every commit row, in the order the list draws them. */
 const rows = `
-  [...document.querySelectorAll('.commit-row')].map((row) => ({
-    sha: row.getAttribute('data-sha'),
-    shortSha: row.querySelector('.commit-sha')?.textContent.trim() ?? '',
-    subject: row.querySelector('.commit-subject')?.textContent.trim() ?? '',
-    author: row.querySelector('.commit-author')?.textContent.trim() ?? '',
-    date: row.querySelector('.commit-date')?.textContent.trim() ?? '',
-    merge: row.querySelector('.commit-merge') !== null,
-    unpushed: row.querySelector('.commit-unpushed') !== null,
-    browse: row.querySelector('.commit-browse') === null
-      ? 'hidden'
-      : row.querySelector('.commit-browse').disabled
-        ? 'disabled'
-        : 'enabled',
-    browseTitle: row.querySelector('.commit-browse')?.title ?? '',
-    tooltip: row.querySelector('.commit-open')?.title ?? ''
-  }))
+  [...document.querySelectorAll('.commit-row')].map((row) => {
+    const author = row.querySelector('.commit-author')
+    return {
+      sha: row.getAttribute('data-sha'),
+      subject: row.querySelector('.commit-subject')?.textContent.trim() ?? '',
+      author: author?.textContent.trim() ?? '',
+      // Truthy when CSS is clipping the name: the text is wider than its box.
+      authorClipped: author ? author.scrollWidth > author.clientWidth : false,
+      date: row.querySelector('.commit-date')?.textContent.trim() ?? '',
+      merge: row.querySelector('.commit-merge') !== null,
+      unpushed: row.querySelector('.commit-unpushed') !== null,
+      tooltip: row.querySelector('.commit-open')?.title ?? ''
+    }
+  })
 `
+
+/** Right-clicks one row; returns whether its menu opened. */
+const openRowMenu = (sha) => `
+  (() => {
+    const row = document.querySelector('.commit-row[data-sha="${sha}"] .commit-open')
+    if (!row) return false
+    const box = row.getBoundingClientRect()
+    row.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        clientX: Math.round(box.left + 20),
+        clientY: Math.round(box.top + 10)
+      })
+    )
+    return true
+  })()
+`
+
+/** What the open row menu offers (FCMT-21/23/25/26). */
+const rowMenu = `
+  (() => {
+    const menu = document.querySelector('.commit-ctx-menu')
+    if (!menu) return null
+    const browse = menu.querySelector('.commit-browse')
+    return {
+      items: [...menu.querySelectorAll('.commit-ctx-item')].map((e) => e.textContent.trim()),
+      browse: browse === null ? 'hidden' : browse.disabled ? 'disabled' : 'enabled',
+      browseTitle: browse?.title ?? ''
+    }
+  })()
+`
+
+/** Dismisses whatever menu is open, the way Escape does. */
+const closeRowMenu = `
+  (() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    return true
+  })()
+`
+
+/** Whether any row menu is on screen. */
+const menuOnScreen = `document.querySelector('.commit-ctx-menu') !== null`
 
 const tabLabels = `[...document.querySelectorAll('.file-tab-label')].map((e) => e.textContent.trim())`
 const activeMode = `document.querySelector('.file-tree-mode.active')?.textContent.trim() ?? ''`
@@ -369,15 +409,26 @@ async function drive() {
     JSON.stringify(subjects1.slice(0, 4))
   )
 
-  // 6. FCMT-03: everything one row is required to carry.
+  // 6. FCMT-03: everything one row is required to carry. The sha is not in
+  //    the row any more — the subject leads, and the sha is in the tooltip and
+  //    the right-click menu.
   const top = page1[0]
   check(
-    'A row carries a short sha, the subject, the author and a relative date (FCMT-03)',
-    /^[0-9a-f]{7,}$/.test(top.shortSha) &&
-      top.subject === 'rename the module' &&
+    'A row leads with the subject, and carries the author and a relative date (FCMT-03)',
+    top.subject === 'rename the module' &&
       top.author === 'Commit Smoke' &&
       /ago|just now/.test(top.date),
     JSON.stringify(top)
+  )
+
+  // The author was being clipped to its first letter: the two action buttons
+  // reserved their width in the row even while hidden. They are in the menu
+  // now, so the name has room. `scrollWidth > clientWidth` is CSS clipping,
+  // which reading `textContent` cannot see.
+  check(
+    'The author name is not clipped by the row layout',
+    page1.every((row) => !row.authorClipped),
+    `${page1.filter((row) => row.authorClipped).length} of ${page1.length} rows clipped`
   )
 
   // 7. FCMT-04: the tooltip is the whole message, not the subject again. The
@@ -436,12 +487,27 @@ async function drive() {
     `${page1.length} -> ${page2.length} rows, last ${JSON.stringify(page2[page2.length - 1]?.subject)}, Load more ${stillMore ? 'still there' : 'gone'}`
   )
 
-  // 11. FCMT-26: a remote that is a local path is no provider, so there is no
-  //     button at all — hidden, not disabled.
+  // 11. FCMT-26: a remote that is a local path is no provider, so the action
+  //     is absent from the menu — hidden, not disabled.
+  const rightClicked = await evaluate(ws, openRowMenu(page2[0].sha))
+  await sleep(300)
+  const localMenu = await evaluate(ws, rowMenu)
   check(
-    'With an unrecognized remote, no row offers Open in browser (FCMT-26)',
-    page2.every((r) => r.browse === 'hidden'),
-    `${page2.filter((r) => r.browse !== 'hidden').length} rows offered it`
+    'Right-clicking a row opens a menu, offering Copy sha (FCMT-21)',
+    rightClicked && localMenu !== null && localMenu.items.some((i) => i.includes('Copy sha')),
+    JSON.stringify(localMenu)
+  )
+  check(
+    'With an unrecognized remote the menu does not offer Open in browser (FCMT-26)',
+    localMenu !== null && localMenu.browse === 'hidden',
+    `browse = ${JSON.stringify(localMenu?.browse)}`
+  )
+  await evaluate(ws, closeRowMenu)
+  await sleep(300)
+  check(
+    'Escape dismisses the row menu',
+    (await evaluate(ws, menuOnScreen)) === false,
+    'menu still on screen'
   )
 
   // FCMT-30: the base moved, so the list is re-cut against a different merge
@@ -477,21 +543,25 @@ async function drive() {
   await waitForRows(ws, 100)
   await sleep(600)
 
-  // 12. FCMT-22: the full forty characters, not the seven shown.
+  // 12. FCMT-22: the full forty characters, from the right-click menu.
+  const firstSha = (await evaluate(ws, rows))[0].sha
+  await evaluate(ws, openRowMenu(firstSha))
+  await sleep(300)
   const copied = await evaluate(
     ws,
     `
     (async () => {
-      const row = document.querySelector('.commit-row')
+      const item = document.querySelector('.commit-ctx-menu .commit-copy')
+      if (!item) return { seen: null, readBack: null, sha: null }
       const real = navigator.clipboard.writeText.bind(navigator.clipboard)
       let seen = null
       navigator.clipboard.writeText = (text) => { seen = text; return real(text) }
-      row.querySelector('.commit-copy').click()
+      item.click()
       await new Promise((r) => setTimeout(r, 400))
       navigator.clipboard.writeText = real
       let readBack = null
       try { readBack = await navigator.clipboard.readText() } catch { readBack = null }
-      return { seen, readBack, sha: row.getAttribute('data-sha') }
+      return { seen, readBack, sha: '${firstSha}' }
     })()
   `
   )
@@ -507,10 +577,13 @@ async function drive() {
   await evaluate(ws, `document.querySelector('.commit-row .commit-open').click()`)
   await sleep(2500)
   const afterOpen = await evaluate(ws, tabLabels)
+  // The row no longer shows a sha; the TAB still does, so two commits with the
+  // same subject stay apart (FCMT-16). The expected one comes from git.
+  const topShort = git(['rev-parse', '--short', top.sha])
   check(
     'Clicking a commit opens a tab titled by its short sha and subject (FCMT-16)',
-    afterOpen.some((l) => l === `${top.shortSha} · rename the module`),
-    JSON.stringify(afterOpen)
+    afterOpen.some((l) => l === `${topShort} · rename the module`),
+    `expected "${topShort} · rename the module", saw ${JSON.stringify(afterOpen)}`
   )
 
   const renamePaths = await evaluate(ws, sectionPaths)
@@ -589,20 +662,30 @@ async function drive() {
   await evaluate(ws, `window.dispatchEvent(new Event('focus'))`)
   await sleep(2000)
   const recognized = await evaluate(ws, rows)
-  const enabled = recognized.filter((r) => r.browse === 'enabled')
-  const disabled = recognized.filter((r) => r.browse === 'disabled')
+  const unpushedRow = recognized.find((r) => r.unpushed)
+  const pushedRow = recognized.find((r) => !r.unpushed)
+
+  await evaluate(ws, openRowMenu(pushedRow.sha))
+  await sleep(300)
+  const pushedMenu = await evaluate(ws, rowMenu)
+  await evaluate(ws, closeRowMenu)
+  await sleep(200)
+  await evaluate(ws, openRowMenu(unpushedRow.sha))
+  await sleep(300)
+  const unpushedMenu = await evaluate(ws, rowMenu)
+  await evaluate(ws, closeRowMenu)
+
   check(
-    'A recognized remote enables Open in browser on pushed rows only (FCMT-23/25)',
-    disabled.length === 3 &&
-      disabled.every((r) => r.unpushed) &&
-      enabled.length === recognized.length - 3 &&
-      enabled.every((r) => !r.unpushed),
-    `${enabled.length} enabled, ${disabled.length} disabled of ${recognized.length}`
+    'A recognized remote enables Open in browser on a pushed commit (FCMT-23)',
+    pushedMenu !== null && pushedMenu.browse === 'enabled',
+    `${JSON.stringify(pushedRow?.subject)} -> ${JSON.stringify(pushedMenu?.browse)}`
   )
   check(
-    'The disabled Open in browser explains that the commit is not pushed (FCMT-25)',
-    disabled.length > 0 && /not been pushed/.test(disabled[0].browseTitle),
-    JSON.stringify(disabled[0]?.browseTitle)
+    'The same action is disabled on an unpushed commit, and says why (FCMT-25)',
+    unpushedMenu !== null &&
+      unpushedMenu.browse === 'disabled' &&
+      /not been pushed/.test(unpushedMenu.browseTitle),
+    `${JSON.stringify(unpushedRow?.subject)} -> ${JSON.stringify(unpushedMenu)}`
   )
   git(['remote', 'set-url', 'origin', ORIGIN])
 
@@ -633,7 +716,7 @@ async function drive() {
   check(
     'The refresh left every open commit tab showing its own commit (FCMT-31)',
     afterRefresh.filter((l) => l.includes(' · ')).length === 3 &&
-      afterRefresh.some((l) => l === `${top.shortSha} · rename the module`) &&
+      afterRefresh.some((l) => l === `${topShort} · rename the module`) &&
       afterRefresh.some((l) => l.endsWith(' · merge side')) &&
       afterRefresh.some((l) => l.endsWith(' · change the value')),
     JSON.stringify(afterRefresh)
