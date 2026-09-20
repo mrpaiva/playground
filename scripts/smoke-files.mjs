@@ -724,6 +724,13 @@ async function drive() {
   )
 
   // 15. The status-bar counter lands in Files, uncommitted mode (FXPL-31/32).
+  //
+  // Leave the worktree in Folder FIRST. The checks above end with it already in
+  // Uncommitted, so without this the mode assertion below passes whether or not
+  // the counter forces anything — it would read a real value from one ordering
+  // away from discriminating.
+  await evaluate(ws, clickByText('.file-tree-mode', 'Folder'))
+  await sleep(1200)
   await evaluate(ws, clickByText('.topbar-segment, .topbar button', 'Tree'))
   await sleep(700)
   const counterClicked = await evaluate(
@@ -747,9 +754,32 @@ async function drive() {
      })`
   )
   check(
-    'The status-bar counter lands in Files, uncommitted mode (FXPL-31)',
+    'The status-bar counter forces Files into uncommitted mode (FXPL-31)',
     landed.inFiles === true && landed.mode === 'Uncommitted',
     JSON.stringify(landed)
+  )
+
+  // 15b. The mode the counter forced is the one this worktree restores
+  // (FXPL-32). One config write does both halves, so leaving and returning is
+  // the only way to observe the second.
+  await evaluate(ws, clickByText('.topbar-segment', 'Tree'))
+  await sleep(800)
+  await evaluate(ws, clickBranch('feature/other'))
+  await sleep(900)
+  await evaluate(ws, clickBranch('feature/smoke'))
+  await sleep(900)
+  await evaluate(ws, clickByText('.topbar-segment', 'Files'))
+  await sleep(1500)
+  const restoredMode = await evaluate(
+    ws,
+    `[...document.querySelectorAll('.file-tree-mode')]
+       .filter((e) => e.getAttribute('aria-selected') === 'true')
+       .map((e) => e.textContent.trim())[0] ?? null`
+  )
+  check(
+    'The forced mode is the one the worktree restores (FXPL-32)',
+    restoredMode === 'Uncommitted',
+    `restored mode: ${restoredMode}`
   )
 
   const failed = checks.filter((c) => !c.ok)

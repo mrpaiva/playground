@@ -857,7 +857,7 @@ fallback was not needed.
 **Done when**:
 
 - [x] Clicking the counter from any direction lands in Files, uncommitted mode, on that worktree — the bar is mounted outside the direction switch, so the counter is reachable from all five; **verified by the T23 smoke**
-- [x] The forced mode is what the worktree restores next time — the same config write does both, because the mode is read back from `ui` every render; **verified by the T23 smoke**
+- [x] The forced mode is what the worktree restores next time — the same config write does both, because the mode is read back from `ui` every render; **verified by the T23 smoke, check 26**, which leaves the worktree and returns after the counter click (added in round 3 — until then nothing left and returned afterwards, so the claim was implied by the write rather than observed)
 - [x] `ChangesPopover` is no longer mounted by the counter; the file is removed if nothing else imports it — `ChangesPopover.tsx` and `.css` deleted, no reference left in `src/`
 - [x] `status-bar/spec.md` STBR-30 and STBR-32 carry a "superseded by FXPL-31" note (the AD-018 pattern)
 - [x] Gate passes: `npm run typecheck && npm run lint && npm test`
@@ -984,6 +984,37 @@ fallback was not needed.
 > second half, FXPL-12's status pill, FXPL-16's focus-instead-of-duplicate branch, FXPL-30's toast
 > wiring, FXPL-32 as implied by FXPL-31's single write, and FXPL-18's "not restored after a
 > restart", which is structural — `FilesState` is `{mode, base?}`, so no tab *can* persist.
+>
+> **Verifier round 3: PASS (2026-09-20).** Coverage **22 exact / 12 partial / 0 absent** — the
+> column that matters is the last one: every criterion now has at least one assertion that can go
+> false. Sensor 6/6 killed, including round 2's survivor. `validate_state.py files-explore` exits 0.
+>
+> Round 3 found one more ordering defect and it was closed: the counter check asserted
+> `mode === 'Uncommitted'`, but the checks above already left the worktree in that mode, so
+> deleting `mode: 'uncommitted'` from `App.tsx` left it green. The drive now sets **Folder** before
+> navigating away, and a new check 26 leaves and returns to observe FXPL-32 directly. **Both were
+> falsified**: with the forcing removed, check 25 reports `mode: "Folder"` and check 26 reports
+> `restored mode: Folder`. 26/26 with the real code.
+>
+> **Two methodology lessons from this feature, worth more than the fixes:**
+> 1. **A DOM property is evidence only once you know which code path in the library sets it.** The
+>    read-only check was a tautology twice. Monaco's `NativeEditContext` sets `readonly` on its
+>    textarea unconditionally; the option never touched it. Seeing the `.ime-text-area` class was
+>    the warning that the native branch was live, and it was read as confirmation. Behaviour —
+>    type and compare — is what finally discriminated.
+> 2. **A stronger test added beside an older one can silently take over why the older one passes.**
+>    Round 2's cancellation test made the emit path unreachable, so the guard next to it lost its
+>    coverage with nothing turning red. When adding a test, re-mutate what the OLD test named.
+>
+> A third, procedural: **falsify a check before trusting it.** Every check added in rounds 2 and 3
+> was run against a deliberately broken build. That is how the "empty equals empty" hole inside the
+> read-only fix was found — a new defect hidden inside the correction of the previous one.
+>
+> **Known and accepted at merge**, ranked for F2 to pick up: FXPL-16's focus-instead-of-duplicate
+> branch; FXPL-12's status pill; FXPL-09/11, which F2 inherits with the base picker; FXPL-30's
+> toast wiring; FXPL-18's restart and the path-missing state as hand checks. None is a check
+> carrying a claim it cannot support — each is behaviour that is implemented, typechecked and
+> covered on at least one side.
 
 > **Hand checks, all passed by the owner on 2026-09-20:**
 > A. Double-click `App.sln` opens VS 2026 elevated on that file, with no tab (FXPL-28), and an
