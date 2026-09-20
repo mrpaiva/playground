@@ -1,4 +1,5 @@
 import type { JSX } from 'react'
+import { fileType, formatSize } from '../lib/files-view'
 import { Icon, type IconName } from './Icon'
 import './FilePlaceholder.css'
 
@@ -39,25 +40,6 @@ const WORDING: Record<PlaceholderKind, { icon: IconName; headline: string; detai
     headline: 'This file was deleted',
     detail: 'The branch deletes it, so there is no content to show.'
   }
-}
-
-/** Bytes as the size a file manager would print. */
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit += 1
-  }
-  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
-}
-
-/** The extension as a type label, or a plain statement that there is none. */
-function fileType(name: string): string {
-  const dot = name.lastIndexOf('.')
-  return dot > 0 ? `${name.slice(dot + 1).toUpperCase()} file` : 'No extension'
 }
 
 /**

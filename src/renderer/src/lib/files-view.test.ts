@@ -3,7 +3,9 @@ import type { AppConfig } from '../../../shared/config'
 import type { ChangedPath } from '../../../shared/files'
 import {
   buildTree,
+  fileType,
   filesStateFor,
+  formatSize,
   isSolution,
   launcherTarget,
   tabsAffected,
@@ -146,5 +148,47 @@ describe('tabsAffected', () => {
   it('compares paths regardless of separator', () => {
     expect(tabsAffected(['src/a.ts'], ['src\\a.ts'])).toEqual(['src/a.ts'])
     expect(tabsAffected(['src\\a.ts'], ['src/a.ts'])).toEqual(['src\\a.ts'])
+  })
+})
+
+describe('formatSize', () => {
+  it('counts exact bytes below 1 KB (FXPL-20)', () => {
+    expect(formatSize(0)).toBe('0 B')
+    expect(formatSize(1023)).toBe('1023 B')
+  })
+
+  it('steps up through KB, MB and GB, and stops at GB (FXPL-20)', () => {
+    expect(formatSize(1024)).toBe('1.0 KB')
+    expect(formatSize(1024 * 1024)).toBe('1.0 MB')
+    expect(formatSize(1024 * 1024 * 1024)).toBe('1.0 GB')
+    // Nothing above GB: a terabyte is still counted in gigabytes.
+    expect(formatSize(1024 * 1024 * 1024 * 1024)).toBe('1024 GB')
+  })
+
+  it('keeps one decimal below 10 and rounds to a whole number from 10 up (FXPL-20)', () => {
+    expect(formatSize(1536)).toBe('1.5 KB')
+    expect(formatSize(10 * 1024)).toBe('10 KB')
+    expect(formatSize(15872)).toBe('16 KB')
+  })
+
+  it('reports a file just over the 1 MB viewer ceiling in megabytes (FXPL-20)', () => {
+    // The size the `too-large` placeholder prints for the smallest file that
+    // reaches it — the unit the tab has to show, not merely "some number".
+    expect(formatSize(1024 * 1024 + 1)).toBe('1.0 MB')
+  })
+})
+
+describe('fileType', () => {
+  it('names the last extension as the type (FXPL-20)', () => {
+    expect(fileType('app.ts')).toBe('TS file')
+    expect(fileType('App.sln')).toBe('SLN file')
+    expect(fileType('archive.tar.gz')).toBe('GZ file')
+  })
+
+  it('calls a dotfile and an extensionless name extensionless (FXPL-20)', () => {
+    // The leading dot of `.gitignore` starts the name, so it is not a
+    // `GITIGNORE file`.
+    expect(fileType('.gitignore')).toBe('No extension')
+    expect(fileType('LICENSE')).toBe('No extension')
   })
 })

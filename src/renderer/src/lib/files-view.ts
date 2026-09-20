@@ -118,6 +118,34 @@ export function tabsAffected(openTabs: string[], changedPaths: string[]): string
   return openTabs.filter((tab) => changed.has(comparablePath(tab)))
 }
 
+/**
+ * Bytes as the size a file manager would print — the *size* a tab shows for a
+ * file it cannot render (FXPL-20). Below 1 KB the count is exact; above it the
+ * value steps through KB, MB and GB and stops there, and it keeps one decimal
+ * while it is under 10 so that `1.5 KB` does not collapse to `2 KB`.
+ */
+export function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB']
+  let value = bytes / 1024
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
+}
+
+/**
+ * The extension as the *type* a tab shows beside the size (FXPL-20), or a
+ * plain statement that there is none. The dot has to be past the first
+ * character: a dotfile such as `.gitignore` is a name, not an extension.
+ */
+export function fileType(name: string): string {
+  const dot = name.lastIndexOf('.')
+  return dot > 0 ? `${name.slice(dot + 1).toUpperCase()} file` : 'No extension'
+}
+
 function comparablePath(path: string): string {
   return path.replace(/\\/g, '/')
 }
