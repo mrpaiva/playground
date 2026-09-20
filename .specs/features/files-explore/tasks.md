@@ -757,14 +757,27 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] No selection shows the empty state; a vanished worktree shows path-missing with no tree and no tabs
-- [ ] The split is resizable like the sidebar
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **850** (unchanged)
+- [x] No selection shows the empty state; a vanished worktree shows path-missing with no tree and no tabs — both return before `FileTree` and `FileTabs` are rendered at all
+- [x] The split is resizable like the sidebar — the same `ResizablePane`, handle on the tree's right edge; verified by the T23 smoke
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **850** (unchanged) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): compose the files direction`
+**Status**: Complete
+
+> **Path-missing is derived in App, not here.** The tree snapshot has no
+> `pathMissing` flag on a worktree: `findWorktree` simply stops resolving the id
+> once the worktree is gone, and `selectionAfterRefresh` then clears it. So the
+> state is "a selection id that resolves to nothing", which only App can see, and
+> it arrives as a prop.
+>
+> **The split's width is not persisted.** No AC asks for it, and `ui.sidebarWidth`
+> / `ui.tasksWidth` are PANE-01's, belonging to the Tree direction's two panes.
+> Local state keeps the config free of a key nothing specified. The pane collapses
+> too, because `ResizablePane` takes a toggle and wiring it to nothing would leave
+> its rail and its double-click dead.
 
 ---
 
