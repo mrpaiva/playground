@@ -177,6 +177,31 @@ diffIgnoreWhitespace?: boolean           // absent = false (FDIF-15)
 
 ---
 
+## Spike Findings
+
+Measured 2026-09-20 by T1, against `monaco-editor` 0.56.0 — the version F1 pinned — with a throwaway
+`DiffEditor` mounted in the dev app. **All four assumptions hold. No phase is re-planned.**
+
+| # | Assumption | Measured | Verdict |
+| - | ---------- | -------- | ------- |
+| 1 | Monaco normalizes line endings, so a CRLF↔LF-only change is invisible to its diff (**premise of D2**) | A CRLF original against an LF modified with identical text reports **0 line changes**, while the models keep their own terminators (`getEOL()` returns CRLF and LF; the raw values are `"const a = 1\r\nconst b"` and `"const a = 1\nconst b "`) | **Confirmed.** The diff cannot see it, so D2's detection from raw bytes in main is required, not optional |
+| 2 | `hideUnchangedRegions` exists and folds | 2000 lines with one change render **15 `.view-line` elements** and 4 fold widgets. Options: `{ enabled, revealLineCount, minimumLineCount, contextLineCount }` (`editor.api.d.ts:4111`) | **Confirmed** |
+| 3 | The diff editor exposes next / previous change | `goToDiff('next')` moved the modified editor's position from line **1 to 1001** — the changed line. `IStandaloneDiffEditor extends IDiffEditor` (`:1425`), so `goToDiff(target: 'next' \| 'previous')` (`:6506`) is reachable from the standalone editor | **Confirmed.** Use `goToDiff`, not `accessibleDiffViewerNext/Prev`, which drive the accessibility view |
+| 4 | `onDidContentSizeChange` fires on both inner editors, including on unfold | 6 events on each from mount; after clicking a fold widget, **9 on the original and 8 on the modified**. Subscribed through `getOriginalEditor()` / `getModifiedEditor()` | **Confirmed.** The counts differ per side, so the section height must follow the larger of the two, as D-99 already says |
+
+**VS Code's own binding, read from the installed build** (`…\Microsoft VS Code\7debcd0e2a\resources\app\out\vs\workbench\workbench.desktop.main.js`, no user override in `%APPDATA%\Code\User\keybindings.json`):
+
+| Command | `primary` | Decoded |
+| ------- | --------- | ------- |
+| `workbench.action.compareEditor.nextChange` — "Go to Next Change" | `575` | `512` (Alt) + `63` (F5) = **Alt+F5** |
+| `workbench.action.compareEditor.previousChange` — "Go to Previous Change" | `1599` | `1024` (Shift) + `512` + `63` = **Shift+Alt+F5** |
+
+Worth stating plainly because it contradicts what most references say: **it is not F7.** F7 belongs to the
+accessible diff viewer's own navigation, and the diff-editor commands moved to Alt+F5 / Shift+Alt+F5.
+The app matches the installed build rather than the remembered default.
+
+---
+
 ## Risks & Concerns
 
 | Concern | Location | Impact | Mitigation |

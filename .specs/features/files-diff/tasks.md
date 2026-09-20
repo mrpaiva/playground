@@ -127,18 +127,35 @@ T20 → T21
 
 **Done when**:
 
-- [ ] **Line endings**: a CRLF original against an LF modified with identical text — recorded whether Monaco reports zero line changes (the premise of D2)
-- [ ] **Folding**: `hideUnchangedRegions` exists on the pinned version and folds a 2000-line file with one change into a strip; the option names recorded
-- [ ] **Navigation**: the diff editor exposes next / previous change on the pinned version; the call recorded
-- [ ] **Sizing**: `onDidContentSizeChange` fires on both inner editors, including when a folded region is expanded
-- [ ] **Shortcut**: VS Code's own binding for next / previous change in its diff editor read from VS Code's Keyboard Shortcuts on this machine and recorded
-- [ ] The throwaway mount is removed; only the design file changes
-- [ ] Lint warning baseline recorded in the commit body
-- [ ] If any finding contradicts the design: the design is amended in the same commit and the stop point above applies
+- [x] **Line endings**: a CRLF original against an LF modified with identical text — recorded whether Monaco reports zero line changes (the premise of D2) — **0 line changes**, models keeping their own terminators
+- [x] **Folding**: `hideUnchangedRegions` exists on the pinned version and folds a 2000-line file with one change into a strip; the option names recorded — 2000 lines to **15 rendered**, 4 fold widgets
+- [x] **Navigation**: the diff editor exposes next / previous change on the pinned version; the call recorded — `goToDiff('next')` moved line 1 to **1001**
+- [x] **Sizing**: `onDidContentSizeChange` fires on both inner editors, including when a folded region is expanded — 6/6 from mount, **9/8** after unfolding
+- [x] **Shortcut**: VS Code's own binding for next / previous change in its diff editor read from VS Code's Keyboard Shortcuts on this machine and recorded — **Alt+F5** / **Shift+Alt+F5**
+- [x] The throwaway mount is removed; only the design file changes
+- [x] Lint warning baseline recorded in the commit body
+- [x] If any finding contradicts the design: the design is amended in the same commit and the stop point above applies — **nothing contradicted it; Phases 2-5 stand as planned**
 
 **Tests**: manual
 **Gate**: manual
 **Commit**: `docs(specs): record the monaco diff editor spike findings`
+**Status**: Complete — stop point cleared, all four assumptions hold.
+
+> **The shortcut is not F7.** Most references say F7 / Shift+F7, and that is what the diff-editor
+> commands used to be; F7 now belongs to the accessible diff viewer. Read out of the installed
+> build's own bundle rather than from memory: `workbench.action.compareEditor.nextChange` registers
+> `primary: 575` = `512` (Alt) + `63` (F5), and `previousChange` `1599` = `1024` (Shift) + `512` +
+> `63`. No user override exists in `%APPDATA%\Code\User\keybindings.json`. Had this been written
+> from memory the app would have shipped a binding VS Code no longer uses.
+>
+> **Use `goToDiff`, not `accessibleDiffViewerNext/Prev`.** Both exist on the pinned version; the
+> latter drives the accessibility view, not the editor's own position.
+>
+> **The EOL finding is the one that mattered**, since D2's whole design rests on it: Monaco's models
+> *do* keep their terminators (`getEOL()` reports CRLF and LF, and the raw text differs), but the
+> diff reports zero changes. So the normalization is in the diff, not in the model — which is why
+> detection has to come from raw bytes in main, and why a whole-file EOL flip would otherwise read
+> as "no changes" to the user.
 
 ---
 
