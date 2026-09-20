@@ -921,14 +921,39 @@ T20 → T21
 
 **Done when**:
 
-- [ ] No click in a diff mode opens a file tab any more
-- [ ] Full-folder mode is unchanged
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **898** (unchanged)
+- [x] No click in a diff mode opens a file tab any more — `openInTab` returns on the `lens !== 'full'` branch after `openDiff`, and `openFile` is reached only from the full-folder branch
+- [x] Full-folder mode is unchanged — same `openFile(path)`, and AD-033's 250 ms deferral and 3 s relaunch guard are untouched: the deferred action still runs `openInTab`, which now decides per mode
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1098** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): open a diff from the tree in the diff modes`
+**Status**: ✅ Complete
+
+> **The row does not carry `oldPath`, so the listed change is looked back up.**
+> `buildTree` turns a `ChangedPath` into a `FileNode` of path, name and status
+> and drops the rest, and FDIF-05 needs `oldPath`. The click reads the entry
+> back out of `files.changedFiles` by path — the same array the rows were built
+> from — and falls back to the row's own status if it is not there, so a click
+> is never dead.
+>
+> **`openDiff` builds the request, not the tree.** The task text says "built
+> from `diffRequestFor`", which the hook does: the tab stores the
+> `ChangedPath`, and the request is derived at read time, because FDIF-32 has
+> to rebuild it against a new merge base without reopening the tab.
+>
+> **AD-033 survives intact.** A `.sln` is still deferred 250 ms and still
+> guarded for 3 s; the only change is what the deferred click opens, which is
+> now a diff in a diff mode. A deleted solution goes straight through, as
+> before — it just lands on a diff whose modified side is absent (FDIF-04)
+> rather than on FXPL-15's placeholder.
+>
+> **Spec-precision gap, not acted on**: nothing produces a `deleted` tab any
+> more, so F1's FXPL-15 placeholder and the `deleted` open option are
+> unreachable from the tree. The spec supersedes FXPL-14 (T20) and says nothing
+> about FXPL-15, so both are left in place rather than removed on this task's
+> own authority.
 
 ---
 
