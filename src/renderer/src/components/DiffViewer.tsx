@@ -16,6 +16,8 @@ export interface DiffHandle {
   reveal: (line: number) => void
   /** Which modified-side line the cursor is on. */
   line: () => number
+  /** Where a modified-side line sits, in pixels from the top of this editor. */
+  top: (line: number) => number
 }
 
 interface DiffViewerProps {
@@ -157,6 +159,19 @@ export function DiffViewer({
     editorRef.current = editor
     markersRef.current = editor.getModifiedEditor().createDecorationsCollection([])
 
+    const handle: DiffHandle = {
+      goToDiff: (direction) => editor.goToDiff(direction),
+      changes: () => changedLines(editor),
+      reveal: (line) => {
+        const inner = editor.getModifiedEditor()
+        inner.setPosition({ lineNumber: line, column: 1 })
+        inner.revealLineInCenter(line)
+      },
+      line: () => editor.getModifiedEditor().getPosition()?.lineNumber ?? 1,
+      top: (line) => editor.getModifiedEditor().getTopForLineNumber(line)
+    }
+    let announced = false
+
     const disposables: monaco.IDisposable[] = []
     disposables.push(
       editor.onDidUpdateDiff(() => {
@@ -164,7 +179,16 @@ export function DiffViewer({
         // spec asks for a sentence instead (§Edge Cases). `getLineChanges`
         // answers null until the worker has computed, which is not "identical".
         const changes = editor.getLineChanges()
-        if (changes) setIdentical(changes.length === 0)
+        if (!changes) return
+        setIdentical(changes.length === 0)
+        // The handle is announced once the worker has answered, never before:
+        // `changes()` on an uncomputed diff is an empty list that reads like a
+        // file with nothing in it, and the stack walks past such a file
+        // (FDIF-26).
+        if (!announced) {
+          announced = true
+          live.current.onHandle?.(handle)
+        }
       })
     )
     if (live.current.fitContent) {
@@ -183,19 +207,8 @@ export function DiffViewer({
       measure()
     }
 
-    live.current.onHandle?.({
-      goToDiff: (direction) => editor.goToDiff(direction),
-      changes: () => changedLines(editor),
-      reveal: (line) => {
-        const inner = editor.getModifiedEditor()
-        inner.setPosition({ lineNumber: line, column: 1 })
-        inner.revealLineInCenter(line)
-      },
-      line: () => editor.getModifiedEditor().getPosition()?.lineNumber ?? 1
-    })
-
     return () => {
-      live.current.onHandle?.(null)
+      if (announced) live.current.onHandle?.(null)
       editorRef.current = null
       markersRef.current = null
       for (const disposable of disposables) disposable.dispose()

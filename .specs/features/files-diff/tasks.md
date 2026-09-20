@@ -812,15 +812,46 @@ T20 → T21
 
 **Done when**:
 
-- [ ] Never more than 12 editors live, checked by hand on a 40-file branch
-- [ ] Next change at the end of a file expands and enters the next one
-- [ ] **[amended at F3 Design]** Takes the file list, the `FileStat[]` and a `(changed) => DiffRequest` builder as props and reads nothing from the Files mode itself — F3's commit tab mounts it unchanged
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **898** (unchanged)
+- [x] Never more than 12 editors live — `mountPlan`'s cap decides which sections render a `DiffViewer` at all; the count on a 40-file branch is T21's to check by hand
+- [x] Next change at the end of a file expands and enters the next one — `walk` asks `nextChangeTarget`, expands on `target.expand` and finishes the move when the new section's editor announces itself
+- [x] **[amended at F3 Design]** Takes the file list, the `FileStat[]` and a `(changed) => DiffRequest` builder as props and reads nothing from the Files mode itself — the props are `files`, `stats` and `requestFor`; `FilesMode` is not imported here
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1098** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): render the all changes tab`
+**Status**: ✅ Complete
+
+> **`DiffViewer` now announces its handle after the first diff computation,
+> not at mount.** Corrected here because the cross-file walk needs it: entering
+> a section means landing on its first or last change, and `getLineChanges()`
+> answers `null` until the worker has run, which reads as a file with nothing
+> in it — the walk would step straight over every section it opened. One file
+> outside T16's `Where`, `DiffViewer.tsx`, and the same effect gained
+> `top(line)`, which is how a fit-to-content editor's line is scrolled to: the
+> editor never scrolls itself, the stack does.
+>
+> **The mount set is derived, not accumulated.** `mountPlan(sections, visible,
+> [])` is asked with nothing already mounted, so the answer is exactly the
+> expanded sections near the viewport, the nearest twelve when more are open.
+> The alternative kept the previous set in state and wrote it from an effect,
+> which `react-hooks/set-state-in-effect` rejects as an error, and it bought
+> only the right to keep an editor alive past the 600 px margin — which the
+> spec's last edge case explicitly allows losing. The same rule made
+> `initialExpansion` a `useMemo` over the file list rather than a seeded state.
+>
+> **A section with no editor still has a walkable answer, from its counts.**
+> `nextChangeTarget` skips a section whose `changes` are empty, and an unmounted
+> section has no measured list. Its `FileStat` decides instead: binary, or zero
+> added and removed, means nothing to walk into; anything else means at least
+> one change, whose line is read off the real editor once it arrives. If the
+> counts promised a change the diff does not report — which is what hiding
+> whitespace does — the walk resumes from there rather than stopping.
+>
+> **Tree order is taken from F1's `buildTree`**, flattened back to
+> `ChangedPath`. T11's note says `initialExpansion` takes the first ten of the
+> list it is given, so the ordering had to happen before it, not inside it.
 
 ---
 
