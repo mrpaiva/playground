@@ -199,19 +199,43 @@ T20 → T21
 
 **Done when**:
 
-- [ ] A whole-file CRLF → LF flip returns every line and `CRLF` → `LF`
-- [ ] A mixed file where 4 of 719 lines are CRLF, flipped to pure LF, returns exactly those 4
-- [ ] Identical endings return `[]`
-- [ ] A CR-only file is recognized as `CR`
-- [ ] A final line with no terminator on one side and one on the other counts as changed
-- [ ] Lines added or removed by the text change are not reported as ending changes
-- [ ] `src/main/file-diff.test.ts` created
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 850 + 6 = **856**
+- [x] A whole-file CRLF → LF flip returns every line and `CRLF` → `LF` — `file-diff.test.ts:11`
+- [x] A mixed file where 4 of 719 lines are CRLF, flipped to pure LF, returns exactly those 4 — `:24`
+- [x] Identical endings return `[]` — `:31`
+- [x] A CR-only file is recognized as `CR` — `:40`
+- [x] A final line with no terminator on one side and one on the other counts as changed — `:48`
+- [x] Lines added or removed by the text change are not reported as ending changes — `:57`
+- [x] `src/main/file-diff.test.ts` created
+- [x] Gate passes: `npm test`
+- [x] Test count: 1042 + 6 = **1048**
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(main): find the lines whose line ending changed`
+**Status**: ✅ Complete
+
+> **Signature deviates from the design, on purpose.** The design typed it
+> `lineEndingChanges(originalRaw: Buffer, modifiedRaw: Buffer, lineMap)`. It ships as
+> `(originalRaw: string, modifiedRaw: string): EolChanges`. Both sides arrive as strings anyway —
+> `git show`'s stdout and F1's `readForView` text — and neither decoding normalizes a terminator,
+> so a `Buffer` round-trip would buy nothing. The `lineMap` third argument is gone: matching is
+> internal, by the run of identical line text at the top and at the bottom of the two sides. What
+> the text change itself added or removed sits between those runs and is never reported.
+>
+> **The limit of that matching, for T13 and T14.** Two *distant* edits leave a large middle block
+> unreported, so a flip that also edits line 10 and line 700 of a 719-line file names only the lines
+> outside those two edits. Under-reporting, never over-reporting: a marker on a line whose ending
+> did not change would be a lie, a missing marker is only a missing marker.
+>
+> **`from` / `to` are the *dominant* endings, so they can be equal while lines are reported.** The
+> mixed-file case (715 LF + 4 CRLF → pure LF) yields `from: 'LF'`, `to: 'LF'`, `lines: [4 of them]`.
+> `eolStripText` (T13) has to word that case; `CRLF → LF on 4 lines` would be wrong there.
+>
+> Mutation-checked: 6 deliberate breaks, all killed. Index-pairing without the text guard and
+> dropping the bottom-run pass both die on the insertion test; reporting a text difference instead
+> of an ending difference dies on 5 of the 6; treating a missing terminator as equal to any dies on
+> the last-line test; calling a CR side LF dies on the CR test; reporting every aligned line dies on
+> the identical-endings test.
 
 ---
 
