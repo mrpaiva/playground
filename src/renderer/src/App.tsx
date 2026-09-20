@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import type { AgentDef } from '../../shared/agents'
 import type { AppConfig } from '../../shared/config'
+import { DEFAULT_CONFIG } from '../../shared/config'
 import type { PinnedTaskView, TasksSnapshot } from '../../shared/tasks'
 import { taskIdFromBranch } from '../../shared/tasks'
 import type { WorkspaceNode } from '../../shared/tree'
 import { AgentsView } from './components/AgentsView'
 import { BoardView } from './components/BoardView'
+import { FilesView } from './components/FilesView'
 import { NewSessionDialog, type NewSessionSource } from './components/NewSessionDialog'
 import { NewWorktreeDialog } from './components/NewWorktreeDialog'
 import { SettingsDialog } from './components/SettingsDialog'
@@ -28,6 +30,7 @@ import {
 } from './lib/pane-layout'
 import { findWorktree } from './lib/tree-selection'
 import { dropCollapsedId, isCollapsed, toggleCollapsedId } from './lib/workspace-collapse'
+import { useFiles } from './lib/use-files'
 import { useSessions } from './lib/use-sessions'
 import { useTree } from './lib/use-tree'
 import { useWorkflowRuns } from './lib/use-workflow-runs'
@@ -115,6 +118,17 @@ function App(): JSX.Element {
   // Always mounted (above the direction switch) so runs accumulate from the
   // workflow:* stream even while another direction is active (WF5-04, AD-011).
   const workflows = useWorkflowRuns()
+  // Same reason, and one more: the Files watch follows the direction, so leaving
+  // Files has to send `files:watch(null)` instead of racing FilesView's unmount
+  // (FXPL-23). The hook reads the persisted lens out of `ui` and writes it back
+  // through `update`, the one config writer (FXPL-13).
+  const selected = findWorktree(tree, selectedId)
+  const files = useFiles({
+    worktreePath: selected?.worktree.path ?? null,
+    active: ui?.direction === 'files',
+    ui: ui ?? DEFAULT_CONFIG.ui,
+    onPersist: (next) => update({ files: next })
+  })
 
   const refreshTasks = useCallback((): void => {
     api.invoke('tasks:refresh').then(setTasks).catch(console.error)
@@ -235,7 +249,6 @@ function App(): JSX.Element {
     return <></>
   }
 
-  const selected = findWorktree(tree, selectedId)
   const worktreeCounts = countWorktreesByTask(tree)
   const linkedTaskId = selected ? taskIdFromBranch(selected.worktree.branch) : null
   // First pin in config order wins when IDs collide across orgs (spec §Edge Cases).
@@ -345,6 +358,15 @@ function App(): JSX.Element {
             onReload={workflows.refresh}
             onScaffold={workflows.scaffold}
             onSelectRun={workflows.selectRun}
+          />
+        ) : ui.direction === 'files' ? (
+          <FilesView
+            worktreePath={selected?.worktree.path ?? null}
+            // A selection the tree no longer resolves is a worktree whose folder
+            // is gone; `refreshTree` clears it, but not before this render.
+            pathMissing={selectedId !== null && selected === null}
+            files={files}
+            onToast={setToast}
           />
         ) : (
           <BoardView

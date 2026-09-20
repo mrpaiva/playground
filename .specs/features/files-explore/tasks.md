@@ -820,15 +820,27 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] The chosen direction persists across a restart like the other five
-- [ ] App gains a mount and a prop bundle only — no logic (AD-004)
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: **850** (unchanged)
+- [x] The chosen direction persists across a restart like the other four — the segment goes through the same `update({ direction })`, and `'files'` has been a valid `AppConfig` value since T9; verified by the T23 smoke
+- [x] App gains a mount and a prop bundle only — no logic (AD-004) — one `useFiles` call, one branch in the direction switch, four props
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: **850** (unchanged) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: build
 **Commit**: `feat(renderer): mount the files direction`
+**Status**: Complete — Phase 4 done
+
+> **`findWorktree` moved above the `!ui` guard**, because the hook needs the
+> selected worktree and hooks cannot run after an early return. The same `selected`
+> serves the rest of the render, so nothing is computed twice.
+>
+> **`ui` is null for the first frame**, so the hook takes `DEFAULT_CONFIG.ui`
+> until the config arrives and `active` is false. The one visible consequence is a
+> `files:watch(null)` on startup, which closes nothing.
+>
+> **The done-when read "like the other five".** There are five directions in
+> total, four of them older; corrected above.
 
 ---
 
