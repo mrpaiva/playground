@@ -1,3 +1,4 @@
+import type { AppConfig, FilesState } from '../../../shared/config'
 import type { ChangedPath } from '../../../shared/files'
 import type { ChangeStatus } from '../../../shared/worktrees'
 
@@ -95,6 +96,30 @@ export function launcherTarget(
   if (!activeTab) return lastFolder?.path ?? null
   if (!lastFolder) return activeTab.path
   return lastFolder.at > activeTab.at ? lastFolder.path : activeTab.path
+}
+
+/**
+ * The lens a worktree opens in (FXPL-13, design D4): the one it was left in,
+ * or the full folder with no base when it has never been visited. Absent is
+ * the default, so a config written before the Files direction reads correctly.
+ */
+export function filesStateFor(ui: AppConfig['ui'], worktreeId: string): FilesState {
+  return ui.files?.[worktreeId] ?? { mode: 'full' }
+}
+
+/**
+ * Which open tabs a batch of disk changes touches (FXPL-21), so the reaction
+ * stays scoped to them instead of every tab (FXPL-23). The watcher reports
+ * paths as the OS spells them, which on Windows means backslashes, while the
+ * tree lists them with forward slashes; both compare alike here.
+ */
+export function tabsAffected(openTabs: string[], changedPaths: string[]): string[] {
+  const changed = new Set(changedPaths.map(comparablePath))
+  return openTabs.filter((tab) => changed.has(comparablePath(tab)))
+}
+
+function comparablePath(path: string): string {
+  return path.replace(/\\/g, '/')
 }
 
 function sortInPlace(dir: DirNode): void {

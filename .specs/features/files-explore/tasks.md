@@ -423,16 +423,22 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] An unknown worktree yields full folder and no base; a stored one yields its mode and base
-- [ ] `tabsAffected` returns only open tabs whose path is in the change — the scoped reaction of FXPL-23
-- [ ] Path comparison is separator-insensitive (`src\a.ts` equals `src/a.ts`)
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 845 + 5 = **850**
-- [ ] Phase gate passes: `npx electron-vite build`
+- [x] An unknown worktree yields full folder and no base; a stored one yields its mode and base
+- [x] `tabsAffected` returns only open tabs whose path is in the change — the scoped reaction of FXPL-23
+- [x] Path comparison is separator-insensitive (`src\a.ts` equals `src/a.ts`)
+- [x] Gate passes: `npm test`
+- [x] Test count: 845 + 5 = **850** — measured **1032**
+- [x] Phase gate passes: `npx electron-vite build`
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(renderer): decide files mode defaults and affected tabs`
+**Status**: ✅ Complete — Phase 2 done
+
+> Note: `tabsAffected` folds separators only, not case. The done-when asks for
+> separator-insensitivity and nothing else, and a case fold would be untested
+> behaviour on a Windows-only path. If the watcher turns out to report a different
+> case than the tree lists, that is T16's to find.
 
 ---
 

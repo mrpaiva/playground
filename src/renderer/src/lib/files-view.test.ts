@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
+import type { AppConfig } from '../../../shared/config'
 import type { ChangedPath } from '../../../shared/files'
-import { buildTree, isSolution, launcherTarget, tabsAfterClose } from './files-view'
+import {
+  buildTree,
+  filesStateFor,
+  isSolution,
+  launcherTarget,
+  tabsAffected,
+  tabsAfterClose
+} from './files-view'
+
+function ui(files?: AppConfig['ui']['files']): AppConfig['ui'] {
+  return { theme: 'dark', direction: 'files', defaultShell: 'pwsh', ...(files ? { files } : {}) }
+}
 
 function changed(path: string, status: ChangedPath['status'] = 'modified'): ChangedPath {
   return { path, status }
@@ -90,5 +102,41 @@ describe('launcherTarget', () => {
     expect(launcherTarget({ path: 'src/app.ts', at: 100 }, null)).toBe('src/app.ts')
     expect(launcherTarget(null, { path: 'src/lib', at: 100 })).toBe('src/lib')
     expect(launcherTarget(null, null)).toBeNull()
+  })
+})
+
+describe('filesStateFor', () => {
+  it('defaults a worktree with no stored state to the full folder and no base (FXPL-13)', () => {
+    expect(filesStateFor(ui(), 'C:/work/acme/widget')).toEqual({ mode: 'full' })
+  })
+
+  it('defaults a worktree missing from a stored map the same way (FXPL-13)', () => {
+    const stored = ui({ 'C:/work/acme/widget': { mode: 'uncommitted' } })
+
+    expect(filesStateFor(stored, 'C:/work/acme/widget-12345')).toEqual({ mode: 'full' })
+  })
+
+  it('restores the mode and base last used for that worktree (FXPL-13)', () => {
+    const stored = ui({ 'C:/work/acme/widget': { mode: 'since-base', base: 'origin/main' } })
+
+    expect(filesStateFor(stored, 'C:/work/acme/widget')).toEqual({
+      mode: 'since-base',
+      base: 'origin/main'
+    })
+  })
+})
+
+describe('tabsAffected', () => {
+  it('returns only the open tabs the change touches (FXPL-21, FXPL-23)', () => {
+    const open = ['src/app.ts', 'src/lib/util.ts', 'README.md']
+
+    expect(tabsAffected(open, ['src/lib/util.ts', 'src/untouched-tabless.ts'])).toEqual([
+      'src/lib/util.ts'
+    ])
+  })
+
+  it('compares paths regardless of separator', () => {
+    expect(tabsAffected(['src/a.ts'], ['src\\a.ts'])).toEqual(['src/a.ts'])
+    expect(tabsAffected(['src\\a.ts'], ['src/a.ts'])).toEqual(['src\\a.ts'])
   })
 })
