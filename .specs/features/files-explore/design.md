@@ -150,7 +150,7 @@ graph TD
 | Component | Purpose | ACs |
 | --------- | ------- | --- |
 | `FilesView.tsx` | Direction root: empty and path-missing states, `ResizablePane` split | 02, 03, 06 |
-| `FileTree.tsx` | Mode selector, base picker, lazy tree, deleted-file rows, `.sln` routing | 04, 05, 07–15, 28 |
+| `FileTree.tsx` | Mode selector, base picker, lazy tree, deleted-file rows, `.sln` double-click routing | 04, 05, 07–15, 28, 28a, 28b |
 | `FileTabs.tsx` | Tab strip, close behaviour, launcher row | 16, 18, 19, 25, 26, 30 |
 | `CodeViewer.tsx` | Monaco read-only; on new content keeps `scrollTop`; the "not a diff yet" label in diff modes | 14, 17, 21 |
 | `FilePlaceholder.tsx` | Binary, too large, missing, deleted — name, size, type, launchers | 15, 20, 24 |

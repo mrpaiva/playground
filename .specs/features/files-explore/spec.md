@@ -31,7 +31,7 @@ them in tabs without leaving the app, and hand one off to the right external too
 - [ ] The selected worktree's files are browsable inside the app, respecting `.gitignore`
 - [ ] Three lenses over the same tree: everything, what the branch changed since its base, what is uncommitted
 - [ ] Any text file reads in a tab with syntax highlighting, and stays current while an agent edits it
-- [ ] Every file or folder is one click from Explorer, VS Code, VS 2022 and VS 2026; a solution opens in VS 2026
+- [ ] Every file or folder is one click from Explorer, VS Code, VS 2022 and VS 2026; a solution opens in VS 2026 on a double-click
 - [ ] The status bar's changed-file counter lands here
 
 ## Out of Scope
@@ -68,7 +68,7 @@ them in tabs without leaving the app, and hand one off to the right external too
 | Launcher target | The active tab's file; when a folder was selected more recently, that folder | "Open this file or folder in them" (owner's wording) | y |
 | Explorer on a file | `explorer.exe /select,<path>` — shows the file in its folder | `explorer.exe <file>` **opens** the file in its default app (`shortcut-launcher.ts:56`) | y |
 | Visual Studio launches | Elevated, as every VS launch already is (AD-016) — a UAC prompt per launch | Owner decision (grill Q22): one VS instance with one privilege level; mixing elevated and non-elevated opens two windows | y |
-| `.sln` / `.slnx` click | Opens in VS 2026 instead of a tab | Owner's specification | y |
+| `.sln` / `.slnx` double-click | Opens in VS 2026; a single click opens it in a tab like any other file | Owner's specification, amended 2026-09-20 after UAT (AD-033) | y |
 | Binary or large files | Not rendered above ~1 MB or when binary; the tab shows name, size and type plus the launchers | Owner decision (grill Q18) | y |
 | Freshness | One recursive watch on the selected worktree's root, debounced; a change refreshes only the open tabs and the current mode's list, keeping scroll position | Owner decision (grill Q20, design D2): agents write to these files constantly. A new untracked file is only visible by watching the folder; reacting to everything would not be affordable, so the reaction — not the watch — is what is scoped | y |
 | Viewer component | Decided at Design (Monaco, CodeMirror or own rendering) | A technical choice, like status-bar D1–D4; the spec fixes behaviour only | y |
@@ -160,11 +160,13 @@ so that editing is one click away.
 25. The right column SHALL show, under the tabs, launchers for File Explorer, VS Code, VS 2022 and VS 2026 <!-- ubiquitous -->
 26. WHEN the user activates a launcher THEN the system SHALL open the launcher's tool on the active tab's file, or on the folder most recently selected in the tree when that selection is newer <!-- event-driven -->
 27. WHEN File Explorer is launched on a file THEN it SHALL open the file's folder with the file selected, never open the file itself <!-- event-driven -->
-28. WHEN the user clicks a `.sln` or `.slnx` file in the tree THEN the system SHALL open it in VS 2026 instead of opening a tab <!-- event-driven -->
+28. WHEN the user double-clicks a `.sln` or `.slnx` file in the tree THEN the system SHALL open it in VS 2026 and SHALL NOT open a tab for it <!-- event-driven -->
+28a. WHEN the user single-clicks a `.sln` or `.slnx` file in the tree THEN the system SHALL open it in a tab like any other text file <!-- event-driven -->
+28b. WHILE a solution has been launched, a second launch of that same solution within 3 s SHALL be ignored <!-- state-driven -->
 29. Visual Studio launches SHALL keep the elevated behaviour every VS launch already has (AD-016) <!-- ubiquitous -->
 30. IF a launch fails THEN the view SHALL show the launcher's existing failure toast <!-- unwanted-behavior -->
 
-**Independent Test**: Open a `.cs` file and launch Explorer: the folder opens with the file highlighted. Click the repo's `.sln`: VS 2026 opens it after the UAC prompt and no tab appears.
+**Independent Test**: Open a `.cs` file and launch Explorer: the folder opens with the file highlighted. Double-click the repo's `.sln`: VS 2026 opens it after the UAC prompt and no tab appears, and a second double-click within 3 s opens no second instance.
 
 ---
 
@@ -240,7 +242,7 @@ showing my uncommitted changes, so that the counter leads somewhere useful.
 
 - [ ] A worktree's files are browsable in all three modes, and `node_modules` never appears
 - [ ] A file an agent is writing updates in its tab within a second, without losing scroll position
-- [ ] Any file or folder reaches Explorer (selected, not opened), VS Code, VS 2022 or VS 2026 in one click; a `.sln` opens in VS 2026 directly
+- [ ] Any file or folder reaches Explorer (selected, not opened), VS Code, VS 2022 or VS 2026 in one click; a `.sln` opens in VS 2026 on a double-click
 - [ ] A 200 MB log or a DLL never freezes the viewer
 - [ ] The status bar's counter lands in Files on the uncommitted changes
 - [ ] The gate is green: `npm run typecheck && npm run lint && npm test`

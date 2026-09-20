@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { JSX } from 'react'
 import type { FilesMode } from '../../../shared/files'
 import type { ChangeStatus } from '../../../shared/worktrees'
@@ -198,13 +199,33 @@ function BasePicker({ files }: { files: UseFiles }): JSX.Element {
  * The Files direction's left column: the mode selector of FXPL-07, the base
  * picker the diff mode needs, and the tree itself.
  *
- * A click opens the file in a tab, except for a solution, which opens in VS 2026
- * and no tab at all (FXPL-28). Clicking a folder also records it as the
- * launcher row's target, which is the selection FXPL-26 compares against the
- * active tab.
+ * A click opens the file in a tab. A solution opens in a tab too, but a DOUBLE
+ * click on it opens VS 2026 instead (FXPL-28): launching an IDE is expensive to
+ * undo, and a single click fired it twice for anyone who double-clicked out of
+ * habit. Clicking a folder also records it as the launcher row's target, which
+ * is the selection FXPL-26 compares against the active tab.
  */
 export function FileTree({ worktreePath, files, onToast }: FileTreeProps): JSX.Element {
+  /** How long a solution's first click waits to see whether a second follows. */
+  const DOUBLE_CLICK_MS = 250
+  /** A second launch of the same solution inside this window is ignored. */
+  const RELAUNCH_GUARD_MS = 3000
+
+  // A pending single click on a solution, and the last launch, so neither a
+  // double click nor a burst of clicks can open two instances of the IDE.
+  const pending = useRef<{ path: string; timer: number } | null>(null)
+  const lastLaunch = useRef<{ path: string; at: number } | null>(null)
+  useEffect(() => {
+    return () => {
+      if (pending.current) window.clearTimeout(pending.current.timer)
+    }
+  }, [])
+
   const launchSolution = (path: string): void => {
+    const now = Date.now()
+    const last = lastLaunch.current
+    if (last && last.path === path && now - last.at < RELAUNCH_GUARD_MS) return
+    lastLaunch.current = { path, at: now }
     api
       .invoke('shortcuts:launch', { tool: 'vs2026', path: absoluteIn(worktreePath, path) })
       .then((result) => {
@@ -213,17 +234,37 @@ export function FileTree({ worktreePath, files, onToast }: FileTreeProps): JSX.E
       .catch((err) => onToast(err instanceof Error ? err.message : String(err)))
   }
 
-  const openFile = (path: string, status?: ChangeStatus): void => {
-    // A solution the branch deleted has nothing to open; it gets the placeholder
-    // like any other deleted file (FXPL-15).
-    if (status !== 'deleted' && isSolution(path)) {
-      launchSolution(path)
-      return
-    }
+  const openInTab = (path: string, status?: ChangeStatus): void => {
     files.openFile(path, {
       fromDiffMode: files.mode !== 'full',
       deleted: status === 'deleted'
     })
+  }
+
+  const openFile = (path: string, status?: ChangeStatus): void => {
+    // A solution the branch deleted has nothing to launch; it gets the
+    // placeholder like any other deleted file (FXPL-15).
+    if (status === 'deleted' || !isSolution(path)) {
+      openInTab(path, status)
+      return
+    }
+
+    // Two clicks on the same solution inside the window are one double click:
+    // drop the tab this click would have opened and launch the IDE instead.
+    const waiting = pending.current
+    if (waiting) {
+      window.clearTimeout(waiting.timer)
+      pending.current = null
+      if (waiting.path === path) {
+        launchSolution(path)
+        return
+      }
+    }
+    const timer = window.setTimeout(() => {
+      pending.current = null
+      openInTab(path, status)
+    }, DOUBLE_CLICK_MS)
+    pending.current = { path, timer }
   }
 
   return (
