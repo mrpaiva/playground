@@ -108,15 +108,16 @@ T21 → T22 → T23
 
 **Done when**:
 
-- [ ] `ChangedPath.status` is `ChangeStatus` — one status vocabulary across both diff modes
-- [ ] Five invoke channels and one event declared; nothing imports them yet
-- [ ] Baseline lint warning count recorded in the commit body
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **797** (unchanged)
+- [x] `ChangedPath.status` is `ChangeStatus` — one status vocabulary across both diff modes
+- [x] Five invoke channels and one event declared; nothing imports them yet
+- [x] Baseline lint warning count recorded in the commit body
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **797** (unchanged) — measured **979**, unchanged
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(shared): declare the files direction contract`
+**Status**: ✅ Complete
 
 ---
 

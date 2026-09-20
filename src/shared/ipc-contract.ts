@@ -6,6 +6,7 @@ import type {
   SessionView,
   WorkspaceTemplates
 } from './config'
+import type { BaseOptions, ChangedListing, DirListing, FileContent, FilesChanged } from './files'
 import type { CommitLists, GitOp, GitOpResult, SyncState } from './git'
 import type { LaunchResult, ShortcutTool } from './shortcuts'
 import type { ParentOfResult, PinTaskResult, TasksSnapshot } from './tasks'
@@ -123,6 +124,16 @@ export interface IpcContract {
   'workflows:reload': { req: void; res: void }
   /** Scaffold a new workflow folder from a template + reveal it; an existing id is rejected, never overwritten (WF5-22/24/25). */
   'workflows:scaffold': { req: { name: string }; res: ScaffoldResult }
+  /** One folder's direct children, tracked plus untracked-not-ignored; a git failure lands in `error` (FXPL-02/04/05). */
+  'files:list-dir': { req: { worktreePath: string; dir: string }; res: DirListing }
+  /** The files the branch committed since `merge-base(HEAD, base)` (FXPL-08). */
+  'files:changed-since': { req: { worktreePath: string; base: string }; res: ChangedListing }
+  /** The base the diff mode defaults to plus every branch the picker can offer (FXPL-09/10/11). */
+  'files:bases': { req: { worktreePath: string }; res: BaseOptions }
+  /** One file read for the viewer, capped and sniffed in main (FXPL-16/17/20/24). */
+  'files:read': { req: { worktreePath: string; relPath: string }; res: FileContent }
+  /** Watch this worktree for disk changes, or `null` to stop watching (FXPL-21/22/23). */
+  'files:watch': { req: { worktreePath: string | null }; res: void }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -160,6 +171,8 @@ export interface IpcEvents {
   'workflow:blocked': { runId: string; question: BlockerQuestion; sessionId?: string }
   /** A lifecycle-toast click asked the renderer to surface this run (WF4-15). */
   'workflow:focus-run': { runId: string }
+  /** One batch of disk changes in the watched worktree (FXPL-21/22). */
+  'files:changed': FilesChanged
 }
 
 export interface IpcSends {
