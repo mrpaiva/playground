@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { changedSince, foldChildren, listDir, parseNameStatus } from './file-tree'
+import { changedSince, foldChildren, listBases, listDir, parseNameStatus } from './file-tree'
 
 /** `git diff --name-status -z` output: NUL after every field, including the last. */
 const z = (...fields: string[]): string => fields.map((f) => `${f}\0`).join('')
@@ -173,5 +173,48 @@ describe('changedSince', () => {
     expect(listing.mergeBase).toBeNull()
     expect(listing.files).toEqual([])
     expect(listing.error).toMatch(/deleted-base/)
+  })
+})
+
+describe('listBases', () => {
+  let root: string
+  let origin: string
+  let clone: string
+
+  beforeEach(() => {
+    root = realpathSync.native(mkdtempSync(join(tmpdir(), 'wtm-lb-')))
+    origin = join(root, 'origin')
+    clone = join(root, 'clone')
+    mkdirSync(origin)
+    git(origin, 'init', '-b', 'main')
+    git(origin, 'config', 'user.email', 'test@test.local')
+    git(origin, 'config', 'user.name', 'Test')
+    writeFileSync(join(origin, 'a.txt'), 'one\n', 'utf8')
+    git(origin, 'add', '.')
+    git(origin, 'commit', '-m', 'init')
+    git(origin, 'branch', 'release')
+    git(root, 'clone', origin, clone)
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('defaults the base to what origin/HEAD points at', async () => {
+    const bases = await listBases(clone)
+
+    expect(bases.defaultBase).toBe('origin/main')
+  })
+
+  it('reports no default base when the repo has no origin/HEAD', async () => {
+    const bases = await listBases(origin)
+
+    expect(bases.defaultBase).toBeNull()
+  })
+
+  it('lists local and remote branches without the origin/HEAD symref', async () => {
+    const bases = await listBases(clone)
+
+    expect(bases.branches).toEqual(['main', 'origin/main', 'origin/release'])
   })
 })

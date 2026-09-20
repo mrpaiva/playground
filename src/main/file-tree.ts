@@ -1,4 +1,10 @@
-import type { ChangedListing, ChangedPath, DirListing, FileEntry } from '../shared/files'
+import type {
+  BaseOptions,
+  ChangedListing,
+  ChangedPath,
+  DirListing,
+  FileEntry
+} from '../shared/files'
 import type { ChangeStatus } from '../shared/worktrees'
 import { git, gitFailureLine } from './git'
 
@@ -113,6 +119,45 @@ export function parseNameStatus(stdout: string): ChangedPath[] {
     files.push({ path, status: statusOf(letter) })
   }
   return files
+}
+
+/**
+ * What the base picker offers (FXPL-09/10/11): `origin/HEAD`'s target as the
+ * default, every local and remote branch as the choices. A repo without an
+ * `origin/HEAD` gets `defaultBase: null` — the picker then asks for a base
+ * rather than the app guessing one.
+ */
+export async function listBases(worktreePath: string): Promise<BaseOptions> {
+  let defaultBase: string | null = null
+  try {
+    const { stdout } = await git(worktreePath, [
+      'symbolic-ref',
+      '--short',
+      'refs/remotes/origin/HEAD'
+    ])
+    defaultBase = stdout.trim() || null
+  } catch {
+    defaultBase = null
+  }
+  try {
+    const { stdout } = await git(worktreePath, [
+      'for-each-ref',
+      '--format=%(refname:short)%09%(symref)',
+      'refs/heads',
+      'refs/remotes'
+    ])
+    const branches = stdout
+      .split(/\r?\n/)
+      .filter((line) => line.trim() !== '')
+      .map((line) => line.split('\t'))
+      // `%(symref)` is non-empty only for a symbolic ref: `origin/HEAD` points
+      // at a branch already listed beside it, and shortens to plain `origin`.
+      .filter(([, symref]) => !symref)
+      .map(([name]) => name.trim())
+    return { defaultBase, branches }
+  } catch {
+    return { defaultBase, branches: [] }
+  }
 }
 
 /** A type change (`T`) is a modification as far as the tree is concerned. */

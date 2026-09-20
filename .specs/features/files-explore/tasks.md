@@ -187,15 +187,19 @@ T21 → T22 → T23
 
 **Done when**:
 
-- [ ] A repo whose `origin/HEAD` points at `origin/main` returns `defaultBase: 'origin/main'`
-- [ ] A repo with no `origin/HEAD` returns `defaultBase: null` — never a guessed branch
-- [ ] `branches` lists local and remote branches, without the `origin/HEAD` symref itself
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 810 + 3 = **813**
+- [x] A repo whose `origin/HEAD` points at `origin/main` returns `defaultBase: 'origin/main'`
+- [x] A repo with no `origin/HEAD` returns `defaultBase: null` — never a guessed branch
+- [x] `branches` lists local and remote branches, without the `origin/HEAD` symref itself
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 810 + 3 = **813** — measured **995**
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(main): offer the bases a branch can be compared to`
+**Status**: ✅ Complete
+
+> Note: `%(refname:short)` renders `refs/remotes/origin/HEAD` as plain `origin`, so the symref is
+> excluded by its `%(symref)` field, not by a `/HEAD` suffix.
 
 ---
 
