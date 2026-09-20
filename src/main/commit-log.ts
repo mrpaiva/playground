@@ -1,8 +1,9 @@
-import type { CommitDetail, CommitPage, CommitRow } from '../shared/files'
+import type { CommitDetail, CommitPage, CommitRow, RemoteRef } from '../shared/files'
+import type { LaunchResult } from '../shared/shortcuts'
 import { parseNumstat } from './file-diff'
 import { parseNameStatus } from './file-tree'
 import { git, gitFailureLine } from './git'
-import { parseRemote } from './remote-url'
+import { commitUrl, parseRemote } from './remote-url'
 
 /** How many commits one page holds before Load more appears (FCMT-08/09). */
 export const PAGE_SIZE = 100
@@ -199,14 +200,60 @@ async function unpushedShas(worktreePath: string): Promise<Set<string>> {
 }
 
 /**
+ * Opens a pushed commit's page in the browser (FCMT-24/25/28).
+ *
+ * The renderer sends a sha; everything the address is made of is resolved
+ * here. Three refusals come before anything is opened: an upstream on a host
+ * the app does not recognize, a commit the upstream has not seen, and — as a
+ * last guard against a future change to the builder — an address that is not
+ * `https://`. The opener is injected so a test can prove those refusals never
+ * reach it.
+ */
+export async function openCommit(
+  worktreePath: string,
+  sha: string,
+  open: (url: string) => Promise<unknown>
+): Promise<LaunchResult> {
+  const ref = await upstreamRemoteRef(worktreePath)
+  if (ref === null) {
+    return { ok: false, error: 'This branch has no upstream on a host the app can open.' }
+  }
+  try {
+    await git(worktreePath, ['merge-base', '--is-ancestor', sha, '@{upstream}'])
+  } catch {
+    return { ok: false, error: 'This commit has not been pushed yet.' }
+  }
+  const url = commitUrl(ref, sha)
+  if (!url.startsWith('https://')) {
+    return { ok: false, error: 'Refused to open an address that is not https.' }
+  }
+  try {
+    await open(url)
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+  return { ok: true }
+}
+
+/**
  * Which provider the branch's upstream remote is on, or null (FCMT-23/26).
+ *
+ * Reads the ref, not just its provider, because the same lookup answers both
+ * "is there a button" and "what does it open".
+ */
+async function browseProvider(worktreePath: string): Promise<'github' | 'azure-devops' | null> {
+  return (await upstreamRemoteRef(worktreePath))?.provider ?? null
+}
+
+/**
+ * The branch's upstream remote, parsed, or null.
  *
  * The remote comes from the branch's own config rather than from the upstream
  * ref's name, because a remote name may itself contain a slash. A detached
- * HEAD has no branch config and so no provider — the list still works, it
- * simply offers no browser button (edge case).
+ * HEAD has no branch config and so no remote — the list still works, it simply
+ * offers no browser button (edge case).
  */
-async function browseProvider(worktreePath: string): Promise<'github' | 'azure-devops' | null> {
+async function upstreamRemoteRef(worktreePath: string): Promise<RemoteRef | null> {
   try {
     const { stdout: head } = await git(worktreePath, ['rev-parse', '--abbrev-ref', 'HEAD'])
     const branch = head.trim()
@@ -219,7 +266,7 @@ async function browseProvider(worktreePath: string): Promise<'github' | 'azure-d
     const remote = remoteName.trim()
     if (remote === '') return null
     const { stdout: url } = await git(worktreePath, ['remote', 'get-url', remote])
-    return parseRemote(url.trim())?.provider ?? null
+    return parseRemote(url.trim())
   } catch {
     return null
   }

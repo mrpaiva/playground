@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { PAGE_SIZE, commitFiles, listCommits, parseLog } from './commit-log'
+import { PAGE_SIZE, commitFiles, listCommits, openCommit, parseLog } from './commit-log'
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, { cwd, encoding: 'utf8' })
@@ -320,5 +320,91 @@ describe('commitFiles', () => {
 
     expect(detail.files).toEqual([{ path: 'a.txt', status: 'modified' }])
     expect(detail.stats).toEqual([{ path: 'a.txt', added: 2, removed: 1 }])
+  })
+})
+
+describe('openCommit', () => {
+  let root: string
+  let repo: string
+  let opened: string[]
+  const open = async (url: string): Promise<void> => {
+    opened.push(url)
+  }
+
+  /** A repo whose branch tracks a local bare clone wearing `url` as its address. */
+  const withUpstream = (url?: string): string => {
+    git(root, 'clone', '--bare', repo, 'remote.git')
+    git(repo, 'remote', 'add', 'origin', join(root, 'remote.git'))
+    git(repo, 'checkout', '-b', 'feature')
+    git(repo, 'commit', '--allow-empty', '-m', 'pushed')
+    git(repo, 'push', '-u', 'origin', 'feature')
+    if (url !== undefined) git(repo, 'remote', 'set-url', 'origin', url)
+    return git(repo, 'rev-parse', 'HEAD').trim()
+  }
+
+  beforeEach(() => {
+    root = realpathSync.native(mkdtempSync(join(tmpdir(), 'wtm-co-')))
+    repo = initRepo(root)
+    opened = []
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('opens a pushed commit page once', async () => {
+    const sha = withUpstream('https://github.com/acme/widget.git')
+
+    const result = await openCommit(repo, sha, open)
+
+    expect(result).toEqual({ ok: true })
+    expect(opened).toEqual([`https://github.com/acme/widget/commit/${sha}`])
+  })
+
+  it('refuses a commit the upstream has not seen and opens nothing', async () => {
+    // FCMT-25. The button is disabled for this row, so reaching here is a
+    // race; the refusal has to hold anyway.
+    withUpstream('https://github.com/acme/widget.git')
+    git(repo, 'commit', '--allow-empty', '-m', 'local only')
+    const sha = git(repo, 'rev-parse', 'HEAD').trim()
+
+    const result = await openCommit(repo, sha, open)
+
+    expect(result.ok).toBe(false)
+    expect(opened).toEqual([])
+  })
+
+  it('refuses when the branch has no upstream and opens nothing', async () => {
+    git(repo, 'checkout', '-b', 'feature')
+    git(repo, 'commit', '--allow-empty', '-m', 'mine')
+    const sha = git(repo, 'rev-parse', 'HEAD').trim()
+
+    const result = await openCommit(repo, sha, open)
+
+    expect(result.ok).toBe(false)
+    expect(opened).toEqual([])
+  })
+
+  it('refuses an upstream on a host it does not recognize and opens nothing', async () => {
+    // FCMT-26: a local-path remote is not a provider, so there is no page.
+    const sha = withUpstream()
+
+    const result = await openCommit(repo, sha, open)
+
+    expect(result.ok).toBe(false)
+    expect(opened).toEqual([])
+  })
+
+  it('opens an address carrying no credential from the remote', async () => {
+    // Edge case: a remote holding a token must not put it in the browser's
+    // address bar, or in history.
+    const sha = withUpstream('https://someone:s3cr3t@github.com/acme/widget.git')
+
+    const result = await openCommit(repo, sha, open)
+
+    expect(result).toEqual({ ok: true })
+    expect(opened).toEqual([`https://github.com/acme/widget/commit/${sha}`])
+    expect(opened[0]).not.toContain('s3cr3t')
+    expect(opened[0]).not.toContain('someone')
   })
 })

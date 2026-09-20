@@ -208,7 +208,7 @@ T15 → T16
 
 ---
 
-### T6: Open a pushed commit safely
+### T6: Open a pushed commit safely ✅
 
 **What**: Add `openCommit(worktreePath, sha, open)` to `commit-log.ts`, with the opener injected — resolve the upstream remote, check `git merge-base --is-ancestor <sha> @{upstream}`, build with `commitUrl`, refuse anything not starting with `https://`, then call `open(url)`.
 **Where**: `src/main/commit-log.ts`
@@ -220,12 +220,12 @@ T15 → T16
 
 **Done when**:
 
-- [ ] A pushed commit calls `open` once with `https://github.com/acme/widget/commit/<sha>`
-- [ ] An unpushed commit returns `{ ok: false }` and **`open` is never called**
-- [ ] No upstream, or an unrecognized host, returns `{ ok: false }` and `open` is never called
-- [ ] The URL passed to `open` never contains the remote's userinfo
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 926 + 4 = **930**
+- [x] A pushed commit calls `open` once with `https://github.com/acme/widget/commit/<sha>`
+- [x] An unpushed commit returns `{ ok: false }` and **`open` is never called**
+- [x] No upstream, or an unrecognized host, returns `{ ok: false }` and `open` is never called
+- [x] The URL passed to `open` never contains the remote's userinfo
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 1146 + 5 = **1151**
 
 **Tests**: unit
 **Gate**: full
