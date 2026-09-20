@@ -1,9 +1,25 @@
 import { describe, expect, it } from 'vitest'
 import type { ChangedPath } from '../../../shared/files'
-import { diffRequestFor } from './diff-view'
+import {
+  ALL_CHANGES_KEY,
+  diffRequestFor,
+  isSameTab,
+  tabKeyOf,
+  tabsWithAllChanges,
+  type DiffMode,
+  type TabRef
+} from './diff-view'
 
 function changed(path: string, status: ChangedPath['status'], oldPath?: string): ChangedPath {
   return { path, status, ...(oldPath ? { oldPath } : {}) }
+}
+
+function fileTab(path: string): TabRef {
+  return { kind: 'file', path }
+}
+
+function diffTab(mode: DiffMode, path: string): TabRef {
+  return { kind: 'diff', mode, path }
 }
 
 describe('diffRequestFor', () => {
@@ -55,5 +71,72 @@ describe('diffRequestFor', () => {
   it('has no diff to build when the base no longer resolves (edge case, FXPL-11)', () => {
     // The base prompt takes the place of a stale diff, so there is no request.
     expect(diffRequestFor('since-base', changed('src/app.ts', 'modified'), null)).toBeNull()
+  })
+})
+
+describe('tabKeyOf', () => {
+  it('keys a diff tab by its mode and path, apart from a file tab (FDIF-08)', () => {
+    const keys = [
+      tabKeyOf(diffTab('since-base', 'src/app.ts')),
+      tabKeyOf(diffTab('uncommitted', 'src/app.ts')),
+      tabKeyOf(fileTab('src/app.ts'))
+    ]
+
+    expect(new Set(keys).size).toBe(3)
+  })
+
+  it('gives All changes a key no file or diff tab can produce (FDIF-17)', () => {
+    const allChanges = tabKeyOf({ kind: 'all-changes' })
+
+    // The strip and `tabsAfterClose` recognise the fixed tab by this key, so a
+    // file that happens to be named like it must not answer to it.
+    expect(allChanges).toBe(ALL_CHANGES_KEY)
+    expect(tabKeyOf(fileTab('all-changes'))).not.toBe(allChanges)
+    expect(tabKeyOf(diffTab('uncommitted', 'all-changes'))).not.toBe(allChanges)
+  })
+})
+
+describe('isSameTab', () => {
+  it('matches a diff tab only in the mode it was opened in (FDIF-08, FDIF-09)', () => {
+    const open = diffTab('since-base', 'src/app.ts')
+
+    expect(isSameTab(open, diffTab('since-base', 'src/app.ts'))).toBe(true)
+    expect(isSameTab(open, diffTab('uncommitted', 'src/app.ts'))).toBe(false)
+    expect(isSameTab(open, fileTab('src/app.ts'))).toBe(false)
+  })
+})
+
+describe('tabsWithAllChanges', () => {
+  const open = [fileTab('src/app.ts'), diffTab('uncommitted', 'src/lib/util.ts')]
+
+  it('puts All changes first in both diff modes (FDIF-17)', () => {
+    for (const mode of ['since-base', 'uncommitted'] as const) {
+      const tabs = tabsWithAllChanges(open, mode)
+
+      expect(tabs.map(tabKeyOf)).toEqual([
+        ALL_CHANGES_KEY,
+        'file:src/app.ts',
+        'diff:uncommitted:src/lib/util.ts'
+      ])
+    }
+  })
+
+  it('drops All changes in full-folder mode (FDIF-18)', () => {
+    const tabs = tabsWithAllChanges([{ kind: 'all-changes' }, ...open], 'full')
+
+    expect(tabs.map(tabKeyOf)).toEqual(['file:src/app.ts', 'diff:uncommitted:src/lib/util.ts'])
+  })
+
+  it('never shows All changes twice (FDIF-17)', () => {
+    const tabs = tabsWithAllChanges([{ kind: 'all-changes' }, ...open], 'since-base')
+
+    expect(tabs.filter((tab) => tab.kind === 'all-changes')).toHaveLength(1)
+    expect(tabKeyOf(tabs[0])).toBe(ALL_CHANGES_KEY)
+  })
+
+  it('leaves a diff tab comparing what it compared when the mode changes (FDIF-09)', () => {
+    const tabs = tabsWithAllChanges([diffTab('since-base', 'src/app.ts')], 'uncommitted')
+
+    expect(tabs.map(tabKeyOf)).toEqual([ALL_CHANGES_KEY, 'diff:since-base:src/app.ts'])
   })
 })

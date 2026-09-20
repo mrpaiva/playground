@@ -469,15 +469,44 @@ T20 → T21
 
 **Done when**:
 
-- [ ] A diff tab of `a.ts` in each mode and a file tab of `a.ts` are three different keys
-- [ ] `tabsWithAllChanges` puts All changes first in both diff modes, removes it in full-folder mode, and never duplicates it
-- [ ] A diff tab keeps its mode when the view's mode changes
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 876 + 5 = **881**
+- [x] A diff tab of `a.ts` in each mode and a file tab of `a.ts` are three different keys — `diff-view.test.ts:85`, and `:103`–`:105` for `isSameTab`
+- [x] `tabsWithAllChanges` puts All changes first in both diff modes — `:116`; removes it in full-folder mode — `:127`; never duplicates it — `:133`, `:134`
+- [x] A diff tab keeps its mode when the view's mode changes — `:140`
+- [x] Gate passes: `npm test`
+- [x] Test count: 1071 + 7 = **1078** (written 881 + 192 = 1073; +3 inherited, +2 new tests)
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(renderer): key diff tabs and place the all changes tab`
+**Status**: ✅ Complete
+
+> **`TabRef` is the identity shape, and T17's tab type has to carry a `kind`.**
+> `{ kind: 'file' | 'diff' | 'all-changes' }` is what the key is built from, so
+> F1's `FileTab` gains `kind: 'file'` when the hook extends it. `tabKeyOf` takes
+> the structural minimum, so a richer tab object passes unchanged, and
+> `tabsWithAllChanges` is generic in its element type for the same reason — the
+> strip still reads `content`, `deleted` and `at` off what comes back.
+>
+> **The All changes tab is derived, never stored.** It is inserted from the
+> current mode on every call and filtered out of the input first, which is what
+> makes FDIF-17's "never twice" free and lets it follow a mode switch while the
+> diff tabs beside it do not (FDIF-09). `ALL_CHANGES_TAB` is a module constant
+> so the stack is not remounted on each render. `ALL_CHANGES_KEY` is exported
+> because T10 needs it.
+>
+> **One assertion had to be rewritten: it could not fail.** The first version
+> read the expected key out of `ALL_CHANGES_KEY` on both sides, so renaming the
+> constant to `file:all-changes` — which makes a file literally named
+> `all-changes` collide with the fixed tab — passed. It now asserts the property
+> instead: no file or diff tab's key equals the All changes key (`:94`, `:95`).
+> The mutant dies.
+>
+> Mutation-checked: 8 deliberate breaks, all killed. Dropping the mode from a
+> diff key and keying everything by path alone both die on FDIF-08; the key
+> collision dies on `:94`; returning a key the strip does not hold dies on 4
+> tests; putting All changes last, keeping it in full-folder mode and not
+> de-duplicating it die on FDIF-17/18; retargeting an open diff tab at the
+> current mode dies on `:140`.
 
 ---
 

@@ -49,3 +49,45 @@ function originalRef(changed: ChangedPath, rev: string): DiffRef | null {
 function modifiedExists(changed: ChangedPath): boolean {
   return changed.status !== 'deleted'
 }
+
+/** What the tab strip can hold, as far as identity goes (FDIF-08, FDIF-17). */
+export type TabRef =
+  | { kind: 'file'; path: string }
+  | { kind: 'diff'; mode: DiffMode; path: string }
+  | { kind: 'all-changes' }
+
+/** The key of the fixed first tab of both diff modes (FDIF-17). */
+export const ALL_CHANGES_KEY = 'all-changes'
+
+/** One instance, so re-deriving the strip does not remount the stack. */
+const ALL_CHANGES_TAB: TabRef = { kind: 'all-changes' }
+
+/**
+ * What identifies a tab (FDIF-08). A diff of one path is a different tab in
+ * each mode, and both are different from a file tab for that same path: the
+ * kind and, for a diff, the mode are part of the key, not just the path.
+ */
+export function tabKeyOf(tab: TabRef): string {
+  if (tab.kind === 'all-changes') return ALL_CHANGES_KEY
+  return tab.kind === 'file' ? `file:${tab.path}` : `diff:${tab.mode}:${tab.path}`
+}
+
+/** Whether two tabs are the same tab, by the identity `tabKeyOf` defines. */
+export function isSameTab(a: TabRef, b: TabRef): boolean {
+  return tabKeyOf(a) === tabKeyOf(b)
+}
+
+/**
+ * The tab strip for the mode currently shown: All changes first in both diff
+ * modes (FDIF-17), absent in full-folder mode (FDIF-18), and never twice. The
+ * All changes tab is derived from the mode rather than stored, which is what
+ * lets it follow a mode switch while every diff tab beside it keeps comparing
+ * what it was opened on (FDIF-09).
+ */
+export function tabsWithAllChanges<T extends TabRef>(
+  tabs: readonly T[],
+  mode: FilesMode
+): (T | TabRef)[] {
+  const rest = tabs.filter((tab) => tab.kind !== 'all-changes')
+  return mode === 'full' ? rest : [ALL_CHANGES_TAB, ...rest]
+}
