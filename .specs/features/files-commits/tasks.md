@@ -447,7 +447,7 @@ renders only the body, including the base prompt, the way `SinceBase` does.
 
 ---
 
-### T15: Show commit tabs
+### T15: Show commit tabs ✅
 
 **What**: Render commit tabs in `FileTabs`, closable, titled by `commitTabTitle`, kept across mode switches.
 **Where**: `src/renderer/src/components/FileTabs.tsx`
@@ -459,11 +459,11 @@ renders only the body, including the base prompt, the way `SinceBase` does.
 
 **Done when**:
 
-- [ ] Clicking an already-open commit focuses its tab
-- [ ] Switching to any other mode leaves commit tabs open
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: **945** (unchanged)
+- [x] Clicking an already-open commit focuses its tab (`openCommit` matches on `tabKeyOf`)
+- [x] Switching to any other mode leaves commit tabs open (`tabsWithAllChanges` filters only the fixed tab)
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: **1168** (unchanged)
 
 **Tests**: none
 **Gate**: build

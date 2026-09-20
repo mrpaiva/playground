@@ -7,6 +7,7 @@ import { tabKeyOf } from '../lib/diff-view'
 import type { DiffTab, FileTab, StripTab, UseFiles } from '../lib/use-files'
 import { AllChangesTab } from './AllChangesTab'
 import { CodeViewer } from './CodeViewer'
+import { CommitTab } from './CommitTab'
 import { DiffViewer, type DiffHandle } from './DiffViewer'
 import { FilePlaceholder } from './FilePlaceholder'
 import { Icon, type IconName } from './Icon'
@@ -302,7 +303,16 @@ export function FileTabs({ worktreePath, files, onToast }: FileTabsProps): JSX.E
           />
         ) : active.kind === 'diff' ? (
           <DiffBody key={tabKeyOf(active)} files={files} tab={active} onHandle={onHandle} />
-        ) : active.kind === 'commit' ? null : (
+        ) : active.kind === 'commit' ? (
+          <CommitTab
+            key={tabKeyOf(active)}
+            worktreePath={worktreePath}
+            tab={active}
+            layout={files.diffLayout}
+            ignoreWhitespace={files.diffIgnoreWhitespace}
+            onHandle={onHandle}
+          />
+        ) : (
           <FileBody key={tabKeyOf(active)} tab={active} />
         )}
       </div>
