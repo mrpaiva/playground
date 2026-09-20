@@ -73,3 +73,57 @@ export interface FilesChanged {
   /** The index or HEAD moved: a commit, a stage or a checkout. */
   gitStateChanged: boolean
 }
+
+/**
+ * Where one side of a diff is read from: a revision, or the working copy on
+ * disk. Deliberately revision-or-disk rather than mode-shaped, so F3's commit
+ * diff is `{ rev: 'abc^' }` → `{ rev: 'abc' }` with nothing new in main.
+ */
+export type DiffRef = { rev: string; path: string } | { disk: true; path: string }
+
+/**
+ * The two sides one diff compares (FDIF-01/02). Each side carries its own
+ * path, so a rename reads its original from `oldPath` (FDIF-05).
+ */
+export interface DiffRequest {
+  /** null = the side does not exist: an added or untracked file (FDIF-03). */
+  original: DiffRef | null
+  /** null = the side does not exist: a deleted file (FDIF-04). */
+  modified: DiffRef | null
+}
+
+/**
+ * What one side of a diff got. F1's `FileContent` plus `absent`, which is not
+ * the same as its `missing`: `absent` means the file is not meant to exist on
+ * this side, `missing` that it was looked for and was not there.
+ */
+export type DiffSide = FileContent | { kind: 'absent' }
+
+/** A line terminator, as the raw bytes of a side carry it. */
+export type Eol = 'LF' | 'CRLF' | 'CR'
+
+/**
+ * One diff as main produces it (FDIF-01..06, 15). Line-ending changes come
+ * with it because Monaco's diff cannot see them: its models keep their own
+ * terminators, but the diff of a CRLF side against an identical LF side
+ * reports zero changes (F2 spike, finding 1).
+ */
+export interface DiffSides {
+  original: DiffSide
+  modified: DiffSide
+  /** Modified-side line numbers, 1-based, whose terminator differs from the original's. */
+  eolChanged: number[]
+  /** The original side's dominant ending, for the strip text (FDIF-15). */
+  eolFrom?: Eol
+  /** The modified side's dominant ending, for the strip text (FDIF-15). */
+  eolTo?: Eol
+}
+
+/** One changed file's line counts, for the All changes header and sections (FDIF-19/20). */
+export interface FileStat {
+  path: string
+  added: number
+  removed: number
+  /** Git reported `-` for both counts: there are no lines to count. */
+  binary: boolean
+}

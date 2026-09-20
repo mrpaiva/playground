@@ -171,14 +171,19 @@ T20 → T21
 
 **Done when**:
 
-- [ ] `DiffSide` is `FileContent | { kind: 'absent' }` — `absent` means the side does not exist, distinct from F1's `missing`
-- [ ] `DiffRef` is revision-or-disk per side, so F3 reuses it unchanged
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **850** (unchanged)
+- [x] `DiffSide` is `FileContent | { kind: 'absent' }` — `absent` means the side does not exist, distinct from F1's `missing`
+- [x] `DiffRef` is revision-or-disk per side, so F3 reuses it unchanged
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1042** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(shared): declare the diff contract`
+**Status**: ✅ Complete
+
+> Note: `DiffRef` carries `path` **inside** each side rather than once per request, which is what
+> lets FDIF-05 read a rename's original from `oldPath` without a second field. `files:diff-stats`
+> takes `FilesMode`, so `ipc-contract.ts` imports it too.
 
 ---
 

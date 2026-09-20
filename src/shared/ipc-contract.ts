@@ -6,7 +6,17 @@ import type {
   SessionView,
   WorkspaceTemplates
 } from './config'
-import type { BaseOptions, ChangedListing, DirListing, FileContent, FilesChanged } from './files'
+import type {
+  BaseOptions,
+  ChangedListing,
+  DiffRequest,
+  DiffSides,
+  DirListing,
+  FileContent,
+  FileStat,
+  FilesChanged,
+  FilesMode
+} from './files'
 import type { CommitLists, GitOp, GitOpResult, SyncState } from './git'
 import type { LaunchResult, ShortcutTool } from './shortcuts'
 import type { ParentOfResult, PinTaskResult, TasksSnapshot } from './tasks'
@@ -134,6 +144,16 @@ export interface IpcContract {
   'files:read': { req: { worktreePath: string; relPath: string }; res: FileContent }
   /** Watch this worktree for disk changes, or `null` to stop watching (FXPL-21/22/23). */
   'files:watch': { req: { worktreePath: string | null }; res: void }
+  /** Both sides of one diff, plus the lines whose terminator changed (FDIF-01..06, 15). */
+  'files:diff-sides': {
+    req: { worktreePath: string; request: DiffRequest }
+    res: DiffSides
+  }
+  /** Added and removed line counts per file of the mode's list (FDIF-19/20/24). */
+  'files:diff-stats': {
+    req: { worktreePath: string; mode: FilesMode; base?: string }
+    res: FileStat[]
+  }
 }
 
 export type IpcChannel = keyof IpcContract
