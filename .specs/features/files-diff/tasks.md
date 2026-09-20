@@ -607,17 +607,39 @@ T20 → T21
 
 **Done when**:
 
-- [ ] Within a file: the next change after the cursor, or the previous one before it
-- [ ] Past a file's last change: the first change of the next section, flagged to expand it
-- [ ] Past the last change of the last file: stays put
-- [ ] Before the first change of a section: the previous section's last change
-- [ ] A section with no changes (identical content) is skipped
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 887 + 5 = **892**
+- [x] Within a file: the next change after the cursor — `diff-view.test.ts:202`, or the previous one before it — `:210`
+- [x] Past a file's last change: the first change of the next section, flagged to expand it — `:218` (`expand: true`)
+- [x] Past the last change of the last file: stays put — `:234`, with `:235` on the mirror at the top of the stack
+- [x] Before the first change of a section: the previous section's last change — `:226`
+- [x] A section with no changes (identical content) is skipped — `:239`, `:244`
+- [x] Gate passes: `npm test`
+- [x] Test count: 1084 + 6 = **1090** (written 892 + 192 = 1084; +3 inherited, +3 from T9/T12)
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(renderer): decide where next and previous change go`
+**Status**: ✅ Complete
+
+> **`expand` is `!section.expanded`, computed for every target, not only a
+> crossing.** FDIF-26 names it on the cross-file move; making it a property of
+> the section landed on costs nothing and saves T16 from deciding twice.
+>
+> **A single diff tab is the one-section case.** `sections` is the whole stack
+> in render order, so FDIF-25 on a plain diff tab is this function with one
+> entry, where `null` means the file's own last change rather than the end of a
+> stack. A position whose path is not in the stack returns `null` as well: the
+> section it names is gone, and a refresh will place the cursor again.
+>
+> **The first backward test could not fail and was rewritten.** With two changes
+> per file, "the previous change" and "the file's first change" are the same
+> line, so `.pop()` → `.shift()` survived. The fixture now carries three
+> changes (4, 12, 20) and asserts 12 from line 20, which kills it.
+>
+> Mutation-checked: 11 deliberate breaks, all killed. A cursor-inclusive
+> comparison in either direction, taking the far change instead of the nearest
+> one in either direction, never crossing, crossing forward while going back,
+> entering the next file at its last change, landing on an identical file,
+> a wrong `expand` in either polarity, and wrapping at the end of the stack.
 
 ---
 

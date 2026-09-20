@@ -129,3 +129,67 @@ export function totals(files: readonly FileStat[]): {
   }
   return { files: files.length, added, removed }
 }
+
+/** One file of the All changes stack, as next / previous change sees it. */
+export interface ChangeSection {
+  /** The file's path, which is the section's identity in the stack. */
+  path: string
+  /** The modified-side lines the diff reports as changed, ascending. */
+  changes: number[]
+  expanded: boolean
+}
+
+/** Where the reader is: which section, and which line inside it. */
+export interface ChangePosition {
+  path: string
+  line: number
+}
+
+/** Where next or previous change lands (FDIF-25/26). */
+export interface ChangeTarget {
+  path: string
+  line: number
+  /** The section is collapsed, so it has to be opened before the line shows. */
+  expand: boolean
+}
+
+/**
+ * Where next or previous change goes (FDIF-25/26). Inside the current file it
+ * is the nearest change past the cursor; once there is none, it is the first
+ * change of the next file that has one, which the All changes tab expands on
+ * the way in (FDIF-26). Past the last change of the last file there is nowhere
+ * to go, and the position stays where it is.
+ *
+ * A file whose sides are identical contributes no changes, so navigation walks
+ * over it rather than landing on a section with nothing to show.
+ *
+ * `sections` is the whole stack in the order it renders. A single diff tab is
+ * the one-section case, and there `null` means the file's own last change
+ * (FDIF-25) rather than the end of a stack.
+ */
+export function nextChangeTarget(
+  position: ChangePosition,
+  sections: readonly ChangeSection[],
+  direction: 'next' | 'previous'
+): ChangeTarget | null {
+  const at = sections.findIndex((section) => section.path === position.path)
+  if (at === -1) return null
+  const forward = direction === 'next'
+  const here = sections[at].changes
+  const inside = forward
+    ? here.find((line) => line > position.line)
+    : here.filter((line) => line < position.line).pop()
+  if (inside !== undefined) return targetIn(sections[at], inside)
+  const step = forward ? 1 : -1
+  for (let i = at + step; i >= 0 && i < sections.length; i += step) {
+    const section = sections[i]
+    if (section.changes.length === 0) continue
+    const edge = forward ? section.changes[0] : section.changes[section.changes.length - 1]
+    return targetIn(section, edge)
+  }
+  return null
+}
+
+function targetIn(section: ChangeSection, line: number): ChangeTarget {
+  return { path: section.path, line, expand: !section.expanded }
+}

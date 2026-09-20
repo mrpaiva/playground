@@ -5,9 +5,11 @@ import {
   diffRequestFor,
   initialExpansion,
   isSameTab,
+  nextChangeTarget,
   tabKeyOf,
   tabsWithAllChanges,
   totals,
+  type ChangeSection,
   type DiffMode,
   type TabRef
 } from './diff-view'
@@ -182,5 +184,67 @@ describe('totals', () => {
     const changed = [stat('src/app.ts', 12, 3), stat('assets/logo.png', 99, 99, true)]
 
     expect(totals(changed)).toEqual({ files: 2, added: 12, removed: 3 })
+  })
+})
+
+describe('nextChangeTarget', () => {
+  const stack: ChangeSection[] = [
+    { path: 'src/a.ts', changes: [4, 12, 20], expanded: true },
+    { path: 'src/c.ts', changes: [7, 30], expanded: false }
+  ]
+  const withIdentical: ChangeSection[] = [
+    stack[0],
+    { path: 'src/b.ts', changes: [], expanded: true },
+    stack[1]
+  ]
+
+  it('moves to the nearest change after the cursor in the same file (FDIF-25)', () => {
+    expect(nextChangeTarget({ path: 'src/a.ts', line: 4 }, stack, 'next')).toEqual({
+      path: 'src/a.ts',
+      line: 12,
+      expand: false
+    })
+  })
+
+  it('moves to the nearest change before the cursor in the same file (FDIF-25)', () => {
+    expect(nextChangeTarget({ path: 'src/a.ts', line: 20 }, stack, 'previous')).toEqual({
+      path: 'src/a.ts',
+      line: 12,
+      expand: false
+    })
+  })
+
+  it('enters the next file past the last change, expanding it (FDIF-26)', () => {
+    expect(nextChangeTarget({ path: 'src/a.ts', line: 20 }, stack, 'next')).toEqual({
+      path: 'src/c.ts',
+      line: 7,
+      expand: true
+    })
+  })
+
+  it('goes back to the previous file before the first change (FDIF-26)', () => {
+    expect(nextChangeTarget({ path: 'src/c.ts', line: 7 }, stack, 'previous')).toEqual({
+      path: 'src/a.ts',
+      line: 20,
+      expand: false
+    })
+  })
+
+  it('stays put at either end of the stack (FDIF-26)', () => {
+    expect(nextChangeTarget({ path: 'src/c.ts', line: 30 }, stack, 'next')).toBeNull()
+    expect(nextChangeTarget({ path: 'src/a.ts', line: 4 }, stack, 'previous')).toBeNull()
+  })
+
+  it('walks over a file whose sides are identical (edge case)', () => {
+    expect(nextChangeTarget({ path: 'src/a.ts', line: 20 }, withIdentical, 'next')).toEqual({
+      path: 'src/c.ts',
+      line: 7,
+      expand: true
+    })
+    expect(nextChangeTarget({ path: 'src/c.ts', line: 7 }, withIdentical, 'previous')).toEqual({
+      path: 'src/a.ts',
+      line: 20,
+      expand: false
+    })
   })
 })
