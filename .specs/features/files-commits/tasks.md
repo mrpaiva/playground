@@ -105,7 +105,7 @@ T15 → T16
 
 ---
 
-### T2: Recognize a remote
+### T2: Recognize a remote ✅
 
 **What**: Create `src/main/remote-url.ts` with the pure `parseRemote(url)` returning a GitHub or Azure DevOps `RemoteRef`, or null.
 **Where**: `src/main/remote-url.ts`
@@ -117,13 +117,13 @@ T15 → T16
 
 **Done when**:
 
-- [ ] Table test, one row each: `https://github.com/acme/widget.git`, `https://github.com/acme/widget`, `git@github.com:acme/widget.git`, `ssh://git@github.com/acme/widget.git`, `https://acme@dev.azure.com/acme/platform/_git/widget`, `git@ssh.dev.azure.com:v3/acme/platform/widget`, `https://acme.visualstudio.com/platform/_git/widget`, `https://acme.visualstudio.com/DefaultCollection/platform/_git/widget`
-- [ ] `https://user:token@github.com/acme/widget.git` parses with **no trace of the credential** in the result (edge case)
-- [ ] A project with a space (`My%20Project`) decodes to `My Project`
-- [ ] `https://gitlab.com/acme/widget.git`, a local path and an empty string return null
-- [ ] `src/main/remote-url.test.ts` created
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 898 + 10 = **908**
+- [x] Table test, one row each: `https://github.com/acme/widget.git`, `https://github.com/acme/widget`, `git@github.com:acme/widget.git`, `ssh://git@github.com/acme/widget.git`, `https://acme@dev.azure.com/acme/platform/_git/widget`, `git@ssh.dev.azure.com:v3/acme/platform/widget`, `https://acme.visualstudio.com/platform/_git/widget`, `https://acme.visualstudio.com/DefaultCollection/platform/_git/widget`
+- [x] `https://user:token@github.com/acme/widget.git` parses with **no trace of the credential** in the result (edge case)
+- [x] A project with a space (`My%20Project`) decodes to `My Project`
+- [x] `https://gitlab.com/acme/widget.git`, a local path and an empty string return null
+- [x] `src/main/remote-url.test.ts` created
+- [x] Gate passes: `npm test`
+- [x] Test count: 1098 + 15 = **1113** (the plan projected +10; two wrong-shape-on-right-host rejections were added)
 
 **Tests**: unit
 **Gate**: quick
