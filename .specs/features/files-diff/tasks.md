@@ -1063,13 +1063,61 @@ T20 → T21
 
 **Done when**:
 
-- [ ] Checks: each reference side; the EOL strip and markers, and their disappearance when whitespace is hidden; layout and whitespace surviving a restart; All changes present only in diff modes, not closable, 10 of 40 expanded, totals matching `git diff --shortstat`, at most 12 editors live while scrolling; next change crossing files; Open file; a shell append updating an uncommitted diff within 1 s without jumping; a commit dropping the file from All changes
-- [ ] Unregisters the temp workspace and restores the owner's direction, theme and diff preferences
-- [ ] Numbered pass/fail line per check; all pass against a live dev app
+- [x] Checks: each reference side; the EOL strip and markers, and their disappearance when whitespace is hidden; layout and whitespace surviving a restart; All changes present only in diff modes, not closable, 10 of 40 expanded, totals matching `git diff --shortstat`, at most 12 editors live while scrolling; next change crossing files; Open file; a shell append updating an uncommitted diff within 1 s without jumping; a commit dropping the file from All changes — **18/18**, plus 1/1 in the `--after-restart` mode
+- [x] Unregisters the temp workspace and restores the owner's direction, theme and diff preferences — `--clean` unregisters and deletes; the owner's own config was never in scope, because every run used an isolated `--user-data-dir`
+- [x] Numbered pass/fail line per check; all pass against a live dev app — **18/18 on 2026-09-20**
 
 **Tests**: manual
 **Gate**: manual
 **Commit**: `test(files): drive the diffs end to end`
+**Status**: Complete — F2 is 21 of 21.
+
+> **The smoke found one defect and the owner found three more. That ratio is the
+> lesson of this task.**
+>
+> What the smoke caught: walking the stack with the next-change key **closed the
+> sections behind you**. The expansion state starts null with the open set
+> derived, and the write seeded from an empty array instead of the current
+> value, so the first crossing discarded all ten open sections. Measured
+> `expanded 10 -> 3` where it had to grow; now `10 -> 13`. Fixed in `8367c8d`.
+>
+> **What the smoke passed over, and the owner saw immediately:**
+> 1. **The stack rendered as 44 stripes a few pixels tall.** `.diff-section`
+>    lacked `flex: none` inside a flex column, so every section shrank to share
+>    the scroller's height, editors clipped inside. The smoke had counted 44
+>    sections and 10 live editors and called it a pass — **it counts elements; it
+>    does not judge whether anything is legible.** `b0ab333`.
+> 2. **Native scrollbars stayed light in the dark theme, across the whole app.**
+>    No `color-scheme` was declared, so Chromium drew its own widgets in the
+>    light scheme everywhere — terminal, Monaco, every list. `1196ae6`.
+> 3. **Every Monaco icon was a missing-glyph box**, the `+`/`−` in the diff
+>    gutter among them: the codicon stylesheet was never imported, so the icon
+>    font was absent. It is not importable by subpath — `monaco-editor`'s
+>    `exports` map sends `"./*"` to `"./esm/vs/*.js"` and appends `.js`, so no
+>    stylesheet in the package can be reached through it. The renderer aliases
+>    the file directly. `891668f`.
+>
+> **Three of the four were invisible to any check that counts DOM nodes**, and
+> the third would have shipped broken icons across the entire application, not
+> only here. A CDP smoke proves behaviour reached the DOM. It cannot see that
+> the result is unreadable, mis-themed, or drawn in tofu. **Screens need eyes on
+> them, and this is the evidence.**
+>
+> **Diagnosis note.** The icon was misdiagnosed twice before the owner's
+> screenshot settled it. Both probes searched for the line-ending marker, which
+> was simply not on screen, and found nothing; the screenshot showed boxes on
+> *every* line of a *deleted* file, which has no ending change to mark at all.
+> That contradiction is what pointed at the gutter icons instead. **When a probe
+> finds nothing, suspect the hypothesis before the instrument.**
+>
+> **The line-ending marker is now drawn with borders** rather than set as a
+> pilcrow — changed while chasing the wrong cause, kept because the glyph margin
+> inherits Monaco's font stack rather than the app's, so a lettered marker
+> depends on a font nobody here chose.
+>
+> **The script re-seeds per drive, not only per launch.** The last check commits
+> a file, so a second drive against the same repo finds nothing to commit and
+> dies inside the seed's own git call.
 
 ---
 
