@@ -1,4 +1,6 @@
-import type { CommitPage, CommitRow } from '../shared/files'
+import type { CommitDetail, CommitPage, CommitRow } from '../shared/files'
+import { parseNumstat } from './file-diff'
+import { parseNameStatus } from './file-tree'
 import { git, gitFailureLine } from './git'
 import { parseRemote } from './remote-url'
 
@@ -127,6 +129,47 @@ export function parseLog(stdout: string): LoggedCommit[] {
     })
   }
   return rows
+}
+
+/**
+ * What one commit changed, against its first parent (FCMT-16/17/18).
+ *
+ * The parent is always named explicitly. `git diff-tree -r <merge>` with one
+ * argument prints nothing at all — measured on this repository's merge
+ * `7cef47a`: 0 lines with one argument, 24 with `<merge>^1 <merge>` — so a
+ * merge commit would otherwise open as an empty stack.
+ *
+ * A root commit has no `^1`; `--root` then reports every file as added, which
+ * is what an empty original side means in the tab (FCMT-18).
+ *
+ * Never throws: a sha the repository no longer holds comes back as `error`,
+ * which the tab renders in place of a stale stack (edge case).
+ */
+export async function commitFiles(worktreePath: string, sha: string): Promise<CommitDetail> {
+  let parent: string | null
+  try {
+    const { stdout } = await git(worktreePath, ['rev-parse', '--verify', `${sha}^1`])
+    parent = stdout.trim()
+  } catch {
+    // No first parent. Either a root commit, or a sha that does not resolve at
+    // all — the diff below tells the two apart.
+    parent = null
+  }
+
+  // `--no-commit-id` matters for the root form: with a single revision
+  // `diff-tree` prints the commit's own sha ahead of the records, and with
+  // `-z` that line would run into the first status field.
+  const range = parent === null ? ['--root', sha] : [parent, sha]
+  const base = ['diff-tree', '-r', '-M', '-z', '--no-commit-id', ...range]
+  try {
+    const [names, counts] = await Promise.all([
+      git(worktreePath, [...base, '--name-status']),
+      git(worktreePath, [...base, '--numstat'])
+    ])
+    return { parent, files: parseNameStatus(names.stdout), stats: parseNumstat(counts.stdout) }
+  } catch (err) {
+    return { parent, files: [], stats: [], error: gitFailureLine(err) }
+  }
 }
 
 /** The branch's upstream, e.g. `fork/feature/x`; null when it has none (FCMT-13). */

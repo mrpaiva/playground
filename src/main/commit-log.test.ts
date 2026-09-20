@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { PAGE_SIZE, listCommits, parseLog } from './commit-log'
+import { PAGE_SIZE, commitFiles, listCommits, parseLog } from './commit-log'
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, { cwd, encoding: 'utf8' })
@@ -240,5 +240,85 @@ describe('listCommits paging', () => {
     expect(second.commits.map((c) => c.subject)).not.toContain('landed between pages')
 
     git(repo, 'reset', '--hard', 'HEAD~1')
+  })
+})
+
+describe('commitFiles', () => {
+  let root: string
+  let repo: string
+
+  beforeEach(() => {
+    root = realpathSync.native(mkdtempSync(join(tmpdir(), 'wtm-cf-')))
+    repo = initRepo(root)
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('reports a merge commit changes against its first parent', async () => {
+    // FCMT-17. `git diff-tree -r <merge>` with one argument prints nothing, so
+    // without the explicit parent this tab would open empty for every merge.
+    git(repo, 'checkout', '-b', 'other')
+    writeFileSync(join(repo, 'brought-in.txt'), 'from the other branch\n', 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'other adds a file')
+    git(repo, 'checkout', 'main')
+    writeFileSync(join(repo, 'mine.txt'), 'mine\n', 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'mine')
+    git(repo, 'merge', '--no-ff', '-m', 'merge other', 'other')
+    const sha = git(repo, 'rev-parse', 'HEAD').trim()
+
+    const detail = await commitFiles(repo, sha)
+
+    expect(detail.error).toBeUndefined()
+    expect(detail.parent).not.toBeNull()
+    expect(detail.files).toEqual([{ path: 'brought-in.txt', status: 'added' }])
+    expect(detail.stats).toEqual([{ path: 'brought-in.txt', added: 1, removed: 0 }])
+  })
+
+  it('reports a root commit as parentless with every file added', async () => {
+    // FCMT-18: no parent means no original side to read, so the tab shows the
+    // whole file as added.
+    const sha = git(repo, 'rev-list', '--max-parents=0', 'HEAD').trim()
+
+    const detail = await commitFiles(repo, sha)
+
+    expect(detail.parent).toBeNull()
+    expect(detail.files).toEqual([{ path: 'a.txt', status: 'added' }])
+    expect(detail.error).toBeUndefined()
+  })
+
+  it('carries the old path of a rename', async () => {
+    git(repo, 'mv', 'a.txt', 'b.txt')
+    git(repo, 'commit', '-m', 'rename a to b')
+    const sha = git(repo, 'rev-parse', 'HEAD').trim()
+
+    const detail = await commitFiles(repo, sha)
+
+    expect(detail.files).toEqual([{ path: 'b.txt', status: 'renamed', oldPath: 'a.txt' }])
+  })
+
+  it('returns git error line for a commit the repository does not hold', async () => {
+    // The edge case an aggressive `gc` produces: the tab shows git's line
+    // rather than a stale stack.
+    const detail = await commitFiles(repo, 'f'.repeat(40))
+
+    expect(detail.error).toBeTruthy()
+    expect(detail.files).toEqual([])
+    expect(detail.stats).toEqual([])
+  })
+
+  it('counts both sides of an edited file', async () => {
+    writeFileSync(join(repo, 'a.txt'), 'one changed\ntwo added\n', 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'edit a')
+    const sha = git(repo, 'rev-parse', 'HEAD').trim()
+
+    const detail = await commitFiles(repo, sha)
+
+    expect(detail.files).toEqual([{ path: 'a.txt', status: 'modified' }])
+    expect(detail.stats).toEqual([{ path: 'a.txt', added: 2, removed: 1 }])
   })
 })

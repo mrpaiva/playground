@@ -183,7 +183,7 @@ T15 → T16
 
 ---
 
-### T5: List what one commit changed
+### T5: List what one commit changed ✅
 
 **What**: Add `commitFiles(worktreePath, sha)` to `commit-log.ts` — parent from `<sha>^1`, then `git diff-tree -r -M -z --name-status` and `--numstat` between parent and commit, or `--root` for a root commit.
 **Where**: `src/main/commit-log.ts`
@@ -195,12 +195,12 @@ T15 → T16
 
 **Done when**:
 
-- [ ] **A merge commit returns its changes against the first parent — not an empty list** (the design measured `diff-tree` returning 0 lines without `^1`)
-- [ ] A root commit returns `parent: null` and every file as added
-- [ ] A rename is returned with its `oldPath`
-- [ ] A sha that does not exist returns `error` and never throws
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 921 + 5 = **926**
+- [x] **A merge commit returns its changes against the first parent — not an empty list** (the design measured `diff-tree` returning 0 lines without `^1`)
+- [x] A root commit returns `parent: null` and every file as added
+- [x] A rename is returned with its `oldPath`
+- [x] A sha that does not exist returns `error` and never throws
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 1141 + 5 = **1146**
 
 **Tests**: unit
 **Gate**: full
