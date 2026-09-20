@@ -56,6 +56,23 @@ export function parseRemote(url: string): RemoteRef | null {
   return null
 }
 
+/**
+ * A commit's page on its provider (FCMT-24/28). Always `https://`, whatever
+ * scheme the remote used, and every segment re-encoded, so a project named
+ * `My Project` survives the round trip. The three Azure DevOps remote forms
+ * converge here on the one address that works for all of them.
+ */
+export function commitUrl(ref: RemoteRef, sha: string): string {
+  const part = (value: string): string => encodeURIComponent(value)
+  if (ref.provider === 'github') {
+    return `https://github.com/${part(ref.owner)}/${part(ref.repo)}/commit/${part(sha)}`
+  }
+  return (
+    `https://dev.azure.com/${part(ref.org)}/${part(ref.project)}` +
+    `/_git/${part(ref.repo)}/commit/${part(sha)}`
+  )
+}
+
 /** The host and the decoded path segments, from either URL shape; null if neither fits. */
 function locate(url: string): { host: string; segments: string[] } | null {
   const trimmed = url.trim()

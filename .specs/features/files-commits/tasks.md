@@ -131,7 +131,7 @@ T15 → T16
 
 ---
 
-### T3: Build a commit's page URL
+### T3: Build a commit's page URL ✅
 
 **What**: Add the pure `commitUrl(ref, sha)` to `remote-url.ts`.
 **Where**: `src/main/remote-url.ts`
@@ -143,12 +143,12 @@ T15 → T16
 
 **Done when**:
 
-- [ ] GitHub → `https://github.com/acme/widget/commit/<sha>`
-- [ ] Azure DevOps (all three input forms) → `https://dev.azure.com/acme/platform/_git/widget/commit/<sha>`
-- [ ] `My Project` re-encodes as `My%20Project`
-- [ ] Every output starts with `https://`, asserted over the whole T2 table
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 908 + 4 = **912**
+- [x] GitHub → `https://github.com/acme/widget/commit/<sha>`
+- [x] Azure DevOps (all three input forms) → `https://dev.azure.com/acme/platform/_git/widget/commit/<sha>`
+- [x] `My Project` re-encodes as `My%20Project`
+- [x] Every output starts with `https://`, asserted over the whole T2 table
+- [x] Gate passes: `npm test`
+- [x] Test count: 1113 + 13 = **1126**
 
 **Tests**: unit
 **Gate**: quick
