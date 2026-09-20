@@ -522,15 +522,35 @@ T20 → T21
 
 **Done when**:
 
-- [ ] A close request for All changes returns the tabs unchanged
-- [ ] Closing the only other tab focuses All changes
-- [ ] Every pre-existing `tabsAfterClose` test passes unedited
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 881 + 2 = **883**
+- [x] A close request for All changes returns the tabs unchanged — `files-view.test.ts:98`, and `:102` for the same request while another tab holds the focus
+- [x] Closing the only other tab focuses All changes — `:106`
+- [x] Every pre-existing `tabsAfterClose` test passes unedited — the diff is 18 insertions, 0 deletions
+- [x] Gate passes: `npm test`
+- [x] Test count: 1078 + 2 = **1080** (written 883 + 192 = 1075; +3 inherited, +2 from T9)
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(renderer): keep the all changes tab open`
+**Status**: ✅ Complete
+
+> **One guard line, and the signature is untouched.** `tabsAfterClose` already
+> took opaque strings, so F2's change is that they are now tab keys rather than
+> paths — the only new rule is that a close request naming `ALL_CHANGES_KEY`
+> returns the list and the focus as they were. `files-view.ts` imports that
+> constant from `diff-view.ts`; there is no cycle, `diff-view` imports nothing
+> from here.
+>
+> **"Closing the only other tab focuses All changes" already held before the
+> change** — `left[closedIndex] ?? left[closedIndex - 1]` lands on it. The test
+> is still worth its line, and it can fail: the obvious other way to make the
+> tab non-closable is to filter it out of the remaining list, and that mutant
+> dies here.
+>
+> Mutation-checked: 4 deliberate breaks, all killed. Never firing the guard and
+> clearing the focus on a refused close both die on `:98`; dropping All changes
+> from what is left dies on `:106`; removing the fallback to the previous tab
+> dies on `:106` **and** on F1's own FXPL-19 test, which is the proof the
+> pre-existing behaviour is still being checked.
 
 ---
 

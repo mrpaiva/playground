@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AppConfig } from '../../../shared/config'
 import type { ChangedPath } from '../../../shared/files'
+import { ALL_CHANGES_KEY } from './diff-view'
 import {
   buildTree,
   fileType,
@@ -89,6 +90,23 @@ describe('tabsAfterClose', () => {
 
   it('keeps the active tab when an inactive one is closed', () => {
     expect(tabsAfterClose(three, 0, 'b.ts')).toEqual({ tabs: ['b.ts', 'c.ts'], active: 'b.ts' })
+  })
+
+  it('refuses to close the All changes tab (FDIF-17)', () => {
+    const strip = [ALL_CHANGES_KEY, 'file:a.ts']
+
+    expect(tabsAfterClose(strip, 0, ALL_CHANGES_KEY)).toEqual({
+      tabs: strip,
+      active: ALL_CHANGES_KEY
+    })
+    expect(tabsAfterClose(strip, 0, 'file:a.ts')).toEqual({ tabs: strip, active: 'file:a.ts' })
+  })
+
+  it('falls back to All changes when the only other tab is closed (FDIF-17)', () => {
+    expect(tabsAfterClose([ALL_CHANGES_KEY, 'file:a.ts'], 1, 'file:a.ts')).toEqual({
+      tabs: [ALL_CHANGES_KEY],
+      active: ALL_CHANGES_KEY
+    })
   })
 })
 
