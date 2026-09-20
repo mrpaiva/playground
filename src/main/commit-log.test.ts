@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { PAGE_SIZE, commitFiles, listCommits, openCommit, parseLog } from './commit-log'
+import type { GitRunner } from './file-diff'
+import { git as runGit } from './git'
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, { cwd, encoding: 'utf8' })
@@ -365,7 +367,28 @@ describe('commitFiles', () => {
     // rather than a stale stack.
     const detail = await commitFiles(repo, 'f'.repeat(40))
 
-    expect(detail.error).toBeTruthy()
+    // Git's own line, not a canned string: the tab shows what git said.
+    expect(detail.error).toContain('fatal')
+    expect(detail.files).toEqual([])
+    expect(detail.stats).toEqual([])
+  })
+
+  it('reports git line when only one of the two reads fails', async () => {
+    // The two reads are separate processes. `commitFiles` is documented as
+    // never throwing, and that must not depend on them failing together:
+    // with the guard weakened to `&&`, a one-sided failure reads the value of
+    // a rejected result and throws.
+    const sha = git(repo, 'rev-parse', 'HEAD').trim()
+    const half: GitRunner = async (cwd, args) => {
+      if (args.includes('--numstat')) {
+        throw Object.assign(new Error('failed'), { stderr: 'fatal: broken numstat' })
+      }
+      return runGit(cwd, args)
+    }
+
+    const detail = await commitFiles(repo, sha, half)
+
+    expect(detail.error).toContain('fatal: broken numstat')
     expect(detail.files).toEqual([])
     expect(detail.stats).toEqual([])
   })

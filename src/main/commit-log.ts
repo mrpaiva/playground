@@ -1,6 +1,6 @@
 import type { CommitDetail, CommitPage, CommitRow, RemoteRef } from '../shared/files'
 import type { LaunchResult } from '../shared/shortcuts'
-import { parseNumstat } from './file-diff'
+import { parseNumstat, type GitRunner } from './file-diff'
 import { parseNameStatus } from './file-tree'
 import { git, gitFailureLine } from './git'
 import { commitUrl, parseRemote } from './remote-url'
@@ -144,12 +144,18 @@ export function parseLog(stdout: string): LoggedCommit[] {
  * is what an empty original side means in the tab (FCMT-18).
  *
  * Never throws: a sha the repository no longer holds comes back as `error`,
- * which the tab renders in place of a stale stack (edge case).
+ * which the tab renders in place of a stale stack (edge case). `run` is
+ * injectable so a test can fail ONE of the two reads — the two are separate
+ * processes, and "never throws" must not rest on them failing together.
  */
-export async function commitFiles(worktreePath: string, sha: string): Promise<CommitDetail> {
+export async function commitFiles(
+  worktreePath: string,
+  sha: string,
+  run: GitRunner = git
+): Promise<CommitDetail> {
   let parent: string | null
   try {
-    const { stdout } = await git(worktreePath, ['rev-parse', '--verify', `${sha}^1`])
+    const { stdout } = await run(worktreePath, ['rev-parse', '--verify', `${sha}^1`])
     parent = stdout.trim()
   } catch {
     // No first parent. Either a root commit, or a sha that does not resolve at
@@ -169,8 +175,8 @@ export async function commitFiles(worktreePath: string, sha: string): Promise<Co
   // teardown, roughly one full-suite run in six. Waiting for both costs nothing
   // and leaves no child behind.
   const [names, counts] = await Promise.allSettled([
-    git(worktreePath, [...base, '--name-status']),
-    git(worktreePath, [...base, '--numstat'])
+    run(worktreePath, [...base, '--name-status']),
+    run(worktreePath, [...base, '--numstat'])
   ])
   if (names.status === 'rejected' || counts.status === 'rejected') {
     const err =
