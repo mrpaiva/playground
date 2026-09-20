@@ -64,12 +64,21 @@
   word-break: break-word;
 }
 
-/* The per-line marker of FDIF-15, in the glyph margin beside the line number. */
+/*
+ * The per-line marker of FDIF-15, in the glyph margin beside the line number.
+ *
+ * Drawn, not lettered. It used to be a pilcrow, which renders as a missing-glyph
+ * box wherever the editor's font lacks one — and the glyph margin inherits
+ * Monaco's font stack, not the app's, so which font answers is out of our hands.
+ * A shape made of borders looks the same everywhere and cannot go missing: a
+ * short stem with a foot, the way an editor draws a line terminator.
+ */
 .diff-viewer-eol-marker::after {
-  content: '¶';
+  content: '';
   display: block;
-  text-align: center;
-  font-size: 11px;
-  line-height: inherit;
-  color: var(--amber);
+  width: 7px;
+  height: 7px;
+  margin: 4px auto 0;
+  border-left: 2px solid var(--amber);
+  border-bottom: 2px solid var(--amber);
 }
