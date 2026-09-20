@@ -270,16 +270,30 @@ T21 → T22 → T23
 
 **Done when**:
 
-- [ ] The argument builders are pure, exported and tested: a file yields `/select,`, a folder does not
-- [ ] The VS Code launch line never contains the path; the path travels only in the environment
-- [ ] **Verified by hand on this machine**: Explorer selects `C:\tmp\a b, c\x.txt` (space and comma); VS Code opens a file named `%PATH%.txt`. If Explorer mis-parses, fall back to opening the parent folder and record it as `SPEC_DEVIATION` here
-- [ ] `openVisualStudio` is unchanged — `.sln` reuse needs no launcher change
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 829 + 4 = **833**
+- [x] The argument builders are pure, exported and tested: a file yields `/select,`, a folder does not
+- [x] The VS Code launch line never contains the path; the path travels only in the environment
+- [x] **Verified by hand on this machine**: Explorer selects `C:\tmp\a b, c\x.txt` (space and comma); VS Code opens a file named `%PATH%.txt`. If Explorer mis-parses, fall back to opening the parent folder and record it as `SPEC_DEVIATION` here
+- [x] `openVisualStudio` is unchanged — `.sln` reuse needs no launcher change
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 829 + 4 = **833** — measured **1015**
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `fix(main): launch explorer and vs code safely on any file`
+**Status**: ✅ Complete
+
+**Hand-check record (2026-09-20, this machine).** No `SPEC_DEVIATION`: FXPL-27 is met, but the
+design's assumed argument shape was wrong and the risk table's concern was real.
+
+| Check | Form | Result |
+| ----- | ---- | ------ |
+| Explorer, folder named `a b, c` | `spawn('explorer.exe', ['/select,<path>'])` — Node quotes the whole argument | **FAIL**: Explorer discards it, opens the default folder, selects nothing |
+| Explorer, same folder | `/select,"<path>"` with `windowsVerbatimArguments` | **PASS**: `Shell.Application` reports `Folder` = `…\a b, c` and `FocusedItem` = `…\a b, c\x.txt` |
+| VS Code, file named `%PATH%.txt` | `code "%PLAYGROUND_TARGET%"` + env | **PASS**: child receives the literal path; through a `.cmd` shim too; real launch exits 0 and VS Code's window title reads `%PATH%.txt - Visual Studio Code` |
+| VS Code, old form | `code "<path>"` interpolated | **FAIL** (contrast): `%PATH%` expands to the whole PATH variable |
+
+The fix therefore quotes the path alone and passes Explorer's command line verbatim. The parent-folder
+fallback was not needed.
 
 ---
 
