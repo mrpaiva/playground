@@ -334,14 +334,21 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] `DEFAULT_CONFIG` is unchanged — absent `files` means full folder and `origin/HEAD` (D4)
-- [ ] An existing `config.json` without the key loads unchanged (existing `config-store` tests stay green unedited)
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **833** (unchanged — schema)
+- [x] `DEFAULT_CONFIG` is unchanged — absent `files` means full folder and `origin/HEAD` (D4)
+- [x] An existing `config.json` without the key loads unchanged (existing `config-store` tests stay green unedited)
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **833** (unchanged — schema) — measured **1015**, unchanged
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(shared): add the files direction to the config`
+**Status**: ✅ Complete
+
+> Note: the direction union held four members here, not five — `'tree' | 'board' |
+> 'agents' | 'workflows'` — so `'files'` makes the **fifth**, not the sixth the spec
+> and FXPL-01 describe. The union is the app's own record; the spec's count is off by
+> one. Nothing else changes: T20 still adds one segment to the TopBar, which today
+> renders four.
 
 ---
 
