@@ -98,6 +98,14 @@ describe('launcherTarget', () => {
     expect(launcherTarget(tab, { path: 'src/lib', at: 50 })).toBe('src/app.ts')
   })
 
+  it('leaves the target on the active file when the folder is not newer (FXPL-26)', () => {
+    // Both stamps come from one `Date.now()` on the same click path, so a tie
+    // is reachable; FXPL-26 hands the folder the target only when it is newer.
+    expect(launcherTarget({ path: 'src/app.ts', at: 100 }, { path: 'src/lib', at: 100 })).toBe(
+      'src/app.ts'
+    )
+  })
+
   it('falls back to whichever exists, and to null when neither does (FXPL-26)', () => {
     expect(launcherTarget({ path: 'src/app.ts', at: 100 }, null)).toBe('src/app.ts')
     expect(launcherTarget(null, { path: 'src/lib', at: 100 })).toBe('src/lib')

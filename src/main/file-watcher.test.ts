@@ -23,6 +23,8 @@ function harness(): {
   handles: FakeHandle[]
   emitted: FilesChanged[]
   delays: number[]
+  /** Every batch delay the watcher cancelled, in order — the timer it killed. */
+  cancelled: number[]
   flush(): void
   handleFor(path: string): FakeHandle
 } {
@@ -42,6 +44,7 @@ function harness(): {
   }
   const emitted: FilesChanged[] = []
   const delays: number[] = []
+  const cancelled: number[] = []
   let pending: (() => void) | null = null
   return {
     watcher: new FileWatcher({
@@ -52,6 +55,7 @@ function harness(): {
           delays.push(ms)
           pending = fn
           return () => {
+            cancelled.push(ms)
             pending = null
           }
         }
@@ -61,6 +65,7 @@ function harness(): {
     handles,
     emitted,
     delays,
+    cancelled,
     flush: () => {
       const fn = pending
       pending = null
@@ -154,5 +159,21 @@ describe('FileWatcher', () => {
     h.flush()
 
     expect(h.emitted).toEqual([])
+  })
+
+  it('cancels the pending batch timer itself, not only its emit (FXPL-23)', async () => {
+    const h = harness()
+    await h.watcher.select(WORKTREE)
+    h.handleFor(WORKTREE).fire('src\\a.ts')
+
+    expect(h.delays).toEqual([BATCH_MS])
+    expect(h.cancelled).toEqual([])
+
+    await h.watcher.select(null)
+
+    // Not merely "nothing is emitted" — a stale timer left alive still runs,
+    // and clears the paths the next selection has batched before the emit
+    // guard turns it away. Deselecting has to kill the timer.
+    expect(h.cancelled).toEqual([BATCH_MS])
   })
 })

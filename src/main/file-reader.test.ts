@@ -54,6 +54,15 @@ describe('readForView', () => {
     expect(content).toEqual({ kind: 'too-large', size })
   })
 
+  it('reads a file of exactly 1 MB as text — the ceiling is "larger than" (FXPL-20)', async () => {
+    const bytes = Buffer.alloc(MAX_VIEW_BYTES, 0x61)
+    writeFileSync(join(root, 'edge.log'), bytes)
+
+    const content = await readForView(root, 'edge.log')
+
+    expect(content).toEqual({ kind: 'text', text: bytes.toString('utf8'), size: MAX_VIEW_BYTES })
+  })
+
   it('reports a file that does not exist as missing', async () => {
     const content = await readForView(root, 'gone.ts')
 
