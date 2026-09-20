@@ -33,12 +33,48 @@ const record = (fields: {
   ].join(FS) + RS
 
 /**
+ * Adds `n` empty commits to `branch` in ONE git process.
+ *
+ * A `git commit` per commit is `n` process spawns: at 150 that was ~35 seconds
+ * and made this the heaviest file in the suite, which is the load the repo's
+ * own vitest config warns about ("real-git suites routinely take 5-15s per test
+ * under parallel load"). `fast-import` takes the whole chain on stdin.
+ *
+ * The commits carry no tree change, so the working copy still matches after the
+ * ref moves; the reset is there to leave the index in no doubt.
+ */
+function addEmptyCommits(repo: string, branch: string, n: number): void {
+  // fast-import rejects a stream whose last command is not terminated.
+  const chr10 = String.fromCharCode(10)
+  const lines: string[] = []
+  for (let i = 1; i <= n; i += 1) {
+    const subject = `c${i}`
+    lines.push(`commit refs/heads/${branch}`)
+    lines.push(`mark :${i}`)
+    lines.push('committer Test <test@test.local> 1700000000 +0000')
+    // The newline `join` puts after the subject is part of the counted data.
+    lines.push(`data ${Buffer.byteLength(subject) + 1}`)
+    lines.push(subject)
+    lines.push(i === 1 ? `from refs/heads/${branch}^0` : `from :${i - 1}`)
+    lines.push('')
+  }
+  lines.push('done')
+  execFileSync('git', ['fast-import', '--done', '--quiet'], {
+    cwd: repo,
+    input: `${lines.join(chr10)}${chr10}`,
+    windowsHide: true
+  })
+  git(repo, 'reset', '--hard', branch)
+}
+
+/**
  * Removes a temp repository, retrying on Windows.
  *
- * A bare clone and a push leave git holding pack files for a moment after the
- * process exits, and a plain `rmSync` then fails EPERM — which vitest reports
- * as the test that happened to run last. Seen once in a full-suite run and not
- * in three others, which is exactly the shape of that race.
+ * The race this guards against was real and is now fixed at its source: a git
+ * child process still holding the directory as its working directory when the
+ * teardown ran (see `commitFiles` and its `allSettled`). The retry stays
+ * because a spawn that outlives its caller is a Windows hazard this repository
+ * has hit before, and 500ms of patience costs a passing run nothing.
  */
 function removeTemp(dir: string): void {
   rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
@@ -210,7 +246,7 @@ describe('listCommits paging', () => {
     root = realpathSync.native(mkdtempSync(join(tmpdir(), 'wtm-cp-')))
     repo = initRepo(root)
     git(repo, 'checkout', '-b', 'feature')
-    for (let i = 1; i <= 150; i += 1) git(repo, 'commit', '--allow-empty', '-m', `c${i}`)
+    addEmptyCommits(repo, 'feature', 150)
   }, 300_000)
 
   afterAll(() => {
@@ -225,6 +261,18 @@ describe('listCommits paging', () => {
     expect(page.commits[99].subject).toBe('c51')
     expect(page.hasMore).toBe(true)
     expect(page.cursor).toBe(page.commits[99].sha)
+  })
+
+  it('says there is no more at exactly a full page (FCMT-08)', async () => {
+    // FCMT-08 says MORE THAN 100, so 100 exactly is the one count that tells
+    // `>` from `>=`. Seeded from the same history: `HEAD~100` as the base puts
+    // precisely PAGE_SIZE commits in range. Without this the suite passed with
+    // the comparison inverted (sensor mutant M5).
+    const page = await listCommits(repo, `HEAD~${PAGE_SIZE}`)
+
+    expect(page.commits).toHaveLength(PAGE_SIZE)
+    expect(page.hasMore).toBe(false)
+    expect(page.cursor).toBeNull()
   })
 
   it('appends the remaining 50 from the cursor and stops', async () => {

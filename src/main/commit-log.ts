@@ -162,14 +162,25 @@ export async function commitFiles(worktreePath: string, sha: string): Promise<Co
   // `-z` that line would run into the first status field.
   const range = parent === null ? ['--root', sha] : [parent, sha]
   const base = ['diff-tree', '-r', '-M', '-z', '--no-commit-id', ...range]
-  try {
-    const [names, counts] = await Promise.all([
-      git(worktreePath, [...base, '--name-status']),
-      git(worktreePath, [...base, '--numstat'])
-    ])
-    return { parent, files: parseNameStatus(names.stdout), stats: parseNumstat(counts.stdout) }
-  } catch (err) {
+  // `allSettled`, not `all`: when the sha does not resolve BOTH reads fail, and
+  // `all` would return on the first rejection while its sibling git process was
+  // still running with this worktree as its working directory. On Windows that
+  // directory then cannot be removed — an intermittent EPERM in the test
+  // teardown, roughly one full-suite run in six. Waiting for both costs nothing
+  // and leaves no child behind.
+  const [names, counts] = await Promise.allSettled([
+    git(worktreePath, [...base, '--name-status']),
+    git(worktreePath, [...base, '--numstat'])
+  ])
+  if (names.status === 'rejected' || counts.status === 'rejected') {
+    const err =
+      names.status === 'rejected' ? names.reason : (counts as PromiseRejectedResult).reason
     return { parent, files: [], stats: [], error: gitFailureLine(err) }
+  }
+  return {
+    parent,
+    files: parseNameStatus(names.value.stdout),
+    stats: parseNumstat(counts.value.stdout)
   }
 }
 
