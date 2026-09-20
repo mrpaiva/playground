@@ -278,7 +278,12 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
       if (!worktreePath) return
       const wt = worktreePath
       const at = Date.now()
-      let isNew = false
+      // Decided from the ref, NOT from inside the updater below: React runs a
+      // setState updater at the next render, so a flag assigned in there is
+      // still false on the line after the call and the read never fires — the
+      // tab opens and sits at "Loading…" forever (caught by the T23 smoke).
+      const known = live.current.here.tabs.find((tab) => tab.path === path)
+      const needsRead = !options.deleted && (!known || known.content === null)
       patchFiles(wt, (s) => {
         const existing = s.tabs.find((tab) => tab.path === path)
         // FXPL-16: an already-open file focuses its tab instead of opening a second one.
@@ -288,7 +293,6 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
             activeTab: path
           }
         }
-        isNew = true
         const tab: FileTab = {
           path,
           content: null,
@@ -298,7 +302,7 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
         }
         return { tabs: [...s.tabs, tab], activeTab: path }
       })
-      if (isNew && !options.deleted) readTab(wt, path)
+      if (needsRead) readTab(wt, path)
     },
     [worktreePath, patchFiles, readTab]
   )
