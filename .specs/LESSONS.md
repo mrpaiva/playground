@@ -138,6 +138,24 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md spec-precision note 3; src/main/git-sync.ts:35; src/main/git-sync.test.ts:337 (git, main-process)
 - last seen: 2026-09-19T18:18:03Z
 
+### L-027 - A rejection fixture must reach the guard it claims to test: a wrong-shape input that is also the wrong length dies on the length check, leaving the real guard unproven.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests/fixtures` · harmful: 0
+- features: files-commits
+- evidence: validation.md M1 (src/main/remote-url.ts:29; src/main/remote-url.test.ts:59) (tests/fixtures)
+- last seen: 2026-09-20T22:58:11Z
+
+### L-028 - When an AC says 'more than N', seed a fixture at exactly N: counts above and below it cannot tell > from >=.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests/boundaries` · harmful: 0
+- features: files-commits
+- evidence: validation.md M5 (src/main/commit-log.ts:82) (tests/boundaries)
+- last seen: 2026-09-20T22:58:11Z
+
+### L-029 - Promise.all returns on the first rejection and abandons its siblings still running; on Windows a child holding a temp directory as its cwd then blocks its removal, so use allSettled when every branch spawns a process.
+- signal: `gate_fail` · recurrence: 1 feature(s) · scope: `src/main/**, windows` · harmful: 0
+- features: files-commits
+- evidence: src/main/commit-log.ts commitFiles; intermittent EPERM in commit-log.test.ts teardown (src/main/**, windows)
+- last seen: 2026-09-20T22:58:11Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
