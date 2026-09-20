@@ -892,14 +892,59 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] Checks: the segment; empty state; ignored folder absent; lazy expansion; each mode's list; base picker default; mode restored after a worktree switch; a tab opening, updating within 1 s after a shell append **without losing scroll**, and turning into the missing placeholder after deletion; binary and 2 MB placeholders; `.sln` opening no tab; the counter landing in uncommitted mode
-- [ ] VS 2026 / UAC and Explorer selection are recorded as hand checks, not scripted — the smoke never raises a UAC prompt
-- [ ] Unregisters the temp workspace and restores the owner's direction and theme
-- [ ] Numbered pass/fail line per check; all pass against a live dev app
+- [x] Checks: the segment; empty state; ignored folder absent; lazy expansion; each mode's list; base picker default; mode restored after a worktree switch; a tab opening, updating within 1 s after a shell append **without losing scroll**, and turning into the missing placeholder after deletion; binary and 2 MB placeholders; `.sln` opening no tab; the counter landing in uncommitted mode — **16/16**, the `.sln` check inverted by AD-033 (a single click now opens a tab)
+- [x] VS 2026 / UAC and Explorer selection are recorded as hand checks, not scripted — the smoke never raises a UAC prompt
+- [x] Unregisters the temp workspace and restores the owner's direction and theme — `--clean` unregisters and deletes; the owner's own config was never touched, because the run used an isolated `--user-data-dir`
+- [x] Numbered pass/fail line per check; all pass against a live dev app — **16/16 on 2026-09-20**
 
 **Tests**: manual
 **Gate**: manual
 **Commit**: `test(files): drive the files direction end to end`
+**Status**: Complete — Phase 5 closed, all 23 tasks done.
+
+> **Hand checks, all passed by the owner on 2026-09-20:**
+> A. Double-click `App.sln` opens VS 2026 elevated on that file, with no tab (FXPL-28), and an
+> immediate second double-click opens no second instance (FXPL-28b).
+> B. The File Explorer launcher opens the file's folder with the file selected, never the file
+> itself (FXPL-27).
+>
+> **The smoke found one real defect**, which is what it exists for. `openFile` decided whether a
+> tab was new **inside** the `setState` updater and read the flag on the next line; React runs an
+> updater at the following render, so the flag was still false and `readTab` never fired. Every tab
+> opened and stayed at "Loading…" for the session, while `files:read` answered correctly the whole
+> time. Fixed in `83dac6f`. No unit test could have caught it: the hook is hand-verified per the
+> Test Coverage Matrix, and the bug lives in the gap between a state update and its side effect.
+>
+> **It also produced AD-033.** The owner double-clicked a `.sln` in UAT and got two elevated Visual
+> Studio instances. FXPL-28 became a double click, with FXPL-28a and FXPL-28b added.
+>
+> **`scripts/smoke-time.mjs`, named in Reuses, does not exist on this branch** — it lives on
+> `develop` via `feature/time-tracking`. The harness is modelled on `scripts/smoke-config.mjs`
+> instead, which is here and has the same shape.
+>
+> **The script is one file with three modes**, not the single drive the task describes: the app
+> loads its config once at startup, so a workspace registered afterwards is overwritten by the next
+> patch. `--seed` writes it with the app down, the bare drive runs the checks, `--clean` removes it.
+> That is the constraint `seed-smoke-remove.mjs` already documents.
+>
+> **Four things that made a check lie before it told the truth**, all worth knowing before writing
+> the next smoke:
+> - Monaco scrolls **virtually**: the DOM element's `scrollTop` stays 0 and assigning to it does
+>   nothing. Drive and read the offset through the editor API.
+> - Monaco renders spaces as **NBSP** in a view line's `textContent`, so a literal comparison
+>   against written text never matches. Normalise first.
+> - The smoke needs a **freshly launched app**. Tabs and expanded folders live in memory for the
+>   session (FXPL-18), so a second run starts with a worktree selected and folders already open —
+>   the empty state never shows and an expand click folds. The lens persists in the config
+>   (FXPL-13), which is why the drive resets it to Folder explicitly.
+> - Windows keeps a directory open briefly after the watching process exits, so `rmSync` fails
+>   `EPERM` partway and leaves a half-deleted tree. The seed retries; and the app must be fully
+>   stopped first, including the Electron child processes, which do not carry `--user-data-dir` on
+>   their command line.
+>
+> **One observation outside this feature:** a bare repository inside a workspace folder makes the
+> scanner report "no git repos in this folder" and drop the valid repo beside it. The seed keeps its
+> `origin` outside the workspace. `repo-scanner.ts` is not this feature's to change.
 
 ---
 
