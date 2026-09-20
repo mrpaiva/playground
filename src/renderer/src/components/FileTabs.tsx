@@ -45,8 +45,6 @@ function changeShortcut(event: KeyboardEvent): 'next' | 'previous' | null {
 
 /** What an open file shows: the file, or why it cannot be shown. */
 function FileBody({ tab }: { tab: FileTab }): JSX.Element {
-  // FXPL-15: listed as deleted by a diff mode, so nothing was ever read.
-  if (tab.deleted) return <FilePlaceholder path={tab.path} kind="deleted" />
   if (!tab.content) return <div className="file-tabs-note">Loading…</div>
   const content = tab.content
   switch (content.kind) {

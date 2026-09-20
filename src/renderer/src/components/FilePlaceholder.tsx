@@ -9,7 +9,7 @@ import './FilePlaceholder.css'
  * tab was open (FXPL-24); `deleted` is a file opened from a diff mode that the
  * branch deleted, so there was never anything to show (FXPL-15).
  */
-export type PlaceholderKind = 'binary' | 'too-large' | 'missing' | 'deleted'
+export type PlaceholderKind = 'binary' | 'too-large' | 'missing'
 
 interface FilePlaceholderProps {
   /** Path relative to the worktree root — its last segment is the name. */
@@ -34,11 +34,6 @@ const WORDING: Record<PlaceholderKind, { icon: IconName; headline: string; detai
     icon: 'alert',
     headline: 'This file no longer exists',
     detail: 'It was deleted or renamed on disk while this tab was open.'
-  },
-  deleted: {
-    icon: 'alert',
-    headline: 'This file was deleted',
-    detail: 'The branch deletes it, so there is no content to show.'
   }
 }
 

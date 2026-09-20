@@ -22,8 +22,6 @@ export interface FileTab {
   path: string
   /** What main answered for it; null while the read is in flight. */
   content: FileContent | null
-  /** Listed as deleted by a diff mode: there was never content to read (FXPL-15). */
-  deleted: boolean
   /** When the user last picked this tab — the recency FXPL-26 compares. */
   at: number
 }
@@ -47,11 +45,6 @@ export interface DiffTab {
 /** Everything the tab strip can hold: the open tabs, plus the fixed one. */
 export type ViewTab = FileTab | DiffTab
 export type StripTab = ViewTab | { kind: 'all-changes' }
-
-/** How a file was opened, so the tab knows what to show (FXPL-15). */
-export interface OpenOptions {
-  deleted?: boolean
-}
 
 /**
  * Everything one worktree shows, kept in memory for as long as the app runs
@@ -134,7 +127,7 @@ export interface UseFiles {
   toggleFolder: (path: string) => void
   /** Records the folder the user just clicked, for the launchers (FXPL-26). */
   selectFolder: (path: string) => void
-  openFile: (path: string, options?: OpenOptions) => void
+  openFile: (path: string) => void
   /** Opens the diff of one listed change, in the mode it was listed by (FDIF-01/02). */
   openDiff: (changed: ChangedPath, mode: DiffMode) => void
   /** Which two sides a file of the current mode compares, for the stack. */
@@ -338,11 +331,8 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
       if (event.worktreePath !== current.worktreePath) return
       const wt = current.worktreePath
       const tabs = current.here.tabs
-      // A tab opened as deleted has no file to re-read; everything else the
-      // batch touches is re-read in place (FXPL-21/24).
-      const open = tabs
-        .filter((tab): tab is FileTab => tab.kind === 'file' && !tab.deleted)
-        .map((tab) => tab.path)
+      // Every open file tab the batch touches is re-read in place (FXPL-21/24).
+      const open = tabs.filter((tab): tab is FileTab => tab.kind === 'file').map((tab) => tab.path)
       for (const path of tabsAffected(open, event.paths)) readTab(wt, path)
 
       const diffs = tabs.filter((tab): tab is DiffTab => tab.kind === 'diff')
@@ -414,7 +404,7 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
   )
 
   const openFile = useCallback(
-    (path: string, options: OpenOptions = {}): void => {
+    (path: string): void => {
       if (!worktreePath) return
       const wt = worktreePath
       const at = Date.now()
@@ -426,7 +416,7 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
       const known = live.current.here.tabs.find(
         (tab): tab is FileTab => tab.kind === 'file' && tab.path === path
       )
-      const needsRead = !options.deleted && (!known || known.content === null)
+      const needsRead = !known || known.content === null
       patchFiles(wt, (s) => {
         const existing = s.tabs.find((tab) => tabKeyOf(tab) === key)
         // FXPL-16: an already-open file focuses its tab instead of opening a second one.
@@ -436,13 +426,7 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
             activeTab: key
           }
         }
-        const tab: FileTab = {
-          kind: 'file',
-          path,
-          content: null,
-          deleted: options.deleted ?? false,
-          at
-        }
+        const tab: FileTab = { kind: 'file', path, content: null, at }
         return { tabs: [...s.tabs, tab], activeTab: key }
       })
       if (needsRead) readTab(wt, path)
