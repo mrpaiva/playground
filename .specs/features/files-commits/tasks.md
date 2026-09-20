@@ -423,7 +423,7 @@ renders only the body, including the base prompt, the way `SinceBase` does.
 
 ---
 
-### T14: Add Commits to the mode selector
+### T14: Add Commits to the mode selector ✅
 
 **What**: Add the fourth option to `FileTree`'s mode selector and render `CommitList` in its place while it is active.
 **Where**: `src/renderer/src/components/FileTree.tsx`
@@ -435,10 +435,11 @@ renders only the body, including the base prompt, the way `SinceBase` does.
 
 **Done when**:
 
-- [ ] The four options fit the left column at its minimum width
-- [ ] The mode is persisted per worktree like the other three
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **945** (unchanged)
+- [x] The four options fit the left column at its minimum width — the row wraps (`flex-wrap`) rather
+      than letting "Diff to origin" break mid-label; at 200px it is two rows of two
+- [x] The mode is persisted per worktree like the other three (`filesStateFor` / `ui.files`, untouched)
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1168** (unchanged)
 
 **Tests**: none
 **Gate**: full
