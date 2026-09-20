@@ -1,4 +1,4 @@
-import type { ChangedPath, DiffRef, DiffRequest, FilesMode } from '../../../shared/files'
+import type { ChangedPath, DiffRef, DiffRequest, FileStat, FilesMode } from '../../../shared/files'
 
 /**
  * The two lenses that open a diff (FDIF-01/02). Full-folder mode is not one of
@@ -90,4 +90,42 @@ export function tabsWithAllChanges<T extends TabRef>(
 ): (T | TabRef)[] {
   const rest = tabs.filter((tab) => tab.kind !== 'all-changes')
   return mode === 'full' ? rest : [ALL_CHANGES_TAB, ...rest]
+}
+
+/** How many sections of the All changes stack start expanded (FDIF-21). */
+const INITIALLY_EXPANDED = 10
+
+/**
+ * Which sections of the All changes stack start open (FDIF-21): the first ten
+ * of the mode's list, in the tree order the stack renders them in, and all of
+ * them when the list is shorter. Ten expanded sections is already more than a
+ * screen, and a branch of two hundred files must not mount two hundred editors.
+ */
+export function initialExpansion(files: readonly FileStat[]): Set<string> {
+  return new Set(files.slice(0, INITIALLY_EXPANDED).map((file) => file.path))
+}
+
+/**
+ * The stack header (FDIF-20): how many files changed, and how many lines the
+ * whole set added and removed.
+ *
+ * A file git reported no line counts for is counted as a file and nothing else.
+ * That is every file with `binary` set, which also covers an untracked file too
+ * large to read: `diffStats` marks it the same way, because there are no lines
+ * anyone is willing to count, and a `+0 −0` in the header would be a claim
+ * about content nobody looked at.
+ */
+export function totals(files: readonly FileStat[]): {
+  files: number
+  added: number
+  removed: number
+} {
+  let added = 0
+  let removed = 0
+  for (const file of files) {
+    if (file.binary) continue
+    added += file.added
+    removed += file.removed
+  }
+  return { files: files.length, added, removed }
 }

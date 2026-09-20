@@ -566,14 +566,32 @@ T20 → T21
 
 **Done when**:
 
-- [ ] 40 files → the first 10 in tree order expanded; 7 files → all 7
-- [ ] `totals` sums added and removed and counts files; binary files count as files with no lines
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 883 + 4 = **887**
+- [x] 40 files → the first 10 in tree order expanded — `diff-view.test.ts:158`, `:163`; 7 files → all 7 — `:167`, with `:168` on the boundary FDIF-21 words as "more than 10"
+- [x] `totals` sums added and removed and counts files — `:176`; binary files count as files with no lines — `:184`
+- [x] Gate passes: `npm test`
+- [x] Test count: 1080 + 4 = **1084** (written 887 + 192 = 1079; +3 inherited, +2 from T9)
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(renderer): decide the all changes opening state and totals`
+**Status**: ✅ Complete
+
+> **Tree order is the caller's job, not this function's.** `initialExpansion`
+> takes the first ten of the list it is given; T16 renders the stack from the
+> same list, in the same order, so "the first 10 in tree order" holds as long as
+> the list arrives in tree order. Nothing here sorts.
+>
+> **`binary` is skipped, and the code says why without calling it binary
+> content.** `diffStats` sets the flag for anything git reported no line counts
+> for, which includes an untracked file over the 1 MB cap (T4's note). The
+> header counts it as a file and drops its numbers, because there is no content
+> anyone looked at. The test pins that with a stat carrying non-zero counts
+> beside the flag, so the rule is checked rather than a coincidence of zeroes.
+>
+> Mutation-checked: 8 deliberate breaks, all killed. Expanding twelve, expanding
+> everything, expanding the last ten and padding a short list all die on
+> FDIF-21; swapping added and removed, counting one file, dropping a
+> no-line file from the file count and summing its numbers all die on FDIF-20.
 
 ---
 

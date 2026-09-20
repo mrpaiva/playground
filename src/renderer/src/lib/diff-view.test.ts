@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { ChangedPath } from '../../../shared/files'
+import type { ChangedPath, FileStat } from '../../../shared/files'
 import {
   ALL_CHANGES_KEY,
   diffRequestFor,
+  initialExpansion,
   isSameTab,
   tabKeyOf,
   tabsWithAllChanges,
+  totals,
   type DiffMode,
   type TabRef
 } from './diff-view'
@@ -138,5 +140,47 @@ describe('tabsWithAllChanges', () => {
     const tabs = tabsWithAllChanges([diffTab('since-base', 'src/app.ts')], 'uncommitted')
 
     expect(tabs.map(tabKeyOf)).toEqual([ALL_CHANGES_KEY, 'diff:since-base:src/app.ts'])
+  })
+})
+
+function stat(path: string, added = 0, removed = 0, binary = false): FileStat {
+  return { path, added, removed, binary }
+}
+
+function stats(count: number): FileStat[] {
+  return Array.from({ length: count }, (_, i) => stat(`src/file-${i + 1}.ts`, 1, 1))
+}
+
+describe('initialExpansion', () => {
+  it('starts only the first 10 of 40 sections expanded, in tree order (FDIF-21)', () => {
+    const expanded = initialExpansion(stats(40))
+
+    expect([...expanded]).toEqual(
+      stats(40)
+        .slice(0, 10)
+        .map((file) => file.path)
+    )
+    expect(expanded.has('src/file-11.ts')).toBe(false)
+  })
+
+  it('starts every section expanded when the list is 10 or shorter (FDIF-21)', () => {
+    expect(initialExpansion(stats(7)).size).toBe(7)
+    expect(initialExpansion(stats(10)).size).toBe(10)
+  })
+})
+
+describe('totals', () => {
+  it('counts the files and sums the added and removed lines (FDIF-20)', () => {
+    const changed = [stat('src/app.ts', 12, 3), stat('src/lib/util.ts', 4, 40)]
+
+    expect(totals(changed)).toEqual({ files: 2, added: 16, removed: 43 })
+  })
+
+  it('counts a file with no countable lines as a file and nothing else (FDIF-20)', () => {
+    // `binary` is set whenever git reported no line counts, so the numbers
+    // beside it describe nothing and must not reach the header.
+    const changed = [stat('src/app.ts', 12, 3), stat('assets/logo.png', 99, 99, true)]
+
+    expect(totals(changed)).toEqual({ files: 2, added: 12, removed: 3 })
   })
 })
