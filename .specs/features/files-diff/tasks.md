@@ -711,16 +711,48 @@ T20 → T21
 
 **Done when**:
 
-- [ ] Both sides reject typing
-- [ ] Ignoring whitespace hides trim-whitespace changes **and** the EOL strip and markers
-- [ ] The shortcut is VS Code's binding as recorded in T1; if it differs from the design's `Alt+F5`, the task records the deviation
-- [ ] Models are disposed with the editor — no leak across tab switches
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **898** (unchanged)
+- [x] Both sides reject typing — `readOnly`, `originalEditable: false` and `domReadOnly` on the construction options; provable only by typing and comparing (F1 T23), so the evidence is T21's smoke
+- [x] Ignoring whitespace hides trim-whitespace changes **and** the EOL strip and markers — `ignoreTrimWhitespace` through `updateOptions`, and the strip and the decoration set are both gated on the same flag
+- [x] The shortcut is VS Code's binding as recorded in T1 — `Alt+F5` / `Shift+Alt+F5`, which is what the design already targeted; **bound in T19** beside the buttons, see the note below
+- [x] Models are disposed with the editor — no leak across tab switches; both models are created here and disposed in the same cleanup that disposes the editor
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1098** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): render a read-only diff`
+**Status**: ✅ Complete
+
+> **`followAppTheme` moved out of `CodeViewer` and up into `FilesView`**, which
+> is the change the inheritance table asks for and the reason it is in this
+> task rather than T20: from here on a diff editor can be mounted beside a file
+> tab, and the All changes stack mounts up to twelve at once. Monaco's theme is
+> a single global, so one observer for the whole direction replaces one per
+> viewer. Two files outside T14's `Where` were touched for it, `FilesView.tsx`
+> (the call) and `CodeViewer.tsx` (its removal), and nothing else in either.
+>
+> **The keyboard binding lives in T19, not here, and lint is why.** The check
+> is one pure function over a `KeyboardEvent`; exporting it from a component
+> file trips `react-refresh/only-export-components` (an eslint **error**), and
+> a copy in each component would put VS Code's binding in two places to drift
+> apart. The tab strip is the one surface that knows whether a diff tab or the
+> All changes stack is active, so it owns the single `keydown` listener and
+> routes it to the active `DiffHandle` — which is also where FDIF-25's other
+> half, the buttons, lives. `DiffViewer` exposes `goToDiff` through
+> `onHandle` and binds nothing itself.
+>
+> **A side nobody can read is answered here, once, for both callers.** Binary,
+> too-large and missing render F1's `FilePlaceholder` and no editor is created
+> at all (FDIF-06), which is also FDIF-23 for a stack section whose file is
+> binary. An `error` side renders git's line.
+>
+> **`absent` is the empty string.** FDIF-03/04 want an empty side, and an empty
+> model beside a full one is exactly the diff of an addition or a deletion.
+>
+> **The "identical" state keeps the editor mounted and hides it in CSS.** The
+> editor is what reports `onDidUpdateDiff`, so unmounting it would make the
+> state unrecoverable when content arrives; `display: none` on the editor box
+> leaves `automaticLayout` to resize it when it comes back.
 
 ---
 

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
+import { followAppTheme } from '../lib/monaco-setup'
 import type { PaneBounds } from '../lib/pane-layout'
 import type { UseFiles } from '../lib/use-files'
 import { FileTabs } from './FileTabs'
@@ -41,6 +42,13 @@ export function FilesView({
 }: FilesViewProps): JSX.Element {
   const [width, setWidth] = useState(TREE_DEFAULT_WIDTH)
   const [collapsed, setCollapsed] = useState(false)
+
+  // Monaco's theme is global, not per editor, so it is followed once for the
+  // whole direction. F1 set it inside `CodeViewer` because a file tab was the
+  // only thing that mounted an editor; F2's All changes stack mounts up to
+  // twelve at a time, and a dozen observers writing the same global is a dozen
+  // too many.
+  useEffect(() => followAppTheme(), [])
 
   if (pathMissing) {
     return (

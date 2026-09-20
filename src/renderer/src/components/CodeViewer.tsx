@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { JSX } from 'react'
-import { followAppTheme, languageForPath, monaco } from '../lib/monaco-setup'
+import { languageForPath, monaco } from '../lib/monaco-setup'
 import './CodeViewer.css'
 
 interface CodeViewerProps {
@@ -24,11 +24,6 @@ interface CodeViewerProps {
  * (FXPL-21). `setValue` resets the scroll, so the offset is captured and
  * restored around the edit — cheap, and it survives a content replacement of
  * any size.
- *
- * `followAppTheme` is called here because a tab is the only thing that mounts a
- * Monaco editor today. Monaco's theme is global, so once F2 mounts a diff
- * editor beside a file tab this should move up to the direction root (T19/T21)
- * rather than run one observer per viewer.
  */
 export function CodeViewer({ path, text, fromDiffMode }: CodeViewerProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -36,7 +31,6 @@ export function CodeViewer({ path, text, fromDiffMode }: CodeViewerProps): JSX.E
 
   useEffect(() => {
     if (!containerRef.current) return
-    const stopTheme = followAppTheme()
     const editor = monaco.editor.create(containerRef.current, {
       value: text,
       language: languageForPath(path),
@@ -51,7 +45,6 @@ export function CodeViewer({ path, text, fromDiffMode }: CodeViewerProps): JSX.E
     editorRef.current = editor
     return () => {
       editorRef.current = null
-      stopTheme()
       // Disposing the editor does not dispose its model (FXPL-18: tabs come and
       // go while the app runs, so a leak here accumulates for the session).
       editor.getModel()?.dispose()
