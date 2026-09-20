@@ -205,7 +205,14 @@ export function AllChangesTab({
         return
       }
       // FDIF-26: crossing into another file opens its section on the way in.
-      if (target.expand) setExpanded((prev) => new Set(prev ?? []).add(target.path))
+      //
+      // Seeded from `openRef`, not from an empty set: until the reader folds or
+      // opens something, `expanded` is still null and the open sections are the
+      // derived initial ten. Starting from `[]` here threw all ten away on the
+      // first crossing — walking the stack closed it behind you (T21 check 16).
+      if (target.expand) {
+        setExpanded((prev) => new Set(prev ?? openRef.current).add(target.path))
+      }
       const next = handles.current.get(target.path)
       const at = next ? landing(next, direction) : null
       if (next && at !== null) {
