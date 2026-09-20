@@ -389,14 +389,23 @@ T20 → T21
 
 **Done when**:
 
-- [ ] Absent means side by side and whitespace shown; `DEFAULT_CONFIG` unchanged
-- [ ] Existing `config-store` tests pass unedited
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **870** (unchanged)
+- [x] Absent means side by side and whitespace shown; `DEFAULT_CONFIG` unchanged
+- [x] Existing `config-store` tests pass unedited
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1065** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(shared): persist the diff layout and whitespace choice`
+**Status**: ✅ Complete
+
+> Both fields are optional and `DEFAULT_CONFIG` is untouched, so absent keeps
+> meaning side by side with whitespace shown — the `ui.*` convention F1 uses for
+> `sidebarWidth` and `collapsedWorkspaces`. Nothing reads them yet: the fallback
+> is applied where it is consumed, in T14's editor options and T17's toggles.
+> No test, per the matrix's "config schema → build gate only"; the whole check
+> is `typecheck`, and the 1065 unchanged proves no `config-store` test was
+> touched.
 
 ---
 
