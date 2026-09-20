@@ -768,14 +768,35 @@ T20 → T21
 
 **Done when**:
 
-- [ ] Unmounting a section does not move the scroll position
-- [ ] An estimated height from `added + removed` is used until the first measurement
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **898** (unchanged)
+- [x] Unmounting a section does not move the scroll position — the last height an editor measured is held in the section and rendered as a spacer the moment the editor goes; by hand, so T21's smoke is the evidence
+- [x] An estimated height from `added + removed` is used until the first measurement — `estimatedHeight(stat)`, the changed lines plus the fold's context, floored at 6 lines and capped at 60
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1098** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): render one section of the change stack`
+**Status**: ✅ Complete
+
+> **The section reads its own sides, and only once it holds an editor.** The
+> hook holds a diff tab's content; a stack of two hundred sections cannot, and
+> mounting an editor is the same moment as wanting the content. So
+> `files:diff-sides` is invoked from here, keyed on the `DiffRequest` the stack
+> memoizes — a re-read of the mode's list produces new requests and re-reads
+> every mounted section with them, which is FDIF-31 and FDIF-32 arriving
+> without a second mechanism. `refreshToken` covers the refresh that leaves the
+> list byte-identical.
+>
+> **A binary section never asks main anything.** `FileStat.binary` already says
+> there are no lines to count (T4), so the placeholder goes up with no round
+> trip and no editor (FDIF-23). That flag also covers an untracked file over
+> the 1 MB cap, which is why the placeholder says "binary" for a file that is
+> not: `diffStats` cannot tell them apart, and `DiffViewer` names the real kind
+> whenever a diff tab reads the same file.
+>
+> **`onElement` hands the box up rather than the observer down.** T16 owns one
+> `IntersectionObserver` for the whole stack; a section per observer would be
+> two hundred of them.
 
 ---
 
