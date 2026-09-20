@@ -26,6 +26,12 @@ function harness(): {
   /** Every batch delay the watcher cancelled, in order — the timer it killed. */
   cancelled: number[]
   flush(): void
+  /**
+   * Runs the last scheduled batch even after it was cancelled — the one race
+   * `cancelBatch` cannot win, where the event loop already handed the callback
+   * over before `select` changed. Only the emit-time guard stops it there.
+   */
+  runStale(): void
   handleFor(path: string): FakeHandle
 } {
   const handles: FakeHandle[] = []
@@ -46,6 +52,9 @@ function harness(): {
   const delays: number[] = []
   const cancelled: number[] = []
   let pending: (() => void) | null = null
+  // Kept past a cancel on purpose: `pending` models what is still cancellable,
+  // this models the callback already in flight.
+  let lastScheduled: (() => void) | null = null
   return {
     watcher: new FileWatcher({
       watch,
@@ -54,6 +63,7 @@ function harness(): {
         after: (ms, fn) => {
           delays.push(ms)
           pending = fn
+          lastScheduled = fn
           return () => {
             cancelled.push(ms)
             pending = null
@@ -71,6 +81,7 @@ function harness(): {
       pending = null
       fn?.()
     },
+    runStale: () => lastScheduled?.(),
     handleFor: (path) => handles.filter((h) => h.path === path && !h.closed).at(-1) as FakeHandle
   }
 }
@@ -157,6 +168,22 @@ describe('FileWatcher', () => {
 
     await h.watcher.select(null)
     h.flush()
+
+    expect(h.emitted).toEqual([])
+  })
+
+  it('drops a batch that fires after the selection moved on (FXPL-23)', async () => {
+    const h = harness()
+    await h.watcher.select(WORKTREE)
+    h.handleFor(WORKTREE).fire('src\\a.ts')
+
+    await h.watcher.select(null)
+
+    // The timer was cancelled, but a callback the event loop had already handed
+    // over cannot be: it still runs, builds the event and clears the paths. The
+    // emit-time guard is the only thing between it and a change reported for a
+    // worktree nobody is looking at.
+    h.runStale()
 
     expect(h.emitted).toEqual([])
   })

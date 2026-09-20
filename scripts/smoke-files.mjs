@@ -377,27 +377,87 @@ async function drive() {
     `tabs: ${tabs.join(', ')}`
   )
 
-  // 9. The viewer renders it read-only and highlighted (FXPL-17).
+  // 9. The viewer highlights the file's language (FXPL-17).
+  //
+  // Distinct token classes, not a token count: Monaco emits mtk1 for plaintext
+  // too, so `tokens > 0` stays green even if the language were resolved wrong.
+  // More than one class means a grammar actually tokenised the text.
   const viewer = await evaluate(
     ws,
     `(() => {
        const ed = document.querySelector('.code-viewer-editor .monaco-editor')
        if (!ed) return null
-       // domReadOnly makes Monaco render its input surface as a readonly
-       // ime-text-area instead of an editable inputarea, so the DOM property
-       // is a real discriminator. Asking the DOM whether the editor exists,
-       // as an earlier version of this check did, is a tautology.
-       const input = ed.querySelector('textarea')
+       const spans = [...document.querySelectorAll('.code-viewer-editor .view-line span[class*="mtk"]')]
        return {
-         tokens: document.querySelectorAll('.code-viewer-editor .view-line span[class*="mtk"]').length,
-         readOnly: input ? input.readOnly : null
+         tokens: spans.length,
+         classes: new Set(spans.map((s) => s.className)).size
        }
      })()`
   )
   check(
-    'The viewer renders the file highlighted and read-only (FXPL-17)',
-    viewer !== null && viewer.tokens > 0 && viewer.readOnly === true,
+    'The viewer highlights the file by language (FXPL-17)',
+    viewer !== null && viewer.tokens > 0 && viewer.classes > 1,
     JSON.stringify(viewer)
+  )
+
+  // 9b. The viewer is read-only (FXPL-17), proved by typing into it.
+  //
+  // NOT by a DOM property. Two earlier versions of this check were tautologies:
+  // the first asked whether the editor existed, the second read
+  // `textarea.readOnly` — but Monaco's NativeEditContext sets `readonly` on its
+  // ime-text-area unconditionally at construction, whatever the editor's
+  // readOnly option says, and Electron 39 takes that branch. Only the behaviour
+  // discriminates: focus the text and type, and the content must not change.
+  const textBeforeTyping = await evaluate(
+    ws,
+    `[...document.querySelectorAll('.code-viewer-editor .view-line')]
+       .map((l) => l.textContent.replace(/\u00a0/g, ' '))
+       .join('\\n')`
+  )
+  const firstLineBox = await evaluate(
+    ws,
+    `(() => {
+       const el = document.querySelector('.code-viewer-editor .view-line')
+       if (!el) return null
+       const r = el.getBoundingClientRect()
+       return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }
+     })()`
+  )
+  if (firstLineBox) {
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await send(ws, 'Input.dispatchMouseEvent', {
+        type,
+        x: firstLineBox.x,
+        y: firstLineBox.y,
+        button: 'left',
+        clickCount: 1
+      })
+    }
+    await sleep(400)
+    for (const ch of 'ZZZ') {
+      await send(ws, 'Input.dispatchKeyEvent', { type: 'keyDown', text: ch, key: ch })
+      await send(ws, 'Input.dispatchKeyEvent', { type: 'keyUp', key: ch })
+      await sleep(80)
+    }
+  }
+  await sleep(800)
+  const textAfterTyping = await evaluate(
+    ws,
+    `[...document.querySelectorAll('.code-viewer-editor .view-line')]
+       .map((l) => l.textContent.replace(/\u00a0/g, ' '))
+       .join('\\n')`
+  )
+  check(
+    'Typing into the viewer changes nothing — it is read-only (FXPL-17)',
+    typeof textBeforeTyping === 'string' &&
+      textBeforeTyping.trim().length > 0 &&
+      textAfterTyping === textBeforeTyping &&
+      !textAfterTyping.includes('ZZZ'),
+    !textBeforeTyping || !textBeforeTyping.trim()
+      ? 'NO CONTENT TO TYPE INTO — the check proves nothing'
+      : textAfterTyping === textBeforeTyping
+        ? `content unchanged (${textBeforeTyping.trim().length} chars)`
+        : 'CONTENT CHANGED — not read-only'
   )
 
   // 10. A disk change updates the tab within 1 s (FXPL-21), on a short file so

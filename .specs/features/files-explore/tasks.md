@@ -944,6 +944,46 @@ fallback was not needed.
 > **Bookkeeping corrected:** `spec.md` said "32 total" and had no traceability row for FXPL-28a/28b;
 > `status-bar/spec.md` still had STBR-31 describing the popover this feature deleted, beside the
 > already-struck STBR-30 and 32.
+>
+> **Verifier round 2: FAIL again, and on the same requirement (2026-09-20).** Coverage moved from
+> 16 exact / 12 partial / 6 absent to **23 / 10 / 1**, and all three round-1 mutants stayed dead —
+> but FXPL-17's read-only check was **still a tautology, the second one in a row**.
+>
+> Round 2's argument, verified in Monaco's own source rather than taken on trust: the
+> `readonly` attribute on the `.ime-text-area` does **not** come from `domReadOnly`.
+> `nativeEditContext.js:64` sets it unconditionally at construction, and Electron 39 takes the
+> `NativeEditContext` branch. The very `.ime-text-area` class sighted while writing the check was
+> the evidence that branch was live — read as confirmation instead of as the warning it was. The
+> `readOnly`-conditional attribute belongs to the other implementation, whose textarea is classed
+> `inputarea` and which this app never uses.
+>
+> **The lesson, written plainly because it cost two rounds:** a DOM property is evidence only after
+> checking which code path in the library actually sets it. "The option makes the DOM look like
+> this" needs the library's source, not its docs — and not a plausible-sounding comment.
+>
+> **Closed in round 3, 25/25 checks:**
+> - FXPL-17's read-only half is now **behavioural**: click into the text, send keystrokes through
+>   CDP, assert the content is byte-identical and never contains what was typed. **Falsified before
+>   being trusted** — with `readOnly: false, domReadOnly: false` in `CodeViewer.tsx` the check
+>   reports "CONTENT CHANGED — not read-only" and fails. Neither earlier version could fail at all.
+> - That falsification exposed a *third* hole in the same check: when the viewer failed to mount,
+>   "empty equals empty" read as "unchanged" and passed. It now requires non-empty content first
+>   and says so ("content unchanged (24 chars)").
+> - FXPL-17's highlighting half asserts **distinct** `mtk` classes (4), not a token count. Monaco
+>   emits `mtk1` for plaintext too, so `tokens > 0` would have stayed green with the language
+>   resolved wrong. The T13 spike had already used distinct classes; the smoke did not inherit it.
+> - **Mutant M6 killed.** Removing the emit-time `if (this.selected !== worktreePath) return` left
+>   all 8 watcher tests green: round 2's cancellation test had *displaced* the coverage of the
+>   guard beside it, because the timer is now cancelled and the emit path is never reached. The new
+>   case runs a callback the event loop had already handed over — the one race `cancelBatch` cannot
+>   win — and is verified to go red under the mutation. **Second lesson: adding a stronger test
+>   beside an older one can silently take over why the older one passes. Re-mutate what the OLD
+>   test named, not only the new one.**
+>
+> Carried and not claimed fixed, all Minor: FXPL-09's picker `onChange` is never driven, FXPL-11's
+> second half, FXPL-12's status pill, FXPL-16's focus-instead-of-duplicate branch, FXPL-30's toast
+> wiring, FXPL-32 as implied by FXPL-31's single write, and FXPL-18's "not restored after a
+> restart", which is structural — `FilesState` is `{mode, base?}`, so no tab *can* persist.
 
 > **Hand checks, all passed by the owner on 2026-09-20:**
 > A. Double-click `App.sln` opens VS 2026 elevated on that file, with no tab (FXPL-28), and an
