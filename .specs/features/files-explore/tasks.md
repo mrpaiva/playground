@@ -242,18 +242,19 @@ T21 → T22 → T23
 
 **Done when**:
 
-- [ ] Three events inside 250 ms emit **one** `FilesChanged` carrying all three paths
-- [ ] An event under the root's `.git` entry is dropped
-- [ ] An `index` or `HEAD` event sets `gitStateChanged: true` — the linked-worktree case the design verified
-- [ ] `select(other)` closes every handle of the previous worktree before opening new ones; `select(null)` closes all
-- [ ] A pending batch for a deselected worktree is discarded, not emitted
-- [ ] `src/main/file-watcher.test.ts` created, using fakes only — no real `fs.watch`
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 822 + 7 = **829**
+- [x] Three events inside 250 ms emit **one** `FilesChanged` carrying all three paths
+- [x] An event under the root's `.git` entry is dropped
+- [x] An `index` or `HEAD` event sets `gitStateChanged: true` — the linked-worktree case the design verified
+- [x] `select(other)` closes every handle of the previous worktree before opening new ones; `select(null)` closes all
+- [x] A pending batch for a deselected worktree is discarded, not emitted
+- [x] `src/main/file-watcher.test.ts` created, using fakes only — no real `fs.watch`
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 822 + 7 = **829** — measured **1011**
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(main): watch the selected worktree for file changes`
+**Status**: ✅ Complete
 
 ---
 
