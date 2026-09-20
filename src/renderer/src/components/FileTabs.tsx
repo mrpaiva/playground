@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import type { ShortcutTool } from '../../../shared/shortcuts'
 import { api } from '../lib/api'
+import { commitTabTitle } from '../lib/commit-view'
 import { tabKeyOf } from '../lib/diff-view'
 import type { DiffTab, FileTab, StripTab, UseFiles } from '../lib/use-files'
 import { AllChangesTab } from './AllChangesTab'
@@ -157,8 +158,20 @@ export function FileTabs({ worktreePath, files, onToast }: FileTabsProps): JSX.E
         {files.strip.map((tab) => {
           const key = tabKeyOf(tab)
           const fixed = tab.kind === 'all-changes'
-          const label = fixed ? 'All changes' : (tab.path.split('/').pop() ?? tab.path)
-          const title = fixed ? 'Every change in this mode' : tab.path
+          // FCMT-04: a commit tab is named by its sha and subject, and carries
+          // its whole message as the tooltip.
+          const label =
+            tab.kind === 'all-changes'
+              ? 'All changes'
+              : tab.kind === 'commit'
+                ? commitTabTitle(tab.row)
+                : (tab.path.split('/').pop() ?? tab.path)
+          const title =
+            tab.kind === 'all-changes'
+              ? 'Every change in this mode'
+              : tab.kind === 'commit'
+                ? tab.row.message
+                : tab.path
           return (
             <div
               key={key}
@@ -289,7 +302,7 @@ export function FileTabs({ worktreePath, files, onToast }: FileTabsProps): JSX.E
           />
         ) : active.kind === 'diff' ? (
           <DiffBody key={tabKeyOf(active)} files={files} tab={active} onHandle={onHandle} />
-        ) : (
+        ) : active.kind === 'commit' ? null : (
           <FileBody key={tabKeyOf(active)} tab={active} />
         )}
       </div>

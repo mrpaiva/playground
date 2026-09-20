@@ -155,7 +155,11 @@ function App(): JSX.Element {
     worktreePath: selected?.worktree.path ?? null,
     active: ui?.direction === 'files',
     ui: ui ?? DEFAULT_CONFIG.ui,
-    onPersist: update
+    onPersist: update,
+    // The status bar re-reads the tree when a push, sync, publish or fetch
+    // succeeds, and that is the only in-app signal those give. The Commits
+    // list follows it to recompute its not-pushed markers (FCMT-32).
+    treeRevision: tree
   })
 
   /**

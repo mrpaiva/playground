@@ -337,7 +337,7 @@ to `Exclude<FilesMode, 'full' | 'commits'>` surfaced two call sites — `use-fil
 
 ---
 
-### T11: Hold commits state in the Files hook
+### T11: Hold commits state in the Files hook ✅
 
 **What**: Extend `use-files.ts` — commit pages per worktree in memory, commit tabs, and refresh on `gitStateChanged`, a base change, a change of the tree's identity (the status bar refreshes it after an operation) and window focus debounced by 5 s.
 **Where**: `src/renderer/src/lib/use-files.ts`
@@ -349,11 +349,22 @@ to `Exclude<FilesMode, 'full' | 'commits'>` surfaced two call sites — `use-fil
 
 **Done when**:
 
-- [ ] A refresh replaces the list but never closes or changes an open commit tab (FCMT-31)
-- [ ] A push from the status bar clears the not-pushed markers without a commit happening (FCMT-32)
-- [ ] Focus refresh is ignored within 5 s of the previous one
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **945** (unchanged)
+- [x] A refresh replaces the list but never closes or changes an open commit tab (FCMT-31) — refreshes write `commits`; tabs live in `tabs` and carry their own `row`
+- [x] A push from the status bar clears the not-pushed markers without a commit happening (FCMT-32) — `treeRevision` from App, compared against its last value
+- [x] Focus refresh is ignored within 5 s of the previous one (`FOCUS_REFRESH_MS`)
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1168** (unchanged)
+
+**Deviations**, both forced and both recorded here rather than left silent:
+
+1. `App.tsx` and `FileTabs.tsx` were touched although the task names only `use-files.ts`.
+   `treeRevision` has no source but App, and widening `ViewTab` broke two `tab.path` reads in the tab
+   strip. The strip now labels a commit tab with `commitTabTitle` (its final label) and renders no body
+   for one; T13 and T15 finish it. The mode is not in the selector until T14, so the empty body is
+   unreachable meanwhile.
+2. The uncommitted row's count comes from `worktrees:changes`, not from the tree snapshot the design
+   named. The snapshot only moves when the app re-reads the tree, so a file saved while the list is
+   open would leave the row's number stale; one call per refresh buys a count that follows the disk.
 
 **Tests**: none
 **Gate**: full
