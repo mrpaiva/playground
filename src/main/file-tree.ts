@@ -155,8 +155,10 @@ export async function listBases(worktreePath: string): Promise<BaseOptions> {
       .filter(([, symref]) => !symref)
       .map(([name]) => name.trim())
     return { defaultBase, branches }
-  } catch {
-    return { defaultBase, branches: [] }
+  } catch (err) {
+    // AD-032: a failure is not an empty list. The picker shows this line instead
+    // of inviting a choice it cannot offer.
+    return { defaultBase, branches: [], error: gitFailureLine(err) }
   }
 }
 

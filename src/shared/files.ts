@@ -46,6 +46,12 @@ export interface BaseOptions {
   /** `origin/HEAD`'s target, e.g. 'origin/main'; null when the repo has none (FXPL-11). */
   defaultBase: string | null
   branches: string[]
+  /**
+   * Git's first error line when the branches could not be listed at all
+   * (AD-032). Distinct from an empty `branches`: nothing to list invites the
+   * FXPL-11 prompt, a failure cannot, because there is nothing to choose from.
+   */
+  error?: string
 }
 
 /**

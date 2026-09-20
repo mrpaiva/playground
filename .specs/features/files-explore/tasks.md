@@ -658,16 +658,41 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] Expanding a folder triggers exactly one `files:list-dir` for that folder
-- [ ] With no default base, the diff mode lists nothing and the picker asks for a base
-- [ ] Clicking a `.sln` opens VS 2026 and opens no tab
-- [ ] A git error renders in place of the tree
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **850** (unchanged)
+- [x] Expanding a folder triggers exactly one `files:list-dir` for that folder — `toggleFolder` lists only a folder that is neither open nor already cached, and the mode effect reads `expanded` through a ref so opening one never re-lists the rest; counted by the T23 smoke
+- [x] With no default base, the diff mode lists nothing and the picker asks for a base — `SinceBase` renders the prompt while `base` is undefined, and the picker's empty option says so
+- [x] Clicking a `.sln` opens VS 2026 and opens no tab — `isSolution` routes the click to `shortcuts:launch` and returns before `openFile`
+- [x] A git error renders in place of the tree — `FolderRows` renders `listing.error`, `SinceBase` renders the bases and merge-base failures
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **850** (unchanged) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): render the file tree and its modes`
+**Status**: Complete
+
+> **AD-032 cost three files, not one.** The decision lives in the picker, but the
+> data has to reach it: `BaseOptions` gained `error?`, `listBases` stopped
+> discarding the `for-each-ref` failure it already caught, and only then could the
+> picker render git's line in a disabled control with the FXPL-11 prompt
+> suppressed. No existing test asserted the old failure shape, so nothing broke;
+> the `symbolic-ref` failure stays silent, because a repository with no
+> `origin/HEAD` is FXPL-11's case, not a failure.
+>
+> **A base deleted after it was picked lands on the FXPL-11 prompt** (spec §Edge
+> Cases) with git's line under it. The prompt alone would hide why the list
+> emptied; the line alone would not say what to do.
+>
+> **A solution the branch deleted is not launched.** `isSolution` routes a click
+> to VS 2026, but a diff-mode row with status `deleted` has no file on disk, so
+> the status is checked first and the tab shows the deleted placeholder (FXPL-15).
+>
+> **`absoluteIn` is exported from `use-files.ts`** so the solution launch builds
+> the same absolute, back-slashed path the launcher row uses. Two spellings of one
+> join is how `/select,` breaks.
+>
+> **The diff modes' folders are drawn open.** `buildTree` invents them from a flat
+> list, so there is nothing to fetch on expand; lazy expansion is the full-folder
+> mode's rule (FXPL-05). Clicking one still records the launcher target (FXPL-26).
 
 ---
 

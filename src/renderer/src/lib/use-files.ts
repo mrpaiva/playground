@@ -366,7 +366,7 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
  * separators. `explorer.exe /select,` parses its own command line and wants
  * backslashes, and every tool the launcher row offers is Windows-only.
  */
-function absoluteIn(worktreePath: string, relPath: string): string {
+export function absoluteIn(worktreePath: string, relPath: string): string {
   const root = worktreePath.replace(/[\\/]+$/, '')
   const rest = relPath.replace(/\//g, '\\')
   return rest === '' ? root : `${root}\\${rest}`
