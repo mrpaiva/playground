@@ -375,7 +375,17 @@ async function drive() {
 
   // 3. Both sides refuse typing (FDIF-07) — provable only by typing, since
   // Monaco's NativeEditContext marks its textarea readonly whatever the option
-  // says. Type into each inner editor and compare the rendered text.
+  // says.
+  //
+  // On a file with content on BOTH sides. An earlier version ran this on the
+  // deleted file left open above, whose modified side is empty, and took both
+  // click targets from the first two `.view-line`s in document order — which
+  // both belong to the ORIGINAL pane, because Monaco renders it first. It
+  // typed twice into one side and claimed to have covered two.
+  await evaluate(ws, clickByText('.file-tree-name', 'src'))
+  await sleep(900)
+  await evaluate(ws, clickByText('.file-tree-name', 'modified.ts'))
+  await sleep(1800)
   const readSides = `
     (() => {
       const panes = [...document.querySelectorAll('.diff-viewer .monaco-diff-editor .editor')]
@@ -387,10 +397,13 @@ async function drive() {
     })()
   `
   const beforeTyping = await evaluate(ws, readSides)
+  // One target per pane, taken from the pane itself rather than from a flat
+  // list, so each side is genuinely clicked into.
   const paneBoxes = await evaluate(
     ws,
-    `[...document.querySelectorAll('.diff-viewer .monaco-diff-editor .editor .view-line')]
-       .slice(0, 2)
+    `[...document.querySelectorAll('.diff-viewer .monaco-diff-editor .editor')]
+       .map((pane) => pane.querySelector('.view-line'))
+       .filter(Boolean)
        .map((el) => {
          const r = el.getBoundingClientRect()
          return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }
@@ -415,16 +428,21 @@ async function drive() {
   }
   await sleep(800)
   const afterTyping = await evaluate(ws, readSides)
+  const bothSidesHadText =
+    Array.isArray(beforeTyping) &&
+    beforeTyping.length >= 2 &&
+    beforeTyping.slice(0, 2).every((s) => s.trim().length > 0)
   check(
     'Neither side of a diff accepts typing (FDIF-07)',
-    Array.isArray(beforeTyping) &&
-      beforeTyping.length >= 2 &&
-      beforeTyping.some((s) => s.trim().length > 0) &&
+    bothSidesHadText &&
+      paneBoxes.length >= 2 &&
       JSON.stringify(afterTyping) === JSON.stringify(beforeTyping) &&
       !JSON.stringify(afterTyping).includes('QQQ'),
-    beforeTyping.length < 2
-      ? 'FEWER THAN TWO PANES — the check proves nothing'
-      : `${beforeTyping.length} panes, content unchanged`
+    !bothSidesHadText
+      ? 'A SIDE WAS EMPTY — typing into it proves nothing'
+      : paneBoxes.length < 2
+        ? 'FEWER THAN TWO CLICK TARGETS — only one side was typed into'
+        : `${paneBoxes.length} panes typed into, both unchanged`
   )
 
   // 4. The line-ending strip, in the uncommitted mode where crlf.txt differs
@@ -505,10 +523,31 @@ async function drive() {
     stack.sections >= 40 && stack.expanded === 10,
     JSON.stringify(stack)
   )
+  // Expand past the cap before asserting it. With only the initial ten open,
+  // live editors can never reach twelve and the check cannot fail — it would
+  // be asserting a ceiling nothing ever approaches.
+  const expandedForCap = await evaluate(
+    ws,
+    `(() => {
+       const heads = [...document.querySelectorAll('.diff-section-header')]
+         .filter((h) => h.getAttribute('aria-expanded') === 'false')
+       heads.slice(0, 20).forEach((h) => h.click())
+       return heads.slice(0, 20).length
+     })()`
+  )
+  await sleep(2600)
+  const afterExpand = await evaluate(
+    ws,
+    `({
+       expanded: [...document.querySelectorAll('.diff-section-header')]
+         .filter((e) => e.getAttribute('aria-expanded') === 'true').length,
+       editors: ${liveDiffEditors}
+     })`
+  )
   check(
-    'No more than twelve diff editors are live at once (FDIF-22)',
-    stack.editors <= 12,
-    `${stack.editors} live`
+    'No more than twelve diff editors are live, with thirty sections open (FDIF-22)',
+    afterExpand.expanded > 12 && afterExpand.editors <= 12,
+    `${expandedForCap} more expanded -> ${afterExpand.expanded} open, ${afterExpand.editors} live`
   )
 
   // Totals against git itself.
@@ -559,15 +598,22 @@ async function drive() {
   )
 
   // 9. Next change crosses into the following file, expanding it (FDIF-26).
+  //
+  // Fold everything but the first two first. The cap check above left thirty
+  // sections open, and a walk through already-open sections cannot show that
+  // crossing opens one — the assertion below would have nothing to observe.
   await evaluate(
     ws,
     `(() => {
+       const heads = [...document.querySelectorAll('.diff-section-header')]
+         .filter((h) => h.getAttribute('aria-expanded') === 'true')
+       heads.slice(2).forEach((h) => h.click())
        const el = document.querySelector('.all-changes-stack')
        if (el) el.scrollTop = 0
-       return true
+       return heads.slice(2).length
      })()`
   )
-  await sleep(900)
+  await sleep(2000)
   const navBefore = await evaluate(
     ws,
     `({
@@ -604,34 +650,70 @@ async function drive() {
        scrollTop: Math.round(document.querySelector('.all-changes-stack')?.scrollTop ?? -1)
      })`
   )
+  // Both, not either: a walk that only moved the scroll never left the file it
+  // started in, which is the half of FDIF-26 this check exists for.
   check(
     'Next change walks into following files, expanding them (FDIF-26)',
-    navAfter.expanded > navBefore.expanded || navAfter.scrollTop > navBefore.scrollTop,
+    navAfter.expanded > navBefore.expanded && navAfter.scrollTop > navBefore.scrollTop,
     `expanded ${navBefore.expanded} -> ${navAfter.expanded}, scrollTop ${navBefore.scrollTop} -> ${navAfter.scrollTop}`
   )
 
-  // 10. A disk change refreshes an uncommitted diff within 1 s (FDIF-29).
+  // 10. The launcher row acts on the diff's own file (FDIF-29).
+  //
+  // Presence and target only: activating a launcher opens an external tool,
+  // and the smoke must never do that. The hand checks cover the launch itself.
   await evaluate(ws, clickByText('.file-tree-mode', 'Uncommitted'))
   await sleep(1600)
   await evaluate(ws, clickByText('.file-tree-name', 'src'))
   await sleep(800)
   await evaluate(ws, clickByText('.file-tree-name', 'modified.ts'))
   await sleep(1800)
+  const launcherRow = await evaluate(
+    ws,
+    `[...document.querySelectorAll('.file-tabs-launcher')].map((e) => e.textContent.trim())`
+  )
+  check(
+    'A diff tab carries the launcher row (FDIF-29)',
+    launcherRow.length === 4 &&
+      ['Explorer', 'VS Code', '2022', '2026'].every((n) => launcherRow.some((l) => l.includes(n))),
+    `launchers: ${launcherRow.join(', ') || 'none'}`
+  )
+
+  // 11. A disk change refreshes an open diff, in place (FDIF-30).
+  //
+  // Timed, not assumed: the requirement is "within 1 s", so the poll reports
+  // how long it actually took and fails past the budget. An earlier version
+  // slept 1500 ms and then asserted the content had arrived, which measures
+  // nothing about the second it names. The scroll offset is asserted too,
+  // because "in place" is the other half of the requirement.
+  const renderedDiff = `[...document.querySelectorAll('.diff-viewer .view-line')]
+       .map((l) => l.textContent.replace(/\\u00a0/g, ' '))
+       .join('\\n')`
+  const diffScrollTop = `Math.round(
+       document.querySelector('.diff-viewer .monaco-scrollable-element')?.scrollTop ?? -1
+     )`
+  const scrollBefore = await evaluate(ws, diffScrollTop)
+  const startedAt = Date.now()
   writeFileSync(
     join(REPO, 'src', 'modified.ts'),
     'export const value = 99\nexport const other = 2\n// appended by the smoke\n'
   )
-  await sleep(1500)
-  const refreshed = await evaluate(
-    ws,
-    `[...document.querySelectorAll('.diff-viewer .view-line')]
-       .map((l) => l.textContent.replace(/\\u00a0/g, ' '))
-       .join('\\n')`
-  )
+  let arrivedAfter = null
+  for (let i = 0; i < 40; i++) {
+    const text = await evaluate(ws, renderedDiff)
+    if (typeof text === 'string' && text.includes('appended by the smoke')) {
+      arrivedAfter = Date.now() - startedAt
+      break
+    }
+    await sleep(50)
+  }
+  const scrollAfter = await evaluate(ws, diffScrollTop)
   check(
-    'An open uncommitted diff refreshes within 1 s of a disk change (FDIF-29)',
-    typeof refreshed === 'string' && refreshed.includes('appended by the smoke'),
-    refreshed.includes('appended by the smoke') ? 'appended line visible' : 'not visible'
+    'An open diff refreshes within 1 s of a disk change, in place (FDIF-30)',
+    arrivedAfter !== null && arrivedAfter <= 1000 && scrollAfter === scrollBefore,
+    arrivedAfter === null
+      ? 'never arrived within 2 s'
+      : `arrived in ${arrivedAfter} ms, scrollTop ${scrollBefore} -> ${scrollAfter}`
   )
 
   // 11. Committing drops the file from All changes (FDIF-31).

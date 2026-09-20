@@ -1118,6 +1118,52 @@ T20 → T21
 > **The script re-seeds per drive, not only per launch.** The last check commits
 > a file, so a second drive against the same repo finds nothing to commit and
 > dies inside the seed's own git call.
+>
+> **Verifier: PASS on the first round (2026-09-20)** — the first of this epic.
+> 25/32 ACs matched their spec-defined outcome, 6 structural or spike-measured,
+> sensor **7/7 killed**, `validate_state.py files-diff` exit 0. The +56 test
+> delta reconciled exactly, so nothing was deleted or weakened.
+>
+> **It still found five checks in this very script that claimed more than they
+> proved**, and all five were fixed before the push. The smoke is now **19
+> checks**:
+> 1. *"Neither side accepts typing"* **typed into one side twice.** Both click
+>    targets came from `.slice(0, 2)` over `.view-line`s in document order, and
+>    Monaco renders the original pane first — and the tab open at that point was
+>    a deleted file, whose modified side is empty. It now takes one target per
+>    `.editor` pane, on a file with content on both sides, and fails loudly if a
+>    side was empty or only one target was found.
+> 2. **The twelve-editor cap was asserted where nothing approached it** — only
+>    ten sections were ever open, so `<= 12` could not fail. The check now
+>    expands twenty more first and asserts against **thirty open sections**;
+>    measured nine live.
+> 3. **The cross-file walk accepted `||` a scroll**, so a move inside one file
+>    would have passed the check that exists for crossing out of it. Now both,
+>    and the stack is **folded first** — walking through already-open sections
+>    cannot show that crossing opens one.
+> 4. **The refresh check slept 1500 ms and then asserted "within 1 s"**, which
+>    measures nothing about the second it names, was labelled with the wrong
+>    requirement, and never checked the scroll the requirement asks to keep. It
+>    now polls and **reports the elapsed time** (664 ms measured), and asserts
+>    the offset is unchanged.
+> 5. **The launcher row on a diff tab had no evidence at all** — no test, no
+>    check, not in the hand checks. It has one now.
+>
+> Four of the five are the same failure as F1's: **a check whose label is a
+> claim the code behind it cannot support.** Writing one is easy and reading one
+> back is not, which is the argument for the sensor and for an independent
+> verifier in the first place.
+>
+> **Open and not blocking**, carried for F3: `inTreeOrder` is pure and untested
+> and is the sole evidence for the stack's ordering; `files-explore/spec.md:218`
+> still marks a struck-through criterion `Pending`; `design.md` § Data Models
+> still declares the replaced `FileStat { binary: boolean }`; `FilePlaceholder`
+> still documents the removed `deleted` kind.
+>
+> **What no check here can settle**, stated because T21 is the proof: side by
+> side against inline as the daily default, the strip wording on a genuinely
+> mixed file, whether the folded "N unchanged lines" strip reads as clickable,
+> and whether the binary and oversized placeholders sit legibly in the stack.
 
 ---
 
