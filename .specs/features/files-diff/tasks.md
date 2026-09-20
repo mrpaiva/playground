@@ -655,16 +655,47 @@ T20 → T21
 
 **Done when**:
 
-- [ ] `CRLF → LF on 12 lines`; singular `on 1 line`
-- [ ] `mountPlan` mounts visible sections not yet mounted, never exceeds the cap, and unmounts the sections farthest from the visible range first
-- [ ] A collapsed section is never in the mount set, even when visible
-- [ ] Gate passes: `npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: 892 + 6 = **898**
+- [x] `CRLF → LF on 12 lines` — `diff-view.test.ts:259`; singular `on 1 line` — `:263`
+- [x] `mountPlan` mounts visible sections not yet mounted — `:288`; never exceeds the cap — `:296` and `:297`; and unmounts the sections farthest from the visible range first — `:303`
+- [x] A collapsed section is never in the mount set, even when visible — `:309`, with `:310` on the section that closes while mounted
+- [x] Gate passes: `npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: 1090 + 8 = **1098** (written 898 + 192 = 1090; +3 inherited, +5 new tests)
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(renderer): word the line ending strip and plan section mounts`
+**Status**: ✅ Complete — Phase 3 done
+
+> **The mixed-endings case drops the arrow instead of inventing one.**
+> `eolFrom` and `eolTo` are dominant terminators, so they can be equal while
+> lines are reported: T3's 715 LF + 4 CRLF file flipped to pure LF is `LF → LF`
+> with four lines changed, and the design's example text assumes a whole-file
+> flip. The rule that shipped: the arrow only when both endings are known **and
+> different**, otherwise `Line endings changed on N lines`. Same count, no claim
+> about a direction the data does not carry, and the per-line markers still say
+> where. T14 renders whichever string comes back and hides it under FDIF-16.
+> An empty line list returns `null` — there is nothing to say and no strip.
+>
+> **`mountPlan` takes the whole stack, which the design's signature did not.**
+> Written as `mountPlan(visible, mounted, cap)` it cannot answer either of its
+> own criteria: "never mount a collapsed section" needs to know which sections
+> are expanded, and "farthest from the visible range" needs their positions. It
+> ships as `mountPlan(sections, visible, mounted, cap = 12)` with
+> `StackSection = { path, expanded }`. Consequences for T16: it passes the list
+> it already renders, in render order, and a path missing from it — a file just
+> committed away — is unmounted, which is FDIF-31 handled for free.
+>
+> Distance is measured in stack positions from the visible range, zero inside
+> it, and ties are broken by position, so the trim is deterministic. The cap is
+> a parameter with the D1 default of 12; `:296` proves the default rather than
+> the argument.
+>
+> Mutation-checked: 10 deliberate breaks, all killed. Arrowing a non-difference,
+> reversing the arrow, both wrong plurals and a strip with nothing to say die on
+> the four `eolStripText` tests; mounting a collapsed section and keeping the
+> editor of one that closes die on `:309`/`:310`; dropping the cap, dropping the
+> nearest first and not measuring distance at all die on `:296` and `:303`.
 
 ---
 

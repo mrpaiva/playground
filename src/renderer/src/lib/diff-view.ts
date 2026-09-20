@@ -1,4 +1,11 @@
-import type { ChangedPath, DiffRef, DiffRequest, FileStat, FilesMode } from '../../../shared/files'
+import type {
+  ChangedPath,
+  DiffRef,
+  DiffRequest,
+  Eol,
+  FileStat,
+  FilesMode
+} from '../../../shared/files'
 
 /**
  * The two lenses that open a diff (FDIF-01/02). Full-folder mode is not one of
@@ -192,4 +199,82 @@ export function nextChangeTarget(
 
 function targetIn(section: ChangeSection, line: number): ChangeTarget {
   return { path: section.path, line, expand: !section.expanded }
+}
+
+/**
+ * The strip above a diff naming a line-ending change and how many lines it
+ * touched (FDIF-15). Null when no line changed ending: there is nothing to say.
+ *
+ * `from` and `to` are each side's *dominant* terminator, so they can be equal
+ * while lines are reported — a file of 715 LF lines and 4 CRLF ones, flipped to
+ * pure LF, is `LF` on both sides with 4 lines changed (T3). `CRLF → LF on 4
+ * lines` would be false there, and the per-line terminators needed to word it
+ * exactly are not what the strip has. So the arrow is used only when the two
+ * dominant endings actually differ, which is the whole-file flip; anything else
+ * names the count without claiming a direction. Either way the markers on the
+ * lines themselves say where.
+ */
+export function eolStripText(lines: readonly number[], from?: Eol, to?: Eol): string | null {
+  if (lines.length === 0) return null
+  const count = `${lines.length} ${lines.length === 1 ? 'line' : 'lines'}`
+  if (from !== undefined && to !== undefined && from !== to) return `${from} → ${to} on ${count}`
+  return `Line endings changed on ${count}`
+}
+
+/** How many diff editors the All changes stack keeps alive at once (D1). */
+const LIVE_EDITOR_CAP = 12
+
+/** One section of the stack, as the mount plan sees it. */
+export interface StackSection {
+  path: string
+  expanded: boolean
+}
+
+/**
+ * Which sections get a diff editor and which lose theirs (FDIF-22, D1).
+ *
+ * A section is mounted when it is expanded and in view, and never while it is
+ * collapsed — that is the cheap half of not mounting two hundred editors on a
+ * two-hundred-file branch. The other half is the cap: once more sections are
+ * live than the cap allows, the ones farthest from the viewport are dropped
+ * first, measured in stack positions from the visible range. A section that has
+ * left the list entirely, because its file was just committed, is dropped too.
+ *
+ * `sections` is the whole stack in render order; `visible` the sections an
+ * observer reports in or near the viewport; `mounted` the ones that already
+ * hold an editor.
+ */
+export function mountPlan(
+  sections: readonly StackSection[],
+  visible: readonly string[],
+  mounted: readonly string[],
+  cap = LIVE_EDITOR_CAP
+): { mount: string[]; unmount: string[] } {
+  const order = new Map(sections.map((section, index) => [section.path, index]))
+  const open = new Set(sections.filter((section) => section.expanded).map((s) => s.path))
+
+  const live = mounted.filter((path) => open.has(path))
+  for (const path of visible) {
+    if (open.has(path) && !live.includes(path)) live.push(path)
+  }
+
+  const inView = visible
+    .map((path) => order.get(path))
+    .filter((index): index is number => index !== undefined)
+  const low = inView.length > 0 ? Math.min(...inView) : 0
+  const high = inView.length > 0 ? Math.max(...inView) : 0
+  const distance = (path: string): number => {
+    const index = order.get(path) ?? 0
+    if (index < low) return low - index
+    return index > high ? index - high : 0
+  }
+
+  const keep = [...live]
+    .sort((a, b) => distance(a) - distance(b) || (order.get(a) ?? 0) - (order.get(b) ?? 0))
+    .slice(0, cap)
+
+  return {
+    mount: keep.filter((path) => !mounted.includes(path)),
+    unmount: mounted.filter((path) => !keep.includes(path))
+  }
 }

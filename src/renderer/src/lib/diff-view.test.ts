@@ -3,14 +3,17 @@ import type { ChangedPath, FileStat } from '../../../shared/files'
 import {
   ALL_CHANGES_KEY,
   diffRequestFor,
+  eolStripText,
   initialExpansion,
   isSameTab,
+  mountPlan,
   nextChangeTarget,
   tabKeyOf,
   tabsWithAllChanges,
   totals,
   type ChangeSection,
   type DiffMode,
+  type StackSection,
   type TabRef
 } from './diff-view'
 
@@ -246,5 +249,64 @@ describe('nextChangeTarget', () => {
       line: 20,
       expand: false
     })
+  })
+})
+
+describe('eolStripText', () => {
+  it('names the change and its line count, the spec example (FDIF-15)', () => {
+    const lines = Array.from({ length: 12 }, (_, i) => i + 1)
+
+    expect(eolStripText(lines, 'CRLF', 'LF')).toBe('CRLF → LF on 12 lines')
+  })
+
+  it('counts a single line in the singular (FDIF-15)', () => {
+    expect(eolStripText([7], 'CRLF', 'LF')).toBe('CRLF → LF on 1 line')
+  })
+
+  it('claims no direction when the dominant endings do not differ (FDIF-15)', () => {
+    // 715 LF lines and 4 CRLF ones flipped to pure LF: both sides are dominantly
+    // LF, and `CRLF → LF on 4 lines` would be a claim the data does not carry.
+    expect(eolStripText([100, 200, 300, 400], 'LF', 'LF')).toBe('Line endings changed on 4 lines')
+    expect(eolStripText([100, 200, 300, 400], undefined, 'LF')).toBe(
+      'Line endings changed on 4 lines'
+    )
+  })
+
+  it('says nothing when no line changed ending (FDIF-15)', () => {
+    expect(eolStripText([], 'CRLF', 'LF')).toBeNull()
+  })
+})
+
+describe('mountPlan', () => {
+  const stack = (count: number, collapsed: string[] = []): StackSection[] =>
+    Array.from({ length: count }, (_, i) => ({
+      path: `s${i + 1}`,
+      expanded: !collapsed.includes(`s${i + 1}`)
+    }))
+
+  it('mounts the visible sections that have no editor yet (FDIF-22)', () => {
+    expect(mountPlan(stack(5), ['s2', 's3'], ['s2'])).toEqual({ mount: ['s3'], unmount: [] })
+  })
+
+  it('never keeps more than 12 editors live, dropping the farthest (FDIF-22, D1)', () => {
+    const mounted = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12']
+
+    const plan = mountPlan(stack(20), ['s20'], mounted)
+
+    expect(plan).toEqual({ mount: ['s20'], unmount: ['s1'] })
+    expect(mounted.length + plan.mount.length - plan.unmount.length).toBe(12)
+  })
+
+  it('drops the sections farthest from the visible range first (D1)', () => {
+    const plan = mountPlan(stack(20), ['s10'], ['s1', 's9', 's11', 's20'], 3)
+
+    expect(plan).toEqual({ mount: ['s10'], unmount: ['s1', 's20'] })
+  })
+
+  it('never mounts a collapsed section, and unmounts one that closes (FDIF-22)', () => {
+    const plan = mountPlan(stack(5, ['s3']), ['s2', 's3', 's4'], ['s3'])
+
+    expect(plan.mount).toEqual(['s2', 's4'])
+    expect(plan.unmount).toEqual(['s3'])
   })
 })
