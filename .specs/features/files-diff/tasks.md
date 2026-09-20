@@ -299,19 +299,49 @@ T20 → T21
 
 **Done when**:
 
-- [ ] Merge base → `HEAD`, and `HEAD` → disk, each return the right content on a temp repo
-- [ ] An added file returns `original: absent`; a deleted one `modified: absent`
-- [ ] A renamed file reads its original from `oldPath`
-- [ ] A blob above 1 MB returns `too-large` **without `git show` being run** (asserted by the size path taken, not by timing)
-- [ ] A binary blob returns `binary`
-- [ ] A missing revision returns `{ kind: 'error' }` and never throws
-- [ ] A CRLF-committed file edited to LF on disk returns its `eolChanged` lines
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 862 + 8 = **870**
+- [x] Merge base → `HEAD`, and `HEAD` → disk, each return the right content on a temp repo — `file-diff.test.ts:220`, `:232`
+- [x] An added file returns `original: absent`; a deleted one `modified: absent` — `:244`, `:254`
+- [x] A renamed file reads its original from `oldPath` — `:264` (old path's content) against `:265` (the renamed, edited file)
+- [x] A blob above 1 MB returns `too-large` **without `git show` being run** — `:281` plus `:282`, which asserts the recorded git calls are exactly `['cat-file']`
+- [x] A binary blob returns `binary` — `:296`
+- [x] A missing revision returns `{ kind: 'error' }` and never throws — `:305`, `:307` (git's own `fatal:` line, not execFile's wrapper)
+- [x] A CRLF-committed file edited to LF on disk returns its `eolChanged` lines — `:324`, with `:323` proving the committed side arrives with its terminators intact
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 1054 + **9** = **1063** — one over the projected 8: the "each return the right content" criterion covers two references and is two tests, and FDIF-03 and FDIF-04 are one test each
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(main): read both sides of a diff`
+**Status**: ✅ Complete
+
+> **`readDiffSides` takes an injectable `GitRunner`, defaulting to `git`.** FDIF-06's "without
+> `git show` being run" is not observable any other way — the repo bans mocking libraries
+> (`TESTING.md`), so the seam is the hand-rolled DI its pattern 3 already uses. `index.ts` still
+> delegates in one line.
+>
+> **The 1 MB cap and `execFile`'s stdout buffer line up exactly.** Node's default `maxBuffer` is
+> 1 MiB and `MAX_VIEW_BYTES` is 1024 × 1024, so any blob `git show` is allowed to return already
+> fits. Nothing to configure, but do not raise one without the other.
+>
+> **`git show rev:path` does NOT apply the working-tree EOL conversion** — measured, not assumed:
+> in a repo with `core.autocrlf=true` it returns the blob's own LF bytes, exactly like
+> `cat-file blob`. Good for diff-to-origin, where both sides get the same treatment. **A problem for
+> the uncommitted diff**, and it is not hypothetical: this machine's *system* gitconfig sets
+> `core.autocrlf=true`. In a worktree without a `.gitattributes` the disk side is CRLF and the HEAD
+> side LF, so FDIF-15 fires on **every line of every file** — a change git itself will undo on
+> commit. `playground` escapes it only because its `.gitattributes` says `* text=auto eol=lf`.
+> **Spec-precision gap, not fixed here**: nothing in FDIF-15 or D2 says what to do, and inventing a
+> normalization inside T5 would be unverifiable. T21's smoke must run against a worktree with no
+> `.gitattributes` to see it; the toggle of FDIF-16 hides it, which may be answer enough.
+>
+> The binary sniff runs over the decoded head re-encoded, not over git's bytes, because `git()`
+> returns a string. A NUL survives the round trip, which is the only byte F1's heuristic looks for.
+>
+> Mutation-checked: 8 deliberate breaks, all killed. Swapping the sides dies on 9 tests; returning
+> `missing` for a null ref dies on both absent tests; forcing one path onto both sides dies on 6;
+> sizing after `show` instead of before dies on the cap test's call recording; dropping the binary
+> sniff dies on the NUL test; rethrowing a failed revision and reporting execFile's wrapper message
+> both die on the missing-revision test; skipping `lineEndingChanges` dies on the CRLF test.
 
 ---
 

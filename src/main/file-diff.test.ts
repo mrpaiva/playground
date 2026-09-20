@@ -3,7 +3,14 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { diffStats, lineEndingChanges, parseNumstat } from './file-diff'
+import {
+  diffStats,
+  lineEndingChanges,
+  parseNumstat,
+  readDiffSides,
+  type GitRunner
+} from './file-diff'
+import { git as runGit } from './git'
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, { cwd, encoding: 'utf8' })
@@ -160,5 +167,162 @@ describe('diffStats', () => {
     // which stays true once the worktree is dirty.
     writeFileSync(join(repo, 'a.txt'), 'one\nedited\n', 'utf8')
     expect(await diffStats(repo, 'full')).toEqual([])
+  })
+})
+
+describe('readDiffSides', () => {
+  let root: string
+  let repo: string
+  let mergeBase: string
+  let calls: string[][]
+  /** Runs git for real and records what was asked of it. */
+  const recording: GitRunner = (cwd, args) => {
+    calls.push(args)
+    return runGit(cwd, args)
+  }
+
+  beforeEach(() => {
+    calls = []
+    root = realpathSync.native(mkdtempSync(join(tmpdir(), 'wtm-rd-')))
+    repo = join(root, 'repo')
+    mkdirSync(repo)
+    git(repo, 'init', '-b', 'main')
+    git(repo, 'config', 'user.email', 'test@test.local')
+    git(repo, 'config', 'user.name', 'Test')
+    // This machine's system gitconfig sets core.autocrlf=true, which would
+    // rewrite every fixture's terminators on commit and on checkout.
+    git(repo, 'config', 'core.autocrlf', 'false')
+    writeFileSync(join(repo, 'a.txt'), 'base one\nbase two\n', 'utf8')
+    writeFileSync(join(repo, 'gone.txt'), 'doomed\n', 'utf8')
+    writeFileSync(join(repo, 'old.txt'), 'the original content\n', 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'init')
+    mergeBase = git(repo, 'rev-parse', 'HEAD').trim()
+    git(repo, 'checkout', '-b', 'feature')
+    writeFileSync(join(repo, 'a.txt'), 'head one\nhead two\n', 'utf8')
+    git(repo, 'mv', 'old.txt', 'new.txt')
+    writeFileSync(join(repo, 'new.txt'), 'renamed and edited\n', 'utf8')
+    git(repo, 'rm', '-q', 'gone.txt')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'work')
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('reads the merge base against HEAD for a diff-to-origin file', async () => {
+    const sides = await readDiffSides(repo, {
+      original: { rev: mergeBase, path: 'a.txt' },
+      modified: { rev: 'HEAD', path: 'a.txt' }
+    })
+
+    expect(sides.original).toMatchObject({ kind: 'text', text: 'base one\nbase two\n' })
+    expect(sides.modified).toMatchObject({ kind: 'text', text: 'head one\nhead two\n' })
+  })
+
+  it('reads HEAD against the working copy for an uncommitted file', async () => {
+    writeFileSync(join(repo, 'a.txt'), 'edited on disk\n', 'utf8')
+
+    const sides = await readDiffSides(repo, {
+      original: { rev: 'HEAD', path: 'a.txt' },
+      modified: { disk: true, path: 'a.txt' }
+    })
+
+    expect(sides.original).toMatchObject({ kind: 'text', text: 'head one\nhead two\n' })
+    expect(sides.modified).toMatchObject({ kind: 'text', text: 'edited on disk\n' })
+  })
+
+  it('gives an added file no original side', async () => {
+    writeFileSync(join(repo, 'brand-new.txt'), 'fresh\n', 'utf8')
+
+    const sides = await readDiffSides(repo, {
+      original: null,
+      modified: { disk: true, path: 'brand-new.txt' }
+    })
+
+    expect(sides.original).toEqual({ kind: 'absent' })
+    expect(sides.modified).toMatchObject({ kind: 'text', text: 'fresh\n' })
+  })
+
+  it('gives a deleted file no modified side', async () => {
+    const sides = await readDiffSides(repo, {
+      original: { rev: mergeBase, path: 'gone.txt' },
+      modified: null
+    })
+
+    expect(sides.modified).toEqual({ kind: 'absent' })
+    expect(sides.original).toMatchObject({ kind: 'text', text: 'doomed\n' })
+  })
+
+  it('reads a renamed file’s original from its previous path', async () => {
+    const sides = await readDiffSides(repo, {
+      original: { rev: mergeBase, path: 'old.txt' },
+      modified: { rev: 'HEAD', path: 'new.txt' }
+    })
+
+    expect(sides.original).toMatchObject({ kind: 'text', text: 'the original content\n' })
+    expect(sides.modified).toMatchObject({ kind: 'text', text: 'renamed and edited\n' })
+  })
+
+  it('reports a blob over the cap by its size without ever reading it', async () => {
+    const big = `${'x'.repeat(80)}\n`.repeat(14000)
+    expect(big.length).toBeGreaterThan(1024 * 1024)
+    writeFileSync(join(repo, 'big.txt'), big, 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'big')
+
+    const sides = await readDiffSides(
+      repo,
+      { original: { rev: 'HEAD', path: 'big.txt' }, modified: null },
+      recording
+    )
+
+    expect(sides.original).toEqual({ kind: 'too-large', size: big.length })
+    expect(calls.map((args) => args[0])).toEqual(['cat-file'])
+  })
+
+  it('reports a blob holding a NUL as binary', async () => {
+    const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x00, 0x0d])
+    writeFileSync(join(repo, 'logo.png'), bytes)
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'binary')
+
+    const sides = await readDiffSides(repo, {
+      original: { rev: 'HEAD', path: 'logo.png' },
+      modified: null
+    })
+
+    expect(sides.original).toEqual({ kind: 'binary', size: bytes.length })
+  })
+
+  it('reports a revision that does not exist as an error, without throwing', async () => {
+    const sides = await readDiffSides(repo, {
+      original: { rev: 'no-such-rev', path: 'a.txt' },
+      modified: { rev: 'HEAD', path: 'a.txt' }
+    })
+
+    expect(sides.original).toMatchObject({ kind: 'error' })
+    // Git's own first line, not execFile's "Command failed: …" wrapper.
+    expect((sides.original as { message: string }).message).toMatch(/^fatal:/)
+  })
+
+  it('reports the lines of a CRLF-committed file rewritten as LF on disk', async () => {
+    writeFileSync(join(repo, 'crlf.txt'), 'one\r\ntwo\r\nthree\r\n', 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'crlf')
+    writeFileSync(join(repo, 'crlf.txt'), 'one\ntwo\nthree\n', 'utf8')
+
+    const sides = await readDiffSides(repo, {
+      original: { rev: 'HEAD', path: 'crlf.txt' },
+      modified: { disk: true, path: 'crlf.txt' }
+    })
+
+    // The committed side must reach us with its terminators intact, or there
+    // is nothing to compare (spike finding 1).
+    expect(sides.original).toMatchObject({ kind: 'text', text: 'one\r\ntwo\r\nthree\r\n' })
+    expect(sides.eolChanged).toEqual([1, 2, 3])
+    expect(sides.eolFrom).toBe('CRLF')
+    expect(sides.eolTo).toBe('LF')
   })
 })

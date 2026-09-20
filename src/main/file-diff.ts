@@ -1,6 +1,21 @@
-import type { Eol, FileStat, FilesMode } from '../shared/files'
-import { readForView } from './file-reader'
-import { git } from './git'
+import type {
+  DiffRef,
+  DiffRequest,
+  DiffSide,
+  DiffSides,
+  Eol,
+  FileStat,
+  FilesMode
+} from '../shared/files'
+import { BINARY_SNIFF_BYTES, MAX_VIEW_BYTES, isBinary, readForView } from './file-reader'
+import { git, gitFailureLine } from './git'
+
+/**
+ * How this module runs git. Injectable so a test can record which commands a
+ * path actually took — the only way to prove an oversized blob was never read
+ * (FDIF-06) without measuring how long it took not to read it.
+ */
+export type GitRunner = (cwd: string, args: string[]) => Promise<{ stdout: string }>
 
 /** What `lineEndingChanges` found: which modified lines flipped, and each side's dominant ending. */
 export interface EolChanges {
@@ -67,6 +82,65 @@ export function lineEndingChanges(originalRaw: string, modifiedRaw: string): Eol
   }
 
   return { lines, from: dominantEol(original), to: dominantEol(modified) }
+}
+
+/**
+ * Both sides of one diff, plus the lines whose terminator changed
+ * (FDIF-01..06, 15). Each side is read from wherever its `DiffRef` points: a
+ * revision, the working copy, or nowhere at all for a file that does not exist
+ * on that side (FDIF-03/04). Because the path lives on the side rather than on
+ * the request, a rename reads its original from `oldPath` with nothing special
+ * here (FDIF-05).
+ *
+ * Never throws: a side that could not be read is a `kind` the tab renders.
+ */
+export async function readDiffSides(
+  worktreePath: string,
+  request: DiffRequest,
+  run: GitRunner = git
+): Promise<DiffSides> {
+  const original = await readSide(worktreePath, request.original, run)
+  const modified = await readSide(worktreePath, request.modified, run)
+  if (original.kind !== 'text' || modified.kind !== 'text') {
+    return { original, modified, eolChanged: [] }
+  }
+  const eol = lineEndingChanges(original.text, modified.text)
+  return { original, modified, eolChanged: eol.lines, eolFrom: eol.from, eolTo: eol.to }
+}
+
+/**
+ * One side, from its reference. A revision is sized with `git cat-file -s`
+ * before anything reads it, so a blob over the cap is reported by its size and
+ * `git show` never runs (FDIF-06). The cap doubles as the guarantee that what
+ * `show` does return fits `execFile`'s 1 MiB stdout buffer.
+ */
+async function readSide(
+  worktreePath: string,
+  ref: DiffRef | null,
+  run: GitRunner
+): Promise<DiffSide> {
+  if (ref === null) return { kind: 'absent' }
+  if ('disk' in ref) return readForView(worktreePath, ref.path)
+  let size: number
+  try {
+    const { stdout } = await run(worktreePath, ['cat-file', '-s', `${ref.rev}:${ref.path}`])
+    size = Number(stdout.trim())
+  } catch (err) {
+    return { kind: 'error', message: gitFailureLine(err) }
+  }
+  if (size > MAX_VIEW_BYTES) return { kind: 'too-large', size }
+  try {
+    const { stdout } = await run(worktreePath, ['show', `${ref.rev}:${ref.path}`])
+    // The blob arrives decoded, so the sniff runs over the head re-encoded
+    // rather than over git's bytes. A NUL survives the round trip, which is
+    // the only byte F1's heuristic looks for.
+    if (isBinary(Buffer.from(stdout.slice(0, BINARY_SNIFF_BYTES), 'utf8'))) {
+      return { kind: 'binary', size }
+    }
+    return { kind: 'text', text: stdout, size }
+  } catch (err) {
+    return { kind: 'error', message: gitFailureLine(err) }
+  }
 }
 
 /**
