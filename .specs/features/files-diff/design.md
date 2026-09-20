@@ -82,15 +82,15 @@ graph TD
 
 #### `src/renderer/src/lib/diff-view.ts` (new — pure, unit-tested)
 
-- `diffRequestFor(mode, changed: ChangedPath, mergeBase): DiffRequest` — the reference table of FDIF-01..05 in one function: which revision or disk on each side, which side is absent, where a rename reads from
+- `diffRequestFor(mode: DiffMode, changed: ChangedPath, mergeBase: string | null): DiffRequest | null` — the reference table of FDIF-01..05 in one function: which revision or disk on each side, which side is absent, where a rename reads from. **Amended at T8**: `DiffMode = Exclude<FilesMode, 'full'>`, because full-folder mode has no second side; `mergeBase` is nullable because uncommitted mode has none to pass; and the return is nullable because diff-to-origin has no diff to build when the base stopped resolving — the spec's edge case sends that to F1's FXPL-11 prompt. **Callers must handle `null`.**
 - `tabKeyOf(tab): string` and `isSameTab(a, b)` — diff tabs keyed by (mode, path), distinct from file tabs (FDIF-08)
 - `tabsWithAllChanges(tabs, mode)` — inserts the fixed first tab in diff modes and removes it in full-folder mode (FDIF-17/18)
 - `tabsAfterClose` (F1) extended: the All changes tab is never closable
 - `initialExpansion(files: FileStat[]): Set<string>` — the first 10 in tree order (FDIF-21)
 - `totals(files: FileStat[]): { files; added; removed }` — the stack header (FDIF-20)
 - `nextChangeTarget(position, sections): Target` — within a file, or across to the next section's first change (FDIF-25/26)
-- `eolStripText(lines: number[], from: Eol, to: Eol): string` — `CRLF → LF on 12 lines` (FDIF-15)
-- `mountPlan(visible: string[], mounted: string[], cap = 12): { mount; unmount }` — which sections to mount and which to drop, farthest first (FDIF-22, D1)
+- `eolStripText(lines: number[], from?: Eol, to?: Eol): string | null` — (FDIF-15). **Amended at T13**: `CRLF → LF on 12 lines` only when both dominant endings are known **and differ**, which is the whole-file flip the original example assumed. `eolFrom` and `eolTo` are each side's *dominant* terminator and can be equal while lines changed — 715 LF lines plus 4 CRLF flipped to pure LF gives `from: 'LF'`, `to: 'LF'`, 4 lines — so that case reads `Line endings changed on N lines`, which claims no direction the data cannot support. An empty list returns `null`: no strip at all.
+- `mountPlan(sections: StackSection[], visible: string[], mounted: string[], cap = 12): { mount; unmount }` — which sections to mount and which to drop, farthest first (FDIF-22, D1). **Amended at T8–T13**: the stack itself is the first argument, because distance-from-viewport cannot be measured without it. A path absent from `sections` is unmounted, which is how FDIF-31's "a commit drops the file from All changes" is handled with no extra rule. The visible *range* counts collapsed sections too — they still mark where the viewport is — while only expanded ones mount.
 
 #### `src/renderer/src/components/DiffViewer.tsx` (new)
 
