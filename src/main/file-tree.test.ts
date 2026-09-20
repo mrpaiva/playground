@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { changedSince, foldChildren, listBases, listDir, parseNameStatus } from './file-tree'
+import { git as runGit, type GitRunner } from './git'
 
 /** `git diff --name-status -z` output: NUL after every field, including the last. */
 const z = (...fields: string[]): string => fields.map((f) => `${f}\0`).join('')
@@ -35,6 +36,31 @@ describe('foldChildren', () => {
     expect(entries.map((e) => e.name)).toEqual(['alpha', 'Beta', 'apple.ts', 'Zebra.ts'])
   })
 })
+
+/**
+ * Builds a commit of `count` files under one top-level folder, with paths long
+ * enough that listing them all passes 1 MiB — in ONE git process. Spawning a
+ * commit per file would take minutes; `fast-import` takes the whole tree on
+ * stdin.
+ */
+function importDeepTree(repo: string, count: number): void {
+  const lf = String.fromCharCode(10)
+  // ~320 characters per path, so `count` of them comfortably passes 1 MiB.
+  const deep = `deep/${Array.from({ length: 5 }, () => 'x'.repeat(60)).join('/')}`
+  const lines = ['blob', 'mark :1', 'data 3', 'hi', '']
+  lines.push('commit refs/heads/main')
+  lines.push('committer Test <test@test.local> 1700000000 +0000')
+  lines.push('data 4')
+  lines.push('init')
+  for (let i = 0; i < count; i += 1) lines.push(`M 100644 :1 ${deep}/f${i}.txt`)
+  lines.push('')
+  lines.push('done')
+  execFileSync('git', ['fast-import', '--done', '--quiet'], {
+    cwd: repo,
+    input: `${lines.join(lf)}${lf}`,
+    windowsHide: true
+  })
+}
 
 describe('listDir', () => {
   let root: string
@@ -82,6 +108,79 @@ describe('listDir', () => {
       { name: 'lib', path: 'src/lib', kind: 'dir' },
       { name: 'index.ts', path: 'src/index.ts', kind: 'file' }
     ])
+  })
+
+  it('shows a file staged but not yet committed', async () => {
+    // The listing follows the index, not the last commit: an agent that runs
+    // `git add` must not make a file it just wrote disappear from the tree.
+    writeFileSync(join(repo, 'src', 'staged.ts'), 'export {}\n', 'utf8')
+    git(repo, 'add', 'src/staged.ts')
+
+    const listing = await listDir(repo, 'src')
+
+    expect(listing.entries.map((e) => e.name)).toContain('staged.ts')
+  })
+
+  it('does not show a file staged for deletion', async () => {
+    // HEAD still holds it, so reading the commit alone would show a file that
+    // is in neither the index nor the working copy.
+    git(repo, 'rm', '-q', 'src/index.ts')
+
+    const listing = await listDir(repo, 'src')
+
+    expect(listing.entries.map((e) => e.name)).not.toContain('index.ts')
+    expect(listing.entries.map((e) => e.name)).toContain('lib')
+  })
+
+  it('still shows a file removed from the index but left on disk', async () => {
+    // `git rm --cached` makes it untracked, not gone: it is still a file in
+    // that folder, and the tree says so.
+    git(repo, 'rm', '--cached', '-q', 'src/index.ts')
+
+    const listing = await listDir(repo, 'src')
+
+    expect(listing.entries.map((e) => e.name)).toContain('index.ts')
+  })
+
+  it('lists untracked files before the first commit', async () => {
+    // An unborn HEAD has no tree to read; the folder is still worth showing.
+    const fresh = join(root, 'fresh')
+    mkdirSync(fresh)
+    git(fresh, 'init', '-b', 'main')
+    writeFileSync(join(fresh, 'only.txt'), 'hi\n', 'utf8')
+
+    const listing = await listDir(fresh, '')
+
+    expect(listing.error).toBeUndefined()
+    expect(listing.entries.map((e) => e.name)).toEqual(['only.txt'])
+  })
+
+  it('reads no call larger than the old 1 MiB stdout ceiling', async () => {
+    // The defect this guards: `ls-files --cached` lists every tracked
+    // DESCENDANT, so drawing the root of a large repository returned megabytes
+    // and `execFile` answered "stdout maxBuffer length exceeded" — the mode
+    // showed nothing at all. The runner below re-imposes that old ceiling, so
+    // this test fails for any implementation that reads the subtree to draw
+    // one level.
+    const big = join(root, 'big')
+    mkdirSync(big)
+    git(big, 'init', '-b', 'main')
+    importDeepTree(big, 3500)
+    // Populate the index without checking 3500 files out onto disk: the point
+    // is what git is ASKED for, not what is on the filesystem.
+    git(big, 'read-tree', 'HEAD')
+    const capped: GitRunner = async (cwd, args) => {
+      const result = await runGit(cwd, args)
+      if (Buffer.byteLength(result.stdout, 'utf8') > 1024 * 1024) {
+        throw new Error('stdout maxBuffer length exceeded')
+      }
+      return result
+    }
+
+    const listing = await listDir(big, '', capped)
+
+    expect(listing.error).toBeUndefined()
+    expect(listing.entries.map((e) => e.name)).toEqual(['deep'])
   })
 
   it('returns git’s error line and no entries when git fails', async () => {
