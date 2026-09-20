@@ -9,6 +9,8 @@ import type {
 import type {
   BaseOptions,
   ChangedListing,
+  CommitDetail,
+  CommitPage,
   DiffRequest,
   DiffSides,
   DirListing,
@@ -154,6 +156,19 @@ export interface IpcContract {
     req: { worktreePath: string; mode: FilesMode; base?: string }
     res: FileStat[]
   }
+  /** One page of the branch's own commits since its base (FCMT-02/08/09/12/23). */
+  'commits:list': {
+    req: { worktreePath: string; base: string; cursor?: string }
+    res: CommitPage
+  }
+  /** What one commit changed against its first parent (FCMT-16/17/18). */
+  'commits:files': { req: { worktreePath: string; sha: string }; res: CommitDetail }
+  /**
+   * Open a pushed commit's page on its provider (FCMT-24/25). The request
+   * carries a sha and nothing else: main resolves the remote and builds the
+   * URL, so no URL the renderer holds can ever reach the OS shell (FCMT-28).
+   */
+  'commits:open': { req: { worktreePath: string; sha: string }; res: LaunchResult }
 }
 
 export type IpcChannel = keyof IpcContract

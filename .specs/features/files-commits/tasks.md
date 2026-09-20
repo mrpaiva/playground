@@ -19,6 +19,8 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Baseline measured 2026-09-19** with `npx vitest run` on `origin/main` `6ecd19c`, after the upstream merged #88: **917 tests / 52 files**, all passing. The 748 the plans started from was recorded before #88 and is stale by **+169**. Its baseline becomes **1067**; every count below shifts by **+169** and this feature ends at **1114**, not 945. Still re-measure as the first act of Execute.
 
+**Baseline re-measured 2026-09-20** on `feature/files-diff` `1802d35`, F2 complete: **1098 tests / 61 files**, lint 0 errors / **18 warnings**. The 898 the plan projected is short by **+200**; every count below shifts by that, and this feature ends at **1145**.
+
 **Privacy guardrail**: every remote URL in fixtures, tests and the smoke is fictitious (`acme/widget`, `dev.azure.com/acme/platform`). This repository is public.
 
 ---
@@ -79,7 +81,7 @@ T15 → T16
 
 ## Task Breakdown
 
-### T1: Declare the commits contract
+### T1: Declare the commits contract ✅
 
 **What**: Add `'commits'` to `FilesMode` and the `CommitRow`, `CommitPage`, `CommitDetail` and `RemoteRef` types to `src/shared/files.ts`; register `commits:list`, `commits:files` and `commits:open` in `IpcContract`.
 **Where**: `src/shared/files.ts`
@@ -91,11 +93,11 @@ T15 → T16
 
 **Done when**:
 
-- [ ] `commits:open` takes a sha and a worktree path — **no URL field exists anywhere in the contract** (FCMT-28)
-- [ ] An existing `ui.files` entry with one of the three older modes still typechecks and loads
-- [ ] Lint warning baseline recorded in the commit body
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **898** (unchanged)
+- [x] `commits:open` takes a sha and a worktree path — **no URL field exists anywhere in the contract** (FCMT-28)
+- [x] An existing `ui.files` entry with one of the three older modes still typechecks and loads
+- [x] Lint warning baseline recorded in the commit body
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1098** (unchanged)
 
 **Tests**: none
 **Gate**: full
