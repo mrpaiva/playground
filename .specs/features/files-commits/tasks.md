@@ -257,7 +257,7 @@ T15 → T16
 
 ---
 
-### T8: Decide a commit's diffs and tab title
+### T8: Decide a commit's diffs and tab title ✅
 
 **What**: Create `src/renderer/src/lib/commit-view.ts` with `commitDiffRequest(sha, parent, changed)` and `commitTabTitle(row)`.
 **Where**: `src/renderer/src/lib/commit-view.ts`
@@ -269,12 +269,12 @@ T15 → T16
 
 **Done when**:
 
-- [ ] Modified → `{ rev: parent }` to `{ rev: sha }`; added → original null; deleted → modified null; renamed → original at `oldPath`
-- [ ] Root commit (`parent: null`) → original null for every file
-- [ ] Title is `abc1234 · subject`, and `abc1234 · (no subject)` for an empty one
-- [ ] `commit-view.test.ts` created
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 930 + 6 = **936**
+- [x] Modified → `{ rev: parent }` to `{ rev: sha }`; added → original null; deleted → modified null; renamed → original at `oldPath`
+- [x] Root commit (`parent: null`) → original null for every file
+- [x] Title is `abc1234 · subject`, and `abc1234 · (no subject)` for an empty one
+- [x] `commit-view.test.ts` created
+- [x] Gate passes: `npm test`
+- [x] Test count: 1151 + 7 = **1158**
 
 **Tests**: unit
 **Gate**: quick
