@@ -251,16 +251,39 @@ T20 → T21
 
 **Done when**:
 
-- [ ] `parseNumstat` reads `-z` output, including a rename record, and maps `-\t-` to `binary: true`
-- [ ] Diff-to-origin totals equal `git diff --shortstat <mergeBase> HEAD` on a temp repo
-- [ ] An untracked 7-line file counts as `added: 7, removed: 0`
-- [ ] An empty mode returns `[]`
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 856 + 6 = **862**
+- [x] `parseNumstat` reads `-z` output, including a rename record, and maps `-\t-` to `binary: true` — `file-diff.test.ts:82`, `:93`, `:102`
+- [x] Diff-to-origin totals equal `git diff --shortstat <mergeBase> HEAD` on a temp repo — `:140`, git's own numbers parsed at `:133`
+- [x] An untracked 7-line file counts as `added: 7, removed: 0` — `:152`
+- [x] An empty mode returns `[]` — `:157` (clean worktree) and `:162` (full-folder mode, worktree dirty)
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 1048 + 6 = **1054** (lint 0 errors / 18 warnings, one `prettier/prettier` nit fixed)
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(main): count added and removed lines per changed file`
+**Status**: ✅ Complete
+
+> **A rename is reported at its new path.** `parseNumstat` skips the old path and keeps the new one,
+> matching what F1's `parseNameStatus` puts in the mode's list, so a stat joins its `ChangedPath` by
+> `path` in T16 with nothing to reconcile.
+>
+> **`binary: true` also means "no lines we are willing to count."** An untracked file over the 1 MB
+> cap gets `added: 0, removed: 0, binary: true` — it is not binary, but FDIF-23 renders both as a
+> placeholder and the alternative was a silent `+0 −0` on a 2 MB file. T16's totals therefore skip it.
+>
+> **Uncommitted totals exceed `git diff --shortstat HEAD` on purpose**, because git omits untracked
+> files and F1's list does not. The spec's `--shortstat` success criterion is scoped to the branch
+> (diff-to-origin), which is the comparison the test makes.
+>
+> **This machine has `core.autocrlf=true`.** Harmless here, but T5's CRLF fixture must set
+> `core.autocrlf false` on its temp repo or git will normalize on commit and re-expand on checkout,
+> and the "committed CRLF, edited to LF" case will never exist on disk.
+>
+> Mutation-checked: 8 deliberate breaks, all killed. Dropping the rename branch and taking the old
+> path instead of the new both die on the rename test; dropping binary detection dies on the dash
+> test; swapping added and removed dies on 3; leaving untracked files out and counting them as zero
+> both die on the untracked test; letting full-folder mode fall through dies on the empty-mode test;
+> diffing the merge base against itself dies on the `--shortstat` comparison.
 
 ---
 

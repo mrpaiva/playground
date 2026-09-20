@@ -1,4 +1,6 @@
-import type { Eol } from '../shared/files'
+import type { Eol, FileStat, FilesMode } from '../shared/files'
+import { readForView } from './file-reader'
+import { git } from './git'
 
 /** What `lineEndingChanges` found: which modified lines flipped, and each side's dominant ending. */
 export interface EolChanges {
@@ -65,6 +67,119 @@ export function lineEndingChanges(originalRaw: string, modifiedRaw: string): Eol
   }
 
   return { lines, from: dominantEol(original), to: dominantEol(modified) }
+}
+
+/**
+ * Added and removed line counts for every file the mode's list holds
+ * (FDIF-19/20/24): `merge-base(HEAD, base)` → `HEAD` for diff-to-origin, `HEAD`
+ * → the working tree for uncommitted. Full-folder mode has no reference to
+ * diff against and gets an empty list, which is also what the All changes tab
+ * shows when nothing changed (FDIF-24).
+ *
+ * Untracked files are counted here because `git diff --numstat` does not report
+ * them at all. The uncommitted totals therefore exceed `git diff --shortstat
+ * HEAD`, deliberately: the mode's list includes those files, so its header must
+ * too. Never throws — a git failure is an empty list, and the base prompt F1
+ * already shows is what explains it.
+ */
+export async function diffStats(
+  worktreePath: string,
+  mode: FilesMode,
+  base?: string
+): Promise<FileStat[]> {
+  if (mode === 'since-base') {
+    if (base === undefined) return []
+    try {
+      const { stdout: mergeBase } = await git(worktreePath, ['merge-base', 'HEAD', base])
+      const { stdout } = await git(worktreePath, [
+        'diff',
+        '--numstat',
+        '-z',
+        mergeBase.trim(),
+        'HEAD'
+      ])
+      return parseNumstat(stdout)
+    } catch {
+      return []
+    }
+  }
+  if (mode === 'uncommitted') {
+    let tracked: FileStat[]
+    try {
+      const { stdout } = await git(worktreePath, ['diff', '--numstat', '-z', 'HEAD'])
+      tracked = parseNumstat(stdout)
+    } catch {
+      return []
+    }
+    return [...tracked, ...(await untrackedStats(worktreePath))]
+  }
+  return []
+}
+
+/**
+ * Parses `git diff --numstat -z`. A record is `added TAB removed TAB path NUL`;
+ * a rename replaces the path with nothing and follows with the old path and the
+ * new one, each NUL-terminated. `-` for both counts means git found no lines to
+ * count, which is what `binary` says.
+ *
+ * Pure. The two counts are located by their tabs rather than by splitting the
+ * record, so a path holding a tab still reads as one path.
+ */
+export function parseNumstat(stdout: string): FileStat[] {
+  const records = stdout.split('\0')
+  const stats: FileStat[] = []
+  let i = 0
+  while (i < records.length) {
+    const record = records[i++]
+    if (record === '') continue
+    const firstTab = record.indexOf('\t')
+    const secondTab = record.indexOf('\t', firstTab + 1)
+    if (firstTab === -1 || secondTab === -1) continue
+    const addedRaw = record.slice(0, firstTab)
+    const removedRaw = record.slice(firstTab + 1, secondTab)
+    let path = record.slice(secondTab + 1)
+    if (path === '') {
+      // A rename: the old path, then the new one. The new path is the file the
+      // stack shows, matching what `parseNameStatus` puts in the mode's list.
+      i += 1
+      const renamed = records[i++]
+      if (renamed === undefined) break
+      path = renamed
+    }
+    const binary = addedRaw === '-' && removedRaw === '-'
+    stats.push({
+      path,
+      added: binary ? 0 : Number(addedRaw),
+      removed: binary ? 0 : Number(removedRaw),
+      binary
+    })
+  }
+  return stats
+}
+
+/**
+ * Every untracked, not-ignored file counted as wholly added, which is how git
+ * would count it once staged. Read through F1's reader, so the 1 MB cap and the
+ * NUL sniff apply here too: a file that has no countable lines is `binary`.
+ */
+async function untrackedStats(worktreePath: string): Promise<FileStat[]> {
+  let paths: string[]
+  try {
+    const { stdout } = await git(worktreePath, ['ls-files', '--others', '--exclude-standard', '-z'])
+    paths = stdout.split('\0').filter((p) => p !== '')
+  } catch {
+    return []
+  }
+  const stats: FileStat[] = []
+  for (const path of paths) {
+    const content = await readForView(worktreePath, path)
+    if (content.kind === 'text') {
+      stats.push({ path, added: splitLines(content.text).length, removed: 0, binary: false })
+    } else if (content.kind === 'binary' || content.kind === 'too-large') {
+      stats.push({ path, added: 0, removed: 0, binary: true })
+    }
+  }
+  return stats
 }
 
 /**
