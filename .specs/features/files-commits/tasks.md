@@ -306,7 +306,7 @@ T15 → T16
 
 ---
 
-### T10: Key commit tabs
+### T10: Key commit tabs ✅
 
 **What**: Extend F2's `tabKeyOf` / `isSameTab` for commit tabs keyed `commit:<sha>`.
 **Where**: `src/renderer/src/lib/diff-view.ts`
@@ -318,12 +318,18 @@ T15 → T16
 
 **Done when**:
 
-- [ ] A commit tab never collides with a file, diff or All changes tab
-- [ ] Two commit tabs with different shas are different tabs; the same sha is one tab
-- [ ] Every pre-existing tab-identity test passes unedited
-- [ ] Gate passes: `npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: 943 + 2 = **945**
+- [x] A commit tab never collides with a file, diff or All changes tab
+- [x] Two commit tabs with different shas are different tabs; the same sha is one tab
+- [x] Every pre-existing tab-identity test passes unedited
+- [x] Gate passes: `npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: 1165 + 3 = **1168**
+
+**Deviation**: `DiffMode` was narrowed here rather than at T1. Widening `FilesMode` in T1 silently
+widened `Exclude<FilesMode, 'full'>` to admit `'commits'`, which made `diffRequestFor` treat a commit
+as an uncommitted diff and `tabsWithAllChanges` offer an All changes tab in Commits mode. Narrowing it
+to `Exclude<FilesMode, 'full' | 'commits'>` surfaced two call sites — `use-files.ts:471` and
+`FileTree.tsx:250` — both fixed in this task, because a broken typecheck cannot be committed.
 
 **Tests**: unit
 **Gate**: quick

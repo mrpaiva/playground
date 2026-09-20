@@ -242,7 +242,9 @@ export function FileTree({ worktreePath, files, onToast }: FileTreeProps): JSX.E
    */
   const openInTab = (path: string, status?: ChangeStatus): void => {
     const lens = files.mode
-    if (lens === 'full') {
+    // Commits mode lists no paths, so nothing here can be clicked in it; it is
+    // named alongside full-folder mode to keep the narrowing honest.
+    if (lens === 'full' || lens === 'commits') {
       files.openFile(path)
       return
     }

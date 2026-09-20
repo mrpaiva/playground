@@ -10,9 +10,11 @@ import type {
 /**
  * The two lenses that open a diff (FDIF-01/02). Full-folder mode is not one of
  * them: it lists files that nothing changed, so there is no second side to
- * compare against.
+ * compare against. Neither is Commits mode: its left column lists commits
+ * rather than paths, and a commit's diffs are built from a sha (FCMT-17), not
+ * from the mode.
  */
-export type DiffMode = Exclude<FilesMode, 'full'>
+export type DiffMode = Exclude<FilesMode, 'full' | 'commits'>
 
 /**
  * Which revision or working copy each side of a diff comes from (FDIF-01..05),
@@ -57,11 +59,12 @@ function modifiedExists(changed: ChangedPath): boolean {
   return changed.status !== 'deleted'
 }
 
-/** What the tab strip can hold, as far as identity goes (FDIF-08, FDIF-17). */
+/** What the tab strip can hold, as far as identity goes (FDIF-08, FDIF-17, FCMT-20). */
 export type TabRef =
   | { kind: 'file'; path: string }
   | { kind: 'diff'; mode: DiffMode; path: string }
   | { kind: 'all-changes' }
+  | { kind: 'commit'; sha: string }
 
 /** The key of the fixed first tab of both diff modes (FDIF-17). */
 export const ALL_CHANGES_KEY = 'all-changes'
@@ -70,12 +73,15 @@ export const ALL_CHANGES_KEY = 'all-changes'
 const ALL_CHANGES_TAB: TabRef = { kind: 'all-changes' }
 
 /**
- * What identifies a tab (FDIF-08). A diff of one path is a different tab in
- * each mode, and both are different from a file tab for that same path: the
- * kind and, for a diff, the mode are part of the key, not just the path.
+ * What identifies a tab (FDIF-08, FCMT-20). A diff of one path is a different
+ * tab in each mode, and both are different from a file tab for that same path:
+ * the kind and, for a diff, the mode are part of the key, not just the path. A
+ * commit tab is keyed by its sha, so the same commit opens once however many
+ * times it is clicked, and an amend — a new sha — is a different tab.
  */
 export function tabKeyOf(tab: TabRef): string {
   if (tab.kind === 'all-changes') return ALL_CHANGES_KEY
+  if (tab.kind === 'commit') return `commit:${tab.sha}`
   return tab.kind === 'file' ? `file:${tab.path}` : `diff:${tab.mode}:${tab.path}`
 }
 
@@ -96,7 +102,10 @@ export function tabsWithAllChanges<T extends TabRef>(
   mode: FilesMode
 ): (T | TabRef)[] {
   const rest = tabs.filter((tab) => tab.kind !== 'all-changes')
-  return mode === 'full' ? rest : [ALL_CHANGES_TAB, ...rest]
+  // Commits mode has no "every change of this mode" to offer: its list is of
+  // commits, and each commit's own stack is its tab (FCMT-16).
+  const stacked = mode !== 'full' && mode !== 'commits'
+  return stacked ? [ALL_CHANGES_TAB, ...rest] : rest
 }
 
 /** How many sections of the All changes stack start expanded (FDIF-21). */
