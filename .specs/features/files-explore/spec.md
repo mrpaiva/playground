@@ -55,7 +55,7 @@ them in tabs without leaving the app, and hand one off to the right external too
 
 | Assumption / decision | Chosen default | Rationale | Confirmed? |
 | --------------------- | -------------- | --------- | ---------- |
-| Where it lives | A sixth direction, `files`, in the TopBar segment control and in `AppConfig.ui.direction` | The app's existing navigation pattern (`config.ts:66`) | y |
+| Where it lives | A fifth direction, `files`, in the TopBar segment control and in `AppConfig.ui.direction` | The app's existing navigation pattern (`config.ts:66`) | y |
 | Which worktree it describes | The global tree selection (`selectedId`) | Same selection the Tree direction and the status bar use | y |
 | "Full folder" listing | `git ls-files --cached --others --exclude-standard`, expanded folder by folder | Tracked plus untracked-not-ignored is exactly "what git would track"; `node_modules`, `bin`, `obj` drop out with no rule of the app's own | y |
 | "Uncommitted changes" listing | `worktrees:changes` (`changedFilesOf`), five statuses | Already built and already the status bar's source; staged, unstaged and untracked all count | y |
@@ -90,7 +90,7 @@ a tree, so that I can see what is in a worktree without opening another tool.
 
 **Acceptance Criteria**:
 
-1. The TopBar SHALL offer a sixth direction, `Files`, and the chosen direction SHALL persist like the other five <!-- ubiquitous -->
+1. The TopBar SHALL offer a fifth direction, `Files`, and the chosen direction SHALL persist like the other four <!-- ubiquitous -->
 2. WHILE the Files direction is active with a worktree selected the view SHALL show that worktree's files as a tree in a left column <!-- state-driven -->
 3. WHILE no worktree is selected the Files direction SHALL show an empty state asking for a selection <!-- state-driven -->
 4. The full-folder tree SHALL list tracked files and untracked files that `.gitignore` does not exclude, and no ignored file <!-- ubiquitous -->

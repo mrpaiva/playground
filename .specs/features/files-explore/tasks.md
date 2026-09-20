@@ -616,7 +616,7 @@ fallback was not needed.
 
 ### T20: Add the Files segment to the TopBar
 
-**What**: Add the sixth `Files` segment to the TopBar's direction control.
+**What**: Add the fifth `Files` segment to the TopBar's direction control.
 **Where**: `src/renderer/src/components/TopBar.tsx`
 **Depends on**: T19
 **Reuses**: The existing segment markup (`TopBar.tsx:98-130`).
@@ -626,8 +626,8 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] The segment carries `aria-selected` like the other five
-- [ ] Six segments fit at the app's minimum window width in both themes
+- [ ] The segment carries `aria-selected` like the other four
+- [ ] Five segments fit at the app's minimum window width in both themes
 - [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
 - [ ] Test count: **850** (unchanged)
 

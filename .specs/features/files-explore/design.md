@@ -55,7 +55,7 @@ graph TD
 | `IpcEvents` + `emit()` (AD-004) | `ipc.ts:30` | The `files:changed` push |
 | `ResizablePane` | `components/ResizablePane.tsx` | The tree / viewer split, same resize behaviour as the sidebar |
 | `useTree().selectedId`, `findWorktree` | `use-tree.ts:27`, `App.tsx:283` | The worktree Files describes (FXPL-02/06) |
-| Direction segment pattern | `TopBar.tsx:98-130` | The sixth segment (FXPL-01) |
+| Direction segment pattern | `TopBar.tsx:98-130` | The fifth segment (FXPL-01) |
 | Flat `ui.*` persistence via `config:patch` | `config.ts:63` | Mode + base map (FXPL-13, D4) |
 | Launch-failure toast | `App.tsx:70` `setToast` | FXPL-30, unchanged |
 | Hook-owned renderer state (AD-004) | `use-sessions.ts`, `use-tree.ts` | `use-files.ts` follows the same shape instead of growing `App.tsx` |
