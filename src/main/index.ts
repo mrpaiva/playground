@@ -13,6 +13,7 @@ import { AgentStepRunner, type AgentChild, type AgentSpawn } from './agent-step-
 import { createActivityHookServer } from './activity-hook-server'
 import { buildClaudeHookSettings } from './claude-hook-settings'
 import { ConfigStore } from './config-store'
+import { diffStats, readDiffSides } from './file-diff'
 import { readForView } from './file-reader'
 import { changedSince, listBases, listDir } from './file-tree'
 import { FileWatcher, type WatchPort } from './file-watcher'
@@ -263,6 +264,8 @@ app.whenReady().then(() => {
   handle('files:bases', ({ worktreePath }) => listBases(worktreePath))
   handle('files:read', ({ worktreePath, relPath }) => readForView(worktreePath, relPath))
   handle('files:watch', ({ worktreePath }) => fileWatcher.select(worktreePath))
+  handle('files:diff-sides', ({ worktreePath, request }) => readDiffSides(worktreePath, request))
+  handle('files:diff-stats', ({ worktreePath, mode, base }) => diffStats(worktreePath, mode, base))
   // Close every watch handle before the process goes away (FXPL-23).
   app.on('will-quit', () => {
     void fileWatcher.select(null)

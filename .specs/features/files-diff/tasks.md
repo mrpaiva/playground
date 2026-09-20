@@ -357,14 +357,23 @@ T20 → T21
 
 **Done when**:
 
-- [ ] Two one-line delegations
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: **870** (unchanged)
+- [x] Two one-line delegations
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: **1063** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: build
 **Commit**: `feat(main): serve the diff channels`
+**Status**: ✅ Complete — Phase 2 done
+
+> The delegations carry no logic, so `typecheck` is the whole check: `handle` is generic over
+> `IpcContract`, and a wrong channel name or a payload field that does not match `DiffRequest` /
+> `FilesMode` fails to compile at the call site. `readDiffSides`' third parameter defaults to the
+> real `git`, so the handler stays one line.
+>
+> Not launched by hand, by design: T2–T6 are main-process modules and a contract, and this batch is
+> sandboxed away from the GUI. The live evidence for these two channels is T21's smoke.
 
 ---
 
