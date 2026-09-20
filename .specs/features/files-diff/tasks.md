@@ -969,15 +969,40 @@ T20 → T21
 
 **Done when**:
 
-- [ ] All changes has no close button
-- [ ] Open file lands in a file tab for the same path, leaving the diff tab open
-- [ ] Toggles apply to every open diff at once
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **898** (unchanged)
+- [x] All changes has no close button — the close button is rendered under `!fixed`, and `tabsAfterClose` refuses the key anyway (T10), so both halves hold
+- [x] Open file lands in a file tab for the same path, leaving the diff tab open — `files.openFile(tab.path)` appends a tab with a different key (FDIF-08) and focuses it; the diff tab stays in the list
+- [x] Toggles apply to every open diff at once — both read out of `ui.*` through the hook, so every mounted `DiffViewer` takes them from the same two values and `updateOptions` applies them in place
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1098** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): show diff tabs and their controls`
+**Status**: ✅ Complete
+
+> **The `Alt+F5` / `Shift+Alt+F5` listener lives here**, one for the whole
+> column, routed to whichever `DiffHandle` last announced itself — a single
+> editor for a diff tab, or the stack answering for the section its walk is
+> standing in. That is the placement T14's note settled on: exporting the key
+> check from a component file is an eslint error, and the strip is the only
+> surface that knows which diff is in front of the reader.
+>
+> **The controls row is between the strip and the launchers**, and only while a
+> diff surface is active. The launcher row keeps its place under the tabs
+> whatever the tab is, which is what FXPL-25 asks of it.
+>
+> **`worktreePath` became a prop.** The All changes stack reads its own sides,
+> so it needs the worktree; `FilesView` already had it non-null at that point
+> and passes it in one line. That file is outside T19's `Where`.
+>
+> **The stack is keyed by mode.** `key={'all-changes:' + mode}` remounts it on
+> a mode switch, which is what FDIF-09 wants of the fixed tab and only of it:
+> the diff tabs beside it are keyed by their own mode and keep comparing what
+> they were opened on.
+>
+> **Next / previous are disabled until a diff has computed.** The handle is
+> announced after the first `onDidUpdateDiff` (T16's correction), so the
+> buttons light up exactly when there is something to move to.
 
 ---
 

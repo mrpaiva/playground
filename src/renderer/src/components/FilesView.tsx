@@ -81,7 +81,7 @@ export function FilesView({
       >
         <FileTree worktreePath={worktreePath} files={files} onToast={onToast} />
       </ResizablePane>
-      <FileTabs files={files} onToast={onToast} />
+      <FileTabs worktreePath={worktreePath} files={files} onToast={onToast} />
     </div>
   )
 }
