@@ -8,14 +8,15 @@ import type {
   FilesMode
 } from '../shared/files'
 import { BINARY_SNIFF_BYTES, MAX_VIEW_BYTES, isBinary, readForView } from './file-reader'
-import { git, gitFailureLine } from './git'
+import { git, gitFailureLine, type GitRunner } from './git'
 
 /**
- * How this module runs git. Injectable so a test can record which commands a
- * path actually took — the only way to prove an oversized blob was never read
- * (FDIF-06) without measuring how long it took not to read it.
+ * How this module runs git, re-exported from `git.ts` so the two places that
+ * stand in for git share one definition. Injectable so a test can record which
+ * commands a path actually took — the only way to prove an oversized blob was
+ * never read (FDIF-06) without measuring how long it took not to read it.
  */
-export type GitRunner = (cwd: string, args: string[]) => Promise<{ stdout: string }>
+export type { GitRunner }
 
 /** What `lineEndingChanges` found: which modified lines flipped, and each side's dominant ending. */
 export interface EolChanges {
