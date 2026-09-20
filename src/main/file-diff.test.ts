@@ -91,8 +91,8 @@ describe('parseNumstat', () => {
     const stats = parseNumstat(z('3\t1\tsrc/a.ts', '12\t0\tsrc/b.ts'))
 
     expect(stats).toEqual([
-      { path: 'src/a.ts', added: 3, removed: 1, binary: false },
-      { path: 'src/b.ts', added: 12, removed: 0, binary: false }
+      { path: 'src/a.ts', added: 3, removed: 1 },
+      { path: 'src/b.ts', added: 12, removed: 0 }
     ])
   })
 
@@ -102,15 +102,17 @@ describe('parseNumstat', () => {
     const stats = parseNumstat(z('2\t5\t', 'src/old.ts', 'src/new.ts', '1\t0\tsrc/c.ts'))
 
     expect(stats).toEqual([
-      { path: 'src/new.ts', added: 2, removed: 5, binary: false },
-      { path: 'src/c.ts', added: 1, removed: 0, binary: false }
+      { path: 'src/new.ts', added: 2, removed: 5 },
+      { path: 'src/c.ts', added: 1, removed: 0 }
     ])
   })
 
   it('maps a dash for both counts to a binary file with no lines', () => {
     const stats = parseNumstat(z('-\t-\tassets/logo.png'))
 
-    expect(stats).toEqual([{ path: 'assets/logo.png', added: 0, removed: 0, binary: true }])
+    expect(stats).toEqual([
+      { path: 'assets/logo.png', added: 0, removed: 0, uncountable: 'binary' }
+    ])
   })
 })
 
@@ -160,7 +162,7 @@ describe('diffStats', () => {
 
     const stats = await diffStats(repo, 'uncommitted')
 
-    expect(stats).toEqual([{ path: 'notes.md', added: 7, removed: 0, binary: false }])
+    expect(stats).toEqual([{ path: 'notes.md', added: 7, removed: 0 }])
   })
 
   it('returns an empty list when the mode has nothing to diff', async () => {

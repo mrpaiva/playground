@@ -248,7 +248,7 @@ export function parseNumstat(stdout: string): FileStat[] {
       path,
       added: binary ? 0 : Number(addedRaw),
       removed: binary ? 0 : Number(removedRaw),
-      binary
+      ...(binary ? { uncountable: 'binary' as const } : {})
     })
   }
   return stats
@@ -257,7 +257,7 @@ export function parseNumstat(stdout: string): FileStat[] {
 /**
  * Every untracked, not-ignored file counted as wholly added, which is how git
  * would count it once staged. Read through F1's reader, so the 1 MB cap and the
- * NUL sniff apply here too: a file that has no countable lines is `binary`.
+ * NUL sniff apply here too, and each reports which of the two it hit.
  */
 async function untrackedStats(worktreePath: string): Promise<FileStat[]> {
   let paths: string[]
@@ -271,9 +271,12 @@ async function untrackedStats(worktreePath: string): Promise<FileStat[]> {
   for (const path of paths) {
     const content = await readForView(worktreePath, path)
     if (content.kind === 'text') {
-      stats.push({ path, added: splitLines(content.text).length, removed: 0, binary: false })
+      stats.push({ path, added: splitLines(content.text).length, removed: 0 })
     } else if (content.kind === 'binary' || content.kind === 'too-large') {
-      stats.push({ path, added: 0, removed: 0, binary: true })
+      // The reason travels with the file. Collapsing both into one flag made a
+      // 2 MB text file read "Binary file" in the stack while its own tab said
+      // "Too large to display" — the same file under two names.
+      stats.push({ path, added: 0, removed: 0, uncountable: content.kind })
     }
   }
   return stats

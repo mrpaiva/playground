@@ -39,7 +39,7 @@ const MAX_LINES = 60
  * without reading the file.
  */
 function estimatedHeight(stat: FileStat): number {
-  const lines = stat.binary ? MIN_LINES : stat.added + stat.removed + 8
+  const lines = stat.uncountable ? MIN_LINES : stat.added + stat.removed + 8
   return Math.min(Math.max(lines, MIN_LINES), MAX_LINES) * LINE_HEIGHT
 }
 
@@ -109,7 +109,7 @@ export function DiffSection({
   // every re-read of the mode's list, so an index or HEAD move lands here
   // (FDIF-31). `refreshToken` covers a refresh that leaves the list identical.
   useEffect(() => {
-    if (!mounted || !expanded || !request || stat.binary) return
+    if (!mounted || !expanded || !request || stat.uncountable) return
     let cancelled = false
     api
       .invoke('files:diff-sides', { worktreePath, request })
@@ -120,7 +120,7 @@ export function DiffSection({
     return () => {
       cancelled = true
     }
-  }, [mounted, expanded, request, stat.binary, worktreePath, refreshToken])
+  }, [mounted, expanded, request, stat.uncountable, worktreePath, refreshToken])
 
   const held = height ?? estimatedHeight(stat)
 
@@ -143,7 +143,7 @@ export function DiffSection({
           {STATUS_LETTER[changed.status]}
         </span>
         <span className="diff-section-path">{path}</span>
-        {!stat.binary && (
+        {!stat.uncountable && (
           <span className="diff-section-counts">
             <span className="added">+{stat.added}</span>
             <span className="removed">&minus;{stat.removed}</span>
@@ -152,8 +152,10 @@ export function DiffSection({
       </button>
 
       {expanded &&
-        (stat.binary ? (
-          <FilePlaceholder path={path} kind="binary" />
+        (stat.uncountable ? (
+          // The reason comes from main, so a 2 MB text file reads the same here
+          // as it does in its own tab rather than being called binary.
+          <FilePlaceholder path={path} kind={stat.uncountable} />
         ) : mounted && sides ? (
           <DiffViewer
             path={path}

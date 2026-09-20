@@ -73,9 +73,7 @@ export function AllChangesTab({
     const byPath = new Map(stats.map((stat) => [stat.path, stat]))
     // A file the list holds and the counts do not is still a section: the two
     // come from the same git state, so a gap is a race, not a disagreement.
-    return ordered.map(
-      (file) => byPath.get(file.path) ?? { path: file.path, added: 0, removed: 0, binary: false }
-    )
+    return ordered.map((file) => byPath.get(file.path) ?? { path: file.path, added: 0, removed: 0 })
   }, [ordered, stats])
   const requests = useMemo(
     () => new Map(ordered.map((file) => [file.path, requestFor(file)])),
@@ -194,7 +192,7 @@ export function AllChangesTab({
         // lines have nothing, and every other file has at least one change to
         // enter at, whose line the entry below reads off the real editor.
         const counts = stat.get(file.path)
-        const empty = !counts || counts.binary || counts.added + counts.removed === 0
+        const empty = !counts || !!counts.uncountable || counts.added + counts.removed === 0
         return { path: file.path, changes: empty ? [] : [1], expanded: open.has(file.path) }
       })
       const here = handles.current.get(from)

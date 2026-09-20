@@ -124,6 +124,11 @@ export interface FileStat {
   path: string
   added: number
   removed: number
-  /** Git reported `-` for both counts: there are no lines to count. */
-  binary: boolean
+  /**
+   * Why this file has no lines to count, when it has none; absent means it was
+   * counted. `binary` is git reporting `-` for both sides or a NUL in the
+   * head; `too-large` is a file past the 1 MB view cap, which is not binary at
+   * all and must not be described as such to the user.
+   */
+  uncountable?: 'binary' | 'too-large'
 }

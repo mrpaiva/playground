@@ -148,8 +148,13 @@ describe('tabsWithAllChanges', () => {
   })
 })
 
-function stat(path: string, added = 0, removed = 0, binary = false): FileStat {
-  return { path, added, removed, binary }
+function stat(
+  path: string,
+  added = 0,
+  removed = 0,
+  uncountable?: 'binary' | 'too-large'
+): FileStat {
+  return { path, added, removed, ...(uncountable ? { uncountable } : {}) }
 }
 
 function stats(count: number): FileStat[] {
@@ -182,11 +187,16 @@ describe('totals', () => {
   })
 
   it('counts a file with no countable lines as a file and nothing else (FDIF-20)', () => {
-    // `binary` is set whenever git reported no line counts, so the numbers
-    // beside it describe nothing and must not reach the header.
-    const changed = [stat('src/app.ts', 12, 3), stat('assets/logo.png', 99, 99, true)]
+    // `uncountable` is set whenever there were no line counts to take, so the
+    // numbers beside it describe nothing and must not reach the header. Both
+    // reasons behave the same here, and a file past the view cap is not binary.
+    const changed = [
+      stat('src/app.ts', 12, 3),
+      stat('assets/logo.png', 99, 99, 'binary'),
+      stat('data/dump.txt', 77, 77, 'too-large')
+    ]
 
-    expect(totals(changed)).toEqual({ files: 2, added: 12, removed: 3 })
+    expect(totals(changed)).toEqual({ files: 3, added: 12, removed: 3 })
   })
 })
 

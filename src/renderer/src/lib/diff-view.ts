@@ -130,7 +130,7 @@ export function totals(files: readonly FileStat[]): {
   let added = 0
   let removed = 0
   for (const file of files) {
-    if (file.binary) continue
+    if (file.uncountable) continue
     added += file.added
     removed += file.removed
   }
