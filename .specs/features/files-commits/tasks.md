@@ -156,7 +156,7 @@ T15 → T16
 
 ---
 
-### T4: List the branch's commits
+### T4: List the branch's commits ✅
 
 **What**: Create `src/main/commit-log.ts` with `listCommits(worktreePath, base, cursor?)` and the pure `parseLog(stdout)` — first-parent, 101 rows to decide `hasMore`, cursor paging, the not-pushed set from `@{upstream}..HEAD`, and `browse` from the upstream remote.
 **Where**: `src/main/commit-log.ts`
@@ -168,14 +168,14 @@ T15 → T16
 
 **Done when**:
 
-- [ ] `parseLog` keeps a body containing blank lines and tabs intact, marks a two-parent commit as a merge, and turns an empty subject into `(no subject)`
-- [ ] A temp branch with three own commits and a merge of another branch bringing five lists **four** rows
-- [ ] 150 commits → page one has 100 rows and `hasMore`; the cursor page has the remaining 50 and no `hasMore`; a commit added between the two pages causes no duplicate
-- [ ] With a bare remote: pushed commits carry `pushed: true`, later ones `false`; with no upstream all are `false` and `upstream` is null
-- [ ] `browse` is `github` for a fictitious GitHub upstream URL and null for a local-path remote
-- [ ] `src/main/commit-log.test.ts` created
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 912 + 9 = **921**
+- [x] `parseLog` keeps a body containing blank lines and tabs intact, marks a two-parent commit as a merge, and turns an empty subject into `(no subject)`
+- [x] A temp branch with three own commits and a merge of another branch bringing five lists **four** rows
+- [x] 150 commits → page one has 100 rows and `hasMore`; the cursor page has the remaining 50 and no `hasMore`; a commit added between the two pages causes no duplicate
+- [x] With a bare remote: pushed commits carry `pushed: true`, later ones `false`; with no upstream all are `false` and `upstream` is null
+- [x] `browse` is `github` for a fictitious GitHub upstream URL and null for a local-path remote
+- [x] `src/main/commit-log.test.ts` created
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 1126 + 15 = **1141**
 
 **Tests**: unit
 **Gate**: full
