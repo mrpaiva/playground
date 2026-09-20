@@ -372,7 +372,7 @@ to `Exclude<FilesMode, 'full' | 'commits'>` surfaced two call sites — `use-fil
 
 ---
 
-### T12: Render the commit list
+### T12: Render the commit list ✅
 
 **What**: Create the `CommitList` component — base picker, the uncommitted row, commit rows (short sha, subject, author, relative date, merge badge, not-pushed marker, full message as `title`), Copy sha, Open in browser per `browseState`, Load more, empty and error states.
 **Where**: `src/renderer/src/components/CommitList.tsx`
@@ -384,11 +384,14 @@ to `Exclude<FilesMode, 'full' | 'commits'>` surfaced two call sites — `use-fil
 
 **Done when**:
 
-- [ ] Copy sha writes the **full** sha
-- [ ] A disabled Open in browser carries the "not pushed yet" tooltip
-- [ ] Activating the uncommitted row switches to uncommitted-changes mode
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **945** (unchanged)
+- [x] Copy sha writes the **full** sha (`CommitList.tsx`, `writeText(row.sha)`)
+- [x] A disabled Open in browser carries the "not pushed yet" tooltip
+- [x] Activating the uncommitted row switches to uncommitted-changes mode
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1168** (unchanged)
+
+**Note**: the base picker stays in `FileTree`, shared with diff-to-origin mode (FCMT-06); `CommitList`
+renders only the body, including the base prompt, the way `SinceBase` does.
 
 **Tests**: none
 **Gate**: full
