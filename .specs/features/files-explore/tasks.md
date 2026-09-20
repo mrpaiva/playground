@@ -606,15 +606,43 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] Switching worktree and back restores that worktree's tabs and mode
-- [ ] Leaving the Files direction sends `files:watch(null)`
-- [ ] `gitStateChanged` refreshes the uncommitted list even when no tracked path is in the batch
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **850** (unchanged)
+- [x] Switching worktree and back restores that worktree's tabs and mode — state is keyed by worktree path in one `byWorktree` map, never cleared on switch; behaviour verified by the T23 smoke
+- [x] Leaving the Files direction sends `files:watch(null)` — the watch effect invokes with `active ? worktreePath : null`
+- [x] `gitStateChanged` refreshes the uncommitted list even when no tracked path is in the batch — the re-list is unconditional per batch, so a commit-only batch still re-lists
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **850** (unchanged) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): own the files direction state`
+**Status**: Complete
+
+> **A tab carries a timestamp.** `launcherTarget` compares recency (T11), so the
+> hook stamps `at` when a tab is opened and again when one is focused — picking a
+> tab is picking it, and without the stamp FXPL-26 cannot decide between the tab
+> and the last folder. The design named no such field.
+>
+> **The launcher target is absolute and back-slashed.** `shortcuts:launch` takes a
+> path, not a worktree-relative one, and `explorer.exe /select,"<path>"` parses its
+> own command line: mixed separators are not worth the risk on a Windows-only set
+> of launchers. `absoluteIn` joins the two.
+>
+> **`files:changed` re-lists the current mode unconditionally.** Distinguishing
+> "a listed path changed" from "the index moved" would need the mode's own list to
+> be diffed against the batch, and `gitStateChanged` exists precisely because a
+> commit changes what both diff modes list while touching nothing in the batch. One
+> re-list per 250 ms batch is the cheaper correct answer. Tab re-reads stay scoped
+> by `tabsAffected` (FXPL-23).
+>
+> **The hook is mounted by App, not by `FilesView`.** The design's diagram hangs it
+> off `FilesView`, but App unmounts that component when the direction changes, and
+> an unmount cleanup racing a new `files:watch` is how a worktree ends up watched
+> after the user left. Mounted above the direction switch, `active` flips to false
+> and the effect sends `null` in order.
+>
+> **Writing `live.current` during render is a lint error here**
+> (`react-hooks/refs`), so the latest-values ref is assigned in a dependency-free
+> effect declared before the effects that read it.
 
 ---
 
