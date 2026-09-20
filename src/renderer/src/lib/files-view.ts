@@ -59,6 +59,44 @@ export function isSolution(path: string): boolean {
   return /\.slnx?$/i.test(path)
 }
 
+/**
+ * Which tabs are left after one is closed, and which is focused (FXPL-19).
+ * Closing the active tab moves focus to the next one, or to the previous when
+ * there is no next; closing the last remaining tab leaves `null`, the empty
+ * state. Closing an inactive tab leaves the focus where it was. Tabs are
+ * identified by path, as opening an already-open file does (FXPL-16).
+ */
+export function tabsAfterClose(
+  tabs: string[],
+  closedIndex: number,
+  activePath: string | null
+): { tabs: string[]; active: string | null } {
+  const left = tabs.filter((_, index) => index !== closedIndex)
+  if (tabs[closedIndex] !== activePath) return { tabs: left, active: activePath }
+  const adjacent = left[closedIndex] ?? left[closedIndex - 1] ?? null
+  return { tabs: left, active: adjacent }
+}
+
+/** A path the user picked, and when — the recency FXPL-26 compares. */
+export interface Selected {
+  path: string
+  at: number
+}
+
+/**
+ * What the launcher row acts on (FXPL-26): the active tab's file, unless a
+ * folder was selected in the tree after that tab was opened. Null when nothing
+ * has been selected at all.
+ */
+export function launcherTarget(
+  activeTab: Selected | null,
+  lastFolder: Selected | null
+): string | null {
+  if (!activeTab) return lastFolder?.path ?? null
+  if (!lastFolder) return activeTab.path
+  return lastFolder.at > activeTab.at ? lastFolder.path : activeTab.path
+}
+
 function sortInPlace(dir: DirNode): void {
   dir.children.sort(compareNodes)
   for (const child of dir.children) {

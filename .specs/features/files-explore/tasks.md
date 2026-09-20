@@ -390,15 +390,24 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] Closing the active middle tab focuses the next one; closing the last focuses the previous; closing the only tab leaves none
-- [ ] Closing an inactive tab keeps the active one
-- [ ] `launcherTarget` returns whichever of the active file and the last selected folder is more recent, and null when neither exists
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 839 + 6 = **845**
+- [x] Closing the active middle tab focuses the next one; closing the last focuses the previous; closing the only tab leaves none
+- [x] Closing an inactive tab keeps the active one
+- [x] `launcherTarget` returns whichever of the active file and the last selected folder is more recent, and null when neither exists
+- [x] Gate passes: `npm test`
+- [x] Test count: 839 + 6 = **845** — measured **1027**
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(renderer): decide tab focus and launcher target`
+**Status**: ✅ Complete
+
+> Note: both signatures are wider than the design's sketch, which named no argument
+> carrying the current focus or the recency the rule compares.
+> `tabsAfterClose(tabs, closedIndex, activePath)` takes the focused path as well, or
+> "closing an inactive tab keeps the active one" is undecidable inside the function;
+> it returns `{ tabs, active }` as designed. `launcherTarget` takes
+> `{ path, at } | null` for each side, `at` being when the user picked it, since
+> "more recent" needs an ordering the design left implicit. Return type unchanged.
 
 ---
 

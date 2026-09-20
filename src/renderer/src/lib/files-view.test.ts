@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChangedPath } from '../../../shared/files'
-import { buildTree, isSolution } from './files-view'
+import { buildTree, isSolution, launcherTarget, tabsAfterClose } from './files-view'
 
 function changed(path: string, status: ChangedPath['status'] = 'modified'): ChangedPath {
   return { path, status }
@@ -55,5 +55,40 @@ describe('isSolution', () => {
   it('rejects a path that only contains .sln', () => {
     expect(isSolution('src/Widget.sln.bak')).toBe(false)
     expect(isSolution('src/Widget.ts')).toBe(false)
+  })
+})
+
+describe('tabsAfterClose', () => {
+  const three = ['a.ts', 'b.ts', 'c.ts']
+
+  it('focuses the next tab when the active middle one is closed (FXPL-19)', () => {
+    expect(tabsAfterClose(three, 1, 'b.ts')).toEqual({ tabs: ['a.ts', 'c.ts'], active: 'c.ts' })
+  })
+
+  it('focuses the previous tab when the active last one is closed (FXPL-19)', () => {
+    expect(tabsAfterClose(three, 2, 'c.ts')).toEqual({ tabs: ['a.ts', 'b.ts'], active: 'b.ts' })
+  })
+
+  it('leaves no active tab when the only tab is closed (FXPL-19)', () => {
+    expect(tabsAfterClose(['a.ts'], 0, 'a.ts')).toEqual({ tabs: [], active: null })
+  })
+
+  it('keeps the active tab when an inactive one is closed', () => {
+    expect(tabsAfterClose(three, 0, 'b.ts')).toEqual({ tabs: ['b.ts', 'c.ts'], active: 'b.ts' })
+  })
+})
+
+describe('launcherTarget', () => {
+  it('returns whichever of the active file and the last folder is more recent (FXPL-26)', () => {
+    const tab = { path: 'src/app.ts', at: 100 }
+
+    expect(launcherTarget(tab, { path: 'src/lib', at: 200 })).toBe('src/lib')
+    expect(launcherTarget(tab, { path: 'src/lib', at: 50 })).toBe('src/app.ts')
+  })
+
+  it('falls back to whichever exists, and to null when neither does (FXPL-26)', () => {
+    expect(launcherTarget({ path: 'src/app.ts', at: 100 }, null)).toBe('src/app.ts')
+    expect(launcherTarget(null, { path: 'src/lib', at: 100 })).toBe('src/lib')
+    expect(launcherTarget(null, null)).toBeNull()
   })
 })
