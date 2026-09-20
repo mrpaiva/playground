@@ -32,6 +32,18 @@ const record = (fields: {
     fields.message ?? 'a subject\n'
   ].join(FS) + RS
 
+/**
+ * Removes a temp repository, retrying on Windows.
+ *
+ * A bare clone and a push leave git holding pack files for a moment after the
+ * process exits, and a plain `rmSync` then fails EPERM — which vitest reports
+ * as the test that happened to run last. Seen once in a full-suite run and not
+ * in three others, which is exactly the shape of that race.
+ */
+function removeTemp(dir: string): void {
+  rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+}
+
 /** A repository with one commit on `main`, and the identity git needs to commit. */
 function initRepo(root: string, name = 'repo'): string {
   const repo = join(root, name)
@@ -88,7 +100,7 @@ describe('listCommits', () => {
   })
 
   afterEach(() => {
-    rmSync(root, { recursive: true, force: true })
+    removeTemp(root)
   })
 
   it('lists the branch own commits and the merge, not what the merge brought in', async () => {
@@ -202,7 +214,7 @@ describe('listCommits paging', () => {
   }, 300_000)
 
   afterAll(() => {
-    rmSync(root, { recursive: true, force: true })
+    removeTemp(root)
   })
 
   it('shows the newest 100 and says there is more', async () => {
@@ -253,7 +265,7 @@ describe('commitFiles', () => {
   })
 
   afterEach(() => {
-    rmSync(root, { recursive: true, force: true })
+    removeTemp(root)
   })
 
   it('reports a merge commit changes against its first parent', async () => {
@@ -349,7 +361,7 @@ describe('openCommit', () => {
   })
 
   afterEach(() => {
-    rmSync(root, { recursive: true, force: true })
+    removeTemp(root)
   })
 
   it('opens a pushed commit page once', async () => {
