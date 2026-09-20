@@ -471,7 +471,7 @@ renders only the body, including the base prompt, the way `SinceBase` does.
 
 ---
 
-### T16: Drive the commits mode end to end
+### T16: Drive the commits mode end to end ✅
 
 **What**: Create `scripts/smoke-files-commits.mjs` — seeds a temp repo with a bare remote, a branch with own commits, a merge of another branch, a root-level rename, 150 commits for paging, two pushed commits, a dirty file, and a **fictitious** GitHub URL on the upstream remote with the remote-tracking ref set locally so no network is touched.
 **Where**: `scripts/smoke-files-commits.mjs`
@@ -483,10 +483,25 @@ renders only the body, including the base prompt, the way `SinceBase` does.
 
 **Done when**:
 
-- [ ] Checks: the fourth mode; first-parent rows with the merge badge; paging with Load more; markers on exactly the unpushed commits; the uncommitted row and its switch; a commit tab (incl. the merge) and it surviving a mode switch; Copy sha reading back the full sha; Open in browser enabled on a pushed row and disabled with its tooltip on an unpushed one; a new commit appearing within 1 s; the markers clearing after a push from the status bar
-- [ ] **Does not click an enabled Open in browser** — it would open a real browser on a fictitious URL; `openCommit`'s URL is unit-tested (T6). Opening one real commit is a hand check
-- [ ] Unregisters the temp workspace and restores the owner's direction and theme
-- [ ] Numbered pass/fail line per check; all pass against a live dev app
+- [x] Checks: the fourth mode; first-parent rows with the merge badge; paging with Load more; markers on exactly the unpushed commits; the uncommitted row and its switch; a commit tab (incl. the merge) and it surviving a mode switch; Copy sha reading back the full sha; Open in browser enabled on a pushed row and disabled with its tooltip on an unpushed one; a new commit appearing within 1 s; the markers clearing after a push from the status bar
+- [x] **Does not click an enabled Open in browser** — it would open a real browser on a fictitious URL; `openCommit`'s URL is unit-tested (T6). Opening one real commit is a hand check
+- [x] Unregisters the temp workspace and restores the owner's direction and theme (`--clean`); the drive ran against an isolated `--user-data-dir`, so the owner's real config was never in scope
+- [x] Numbered pass/fail line per check; **27/27 pass** against a live dev app
+
+**Three checks were added beyond the list above**, because without them the ACs had no evidence at all:
+the row tooltip carrying the whole message (FCMT-04), changing the base re-cutting the list (FCMT-30),
+and the stack's totals header being that commit's own (FCMT-19).
+
+**One check caught a mistake in the check, not in the app.** The totals header for the seeded rename
+reads `+0 −0`, and the first version of the check expected `+1`. `git diff-tree -r -M --numstat` prints
+`0  0  src/{renamed-old.ts => renamed-new.ts}`: a pure rename moves no lines. Because zeros are also
+what a broken counts path would produce, a second tab is now opened on a commit that does move lines
+and asserted at `+1 −1`, against git's own numbers.
+
+**Not covered here, deliberately**: FCMT-07 (no `origin/HEAD` and no chosen base) — the seeded
+repository has both, and arranging its absence mid-drive would mean a second worktree. It is the same
+guard the diff-to-origin body uses, which `smoke-files.mjs` covers. The script prints it as a hand check
+rather than letting the coverage claim pass silently.
 
 **Tests**: manual
 **Gate**: manual
