@@ -215,17 +215,18 @@ T21 → T22 → T23
 
 **Done when**:
 
-- [ ] `resolveInside` rejects an absolute path and `../` escapes, and accepts a path through a folder inside the root
-- [ ] `isBinary` is true for a NUL byte within the first 8000 bytes and false otherwise
-- [ ] A file above 1 MB returns `too-large` **without being read** (asserted by size with a sparse or large temp file, not by timing)
-- [ ] Missing file → `missing`; binary → `binary`; Latin-1 bytes → `text` containing `U+FFFD`
-- [ ] `src/main/file-reader.test.ts` created
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 813 + 9 = **822**
+- [x] `resolveInside` rejects an absolute path and `../` escapes, and accepts a path through a folder inside the root
+- [x] `isBinary` is true for a NUL byte within the first 8000 bytes and false otherwise
+- [x] A file above 1 MB returns `too-large` **without being read** (asserted by size with a sparse or large temp file, not by timing)
+- [x] Missing file → `missing`; binary → `binary`; Latin-1 bytes → `text` containing `U+FFFD`
+- [x] `src/main/file-reader.test.ts` created
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 813 + 9 = **822** — measured **1004**
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(main): read a worktree file for the viewer`
+**Status**: ✅ Complete
 
 ---
 
