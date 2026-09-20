@@ -8,16 +8,15 @@ interface CodeViewerProps {
   path: string
   /** The `text` of a `FileContent` — the viewer never sees the other kinds. */
   text: string
-  /**
-   * The tab was opened from one of the two diff modes. F2 has not shipped, so
-   * the view says plainly that it shows the file, not a diff (FXPL-14).
-   */
-  fromDiffMode?: boolean
 }
 
 /**
  * The read-only file viewer (FXPL-17): Monaco, one editor per mounted tab,
  * highlighted by the Monarch contribution matching the path.
+ *
+ * It shows the file and says nothing about diffs. FXPL-14's caption was there
+ * only while F2 had no diff to open; now a click in either diff mode opens one
+ * (FDIF-10), and the only way here is the full-folder mode.
  *
  * The editor is created once and then fed new text, never recreated, because a
  * disk change must update the tab in place and keep the scroll position
@@ -25,7 +24,7 @@ interface CodeViewerProps {
  * restored around the edit — cheap, and it survives a content replacement of
  * any size.
  */
-export function CodeViewer({ path, text, fromDiffMode }: CodeViewerProps): JSX.Element {
+export function CodeViewer({ path, text }: CodeViewerProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
 
@@ -73,7 +72,6 @@ export function CodeViewer({ path, text, fromDiffMode }: CodeViewerProps): JSX.E
 
   return (
     <div className="code-viewer">
-      {fromDiffMode && <div className="code-viewer-note">Showing the current file, not a diff</div>}
       <div className="code-viewer-editor" ref={containerRef} />
     </div>
   )

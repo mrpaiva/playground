@@ -1018,15 +1018,36 @@ T20 → T21
 
 **Done when**:
 
-- [ ] No code path renders the interim label
-- [ ] `files-explore/spec.md` FXPL-14 carries "superseded by FDIF-10"
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: **898** (unchanged)
+- [x] No code path renders the interim label — the element, its CSS rule and the `fromDiffMode` flag that drove it are gone end to end; `grep -rn "fromDiffMode\|code-viewer-note" src/` finds nothing
+- [x] `files-explore/spec.md` FXPL-14 carries "superseded by FDIF-10" — struck through in the criterion with the date and the delivering task, marked in the traceability table, and the out-of-scope row updated, following the STBR-31 precedent
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: **1098** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: build
 **Commit**: `refactor(renderer): retire the interim file view in diff modes`
+**Status**: ✅ Complete — Phase 4 done
+
+> **The retirement is the whole flag, not just the label.** `fromDiffMode`
+> existed only to caption the interim view; with FDIF-10 shipped nothing sets
+> it and nothing could read it. It is removed from `CodeViewer`'s props, from
+> `FileTab`, from `OpenOptions` and from the `FileTabs` pass-through, along with
+> the `.code-viewer-note` rule. Four files outside T20's `Where`, all of them
+> the flag's own reach.
+>
+> **`scripts/smoke-files.mjs` now holds two checks that can no longer pass, and
+> they were left alone.** Check 16 asserts FXPL-14's caption, which no longer
+> exists, and the check after it opens `notes.md` from diff-to-origin expecting
+> FXPL-15's deleted placeholder, which is now a diff with an absent modified
+> side (FDIF-04). Both are consequences of a superseded requirement, not
+> regressions — and editing a check to match new behaviour is exactly the move
+> the execution rules forbid doing unasked. Raised for the owner instead;
+> T21 builds F2's own smoke and is the place to settle F1's.
+>
+> **FXPL-15 is left standing.** Nothing produces a `deleted` tab any more (T18's
+> note), so the placeholder is unreachable, but the spec supersedes FXPL-14 and
+> is silent on FXPL-15. Recorded, not acted on.
 
 ---
 

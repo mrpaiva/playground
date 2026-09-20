@@ -51,7 +51,7 @@ function FileBody({ tab }: { tab: FileTab }): JSX.Element {
   const content = tab.content
   switch (content.kind) {
     case 'text':
-      return <CodeViewer path={tab.path} text={content.text} fromDiffMode={tab.fromDiffMode} />
+      return <CodeViewer path={tab.path} text={content.text} />
     case 'binary':
       return <FilePlaceholder path={tab.path} kind="binary" size={content.size} />
     case 'too-large':

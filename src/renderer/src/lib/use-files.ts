@@ -22,8 +22,6 @@ export interface FileTab {
   path: string
   /** What main answered for it; null while the read is in flight. */
   content: FileContent | null
-  /** Opened from one of the diff modes, so the viewer says so (FXPL-14). */
-  fromDiffMode: boolean
   /** Listed as deleted by a diff mode: there was never content to read (FXPL-15). */
   deleted: boolean
   /** When the user last picked this tab — the recency FXPL-26 compares. */
@@ -50,9 +48,8 @@ export interface DiffTab {
 export type ViewTab = FileTab | DiffTab
 export type StripTab = ViewTab | { kind: 'all-changes' }
 
-/** How a file was opened, so the tab knows what to show (FXPL-14/15). */
+/** How a file was opened, so the tab knows what to show (FXPL-15). */
 export interface OpenOptions {
-  fromDiffMode?: boolean
   deleted?: boolean
 }
 
@@ -443,7 +440,6 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
           kind: 'file',
           path,
           content: null,
-          fromDiffMode: options.fromDiffMode ?? false,
           deleted: options.deleted ?? false,
           at
         }
