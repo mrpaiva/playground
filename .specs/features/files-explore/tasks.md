@@ -19,6 +19,8 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Baseline measured 2026-09-19** with `npx vitest run` on `origin/main` `6ecd19c`, after the upstream merged #88: **917 tests / 52 files**, all passing. The 748 the plans started from was recorded before #88 and is stale by **+169**. Its baseline becomes status-bar's corrected end, **966**; every count below shifts by **+169** and this feature ends at **1019**, not 850. Still re-measure as the first act of Execute.
 
+**Baseline measured 2026-09-20** with `npm test` on this branch, rebased onto `feature/status-bar` `09c4b4f`: **979 tests / 55 files**, all passing. Status-bar ended 13 tests above the 966 projected for it, so the shift from the written counts is **+182**, not +169. **Every count below reads +182**; T1's 797 means 979, and this feature ends at **1032**. This is a measurement, not a projection — the counts below stay as written and the offset applies to all of them.
+
 ---
 
 ## Test Coverage Matrix
