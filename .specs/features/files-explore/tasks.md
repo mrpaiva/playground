@@ -161,16 +161,17 @@ T21 → T22 → T23
 
 **Done when**:
 
-- [ ] `parseNameStatus` maps `M`, `A`, `D`, `T` and scored `R100` / `C75` onto `ChangeStatus`, carrying `oldPath` for renames
-- [ ] Only committed changes are listed — an uncommitted edit does not appear (spec assumption: committed only)
-- [ ] A base that no longer exists returns `{ mergeBase: null, files: [], error }`
-- [ ] Tests cover the parser cases and a temp repo two commits past its base
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 804 + 6 = **810**
+- [x] `parseNameStatus` maps `M`, `A`, `D`, `T` and scored `R100` / `C75` onto `ChangeStatus`, carrying `oldPath` for renames
+- [x] Only committed changes are listed — an uncommitted edit does not appear (spec assumption: committed only)
+- [x] A base that no longer exists returns `{ mergeBase: null, files: [], error }`
+- [x] Tests cover the parser cases and a temp repo two commits past its base
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 804 + 6 = **810** — measured **992**
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(main): list the files a branch changed since its base`
+**Status**: ✅ Complete
 
 ---
 

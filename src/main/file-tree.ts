@@ -1,4 +1,5 @@
-import type { DirListing, FileEntry } from '../shared/files'
+import type { ChangedListing, ChangedPath, DirListing, FileEntry } from '../shared/files'
+import type { ChangeStatus } from '../shared/worktrees'
 import { git, gitFailureLine } from './git'
 
 /**
@@ -62,6 +63,68 @@ export function foldChildren(paths: string[], dir: string): FileEntry[] {
     })
   }
   return [...byName.values()].sort(compareEntries)
+}
+
+/**
+ * What the branch committed since it left its base (FXPL-08): the merge-base
+ * with `base`, then the diff from there to HEAD. Committed changes only —
+ * uncommitted work is the other mode's subject. A base that no longer exists
+ * comes back as `mergeBase: null` with git's error line (edge case).
+ */
+export async function changedSince(worktreePath: string, base: string): Promise<ChangedListing> {
+  let mergeBase: string
+  try {
+    const { stdout } = await git(worktreePath, ['merge-base', 'HEAD', base])
+    mergeBase = stdout.trim()
+  } catch (err) {
+    return { mergeBase: null, files: [], error: gitFailureLine(err) }
+  }
+  try {
+    const { stdout } = await git(worktreePath, ['diff', '--name-status', '-z', mergeBase, 'HEAD'])
+    return { mergeBase, files: parseNameStatus(stdout) }
+  } catch (err) {
+    return { mergeBase, files: [], error: gitFailureLine(err) }
+  }
+}
+
+/**
+ * Parses `git diff --name-status -z`: NUL-separated fields, a status letter
+ * followed by one path, or a scored `R100` / `C75` followed by the old path
+ * and the new one. Statuses land in the `ChangeStatus` vocabulary the
+ * uncommitted mode already uses, so the tree labels both diff modes alike.
+ */
+export function parseNameStatus(stdout: string): ChangedPath[] {
+  const fields = stdout.split('\0').filter((f) => f !== '')
+  const files: ChangedPath[] = []
+  let i = 0
+  while (i < fields.length) {
+    const code = fields[i++]
+    const letter = code[0]
+    if (letter === 'R' || letter === 'C') {
+      const oldPath = fields[i++]
+      const path = fields[i++]
+      if (path === undefined) break
+      // A copy is a new file that happens to have a source; only a rename is renamed.
+      files.push({ path, status: letter === 'R' ? 'renamed' : 'added', oldPath })
+      continue
+    }
+    const path = fields[i++]
+    if (path === undefined) break
+    files.push({ path, status: statusOf(letter) })
+  }
+  return files
+}
+
+/** A type change (`T`) is a modification as far as the tree is concerned. */
+function statusOf(letter: string): ChangeStatus {
+  switch (letter) {
+    case 'A':
+      return 'added'
+    case 'D':
+      return 'deleted'
+    default:
+      return 'modified'
+  }
 }
 
 function compareEntries(a: FileEntry, b: FileEntry): number {

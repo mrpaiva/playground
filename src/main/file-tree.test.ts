@@ -3,7 +3,10 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { foldChildren, listDir } from './file-tree'
+import { changedSince, foldChildren, listDir, parseNameStatus } from './file-tree'
+
+/** `git diff --name-status -z` output: NUL after every field, including the last. */
+const z = (...fields: string[]): string => fields.map((f) => `${f}\0`).join('')
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, { cwd, encoding: 'utf8' })
@@ -86,5 +89,89 @@ describe('listDir', () => {
 
     expect(listing.entries).toEqual([])
     expect(listing.error).toMatch(/^fatal: not a git repository/)
+  })
+})
+
+describe('parseNameStatus', () => {
+  it('maps M, A, D and T onto the ChangeStatus vocabulary', () => {
+    const files = parseNameStatus(
+      z('M', 'edited.ts', 'A', 'added.ts', 'D', 'gone.ts', 'T', 'link.ts')
+    )
+
+    expect(files).toEqual([
+      { path: 'edited.ts', status: 'modified' },
+      { path: 'added.ts', status: 'added' },
+      { path: 'gone.ts', status: 'deleted' },
+      { path: 'link.ts', status: 'modified' }
+    ])
+  })
+
+  it('maps a scored rename onto renamed, carrying the old path', () => {
+    const files = parseNameStatus(z('R100', 'old/name.ts', 'new/name.ts'))
+
+    expect(files).toEqual([{ path: 'new/name.ts', status: 'renamed', oldPath: 'old/name.ts' }])
+  })
+
+  it('maps a scored copy onto added, carrying the source path', () => {
+    const files = parseNameStatus(z('C75', 'src/origin.ts', 'src/copy.ts'))
+
+    expect(files).toEqual([{ path: 'src/copy.ts', status: 'added', oldPath: 'src/origin.ts' }])
+  })
+})
+
+describe('changedSince', () => {
+  let root: string
+  let repo: string
+  let baseCommit: string
+
+  beforeEach(() => {
+    root = realpathSync.native(mkdtempSync(join(tmpdir(), 'wtm-cs-')))
+    repo = join(root, 'repo')
+    mkdirSync(repo)
+    git(repo, 'init', '-b', 'main')
+    git(repo, 'config', 'user.email', 'test@test.local')
+    git(repo, 'config', 'user.name', 'Test')
+    writeFileSync(join(repo, 'a.txt'), 'one\n', 'utf8')
+    writeFileSync(join(repo, 'other.txt'), 'untouched\n', 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'init')
+    baseCommit = git(repo, 'rev-parse', 'HEAD').trim()
+    git(repo, 'checkout', '-b', 'feature')
+    writeFileSync(join(repo, 'new.txt'), 'fresh\n', 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'add new')
+    writeFileSync(join(repo, 'a.txt'), 'two\n', 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'edit a')
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('lists what the branch committed since its merge-base with the base', async () => {
+    const listing = await changedSince(repo, 'main')
+
+    expect(listing.mergeBase).toBe(baseCommit)
+    expect(listing.files).toEqual([
+      { path: 'a.txt', status: 'modified' },
+      { path: 'new.txt', status: 'added' }
+    ])
+  })
+
+  it('does not list an uncommitted edit', async () => {
+    writeFileSync(join(repo, 'other.txt'), 'dirty\n', 'utf8')
+
+    const listing = await changedSince(repo, 'main')
+
+    expect(listing.files.map((f) => f.path)).not.toContain('other.txt')
+  })
+
+  it('returns no merge base, no files and git’s error line when the base is gone', async () => {
+    const listing = await changedSince(repo, 'deleted-base')
+
+    expect(listing.mergeBase).toBeNull()
+    expect(listing.files).toEqual([])
+    expect(listing.error).toMatch(/deleted-base/)
   })
 })
