@@ -454,19 +454,46 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] `monaco-editor` added to `dependencies` in `package.json`, version pinned
-- [ ] A throwaway mount renders a highlighted `.ts` file in `npm run dev` with **no CSP violation** in the console
-- [ ] The same in `dist/win-unpacked` after `npm run build:unpack`
-- [ ] The worker is served as a file, not a `blob:` URL (checked in DevTools' Sources)
-- [ ] Bundle growth measured (renderer output size before vs after) and written in the commit body
-- [ ] Theme flips between `vs` and `vs-dark` with the app theme
-- [ ] The throwaway mount is removed before commit; `monaco-setup.ts` stays
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **850** (unchanged — renderer setup)
+- [x] `monaco-editor` added to `dependencies` in `package.json`, version pinned — `0.56.0`, exact
+- [x] A throwaway mount renders a highlighted `.ts` file in `npm run dev` with **no CSP violation** in the console — 32 tokens over 9 token classes; worker `/@fs/.../editor.worker.js?worker_file&type=module`
+- [x] The same in `dist/win-unpacked` after `npm run build:unpack` — 32 lines, 333 tokens, 14 token classes
+- [x] The worker is served as a file, not a `blob:` URL (checked in DevTools' Sources) — packaged url `file:///.../app.asar/out/renderer/assets/editor.worker-BwBjdhCz.js`
+- [x] Bundle growth measured (renderer output size before vs after) and written in the commit body
+- [x] Theme flips between `vs` and `vs-dark` with the app theme — background `rgb(30,30,30)` to `rgb(255,255,254)`
+- [x] The throwaway mount is removed before commit; `monaco-setup.ts` stays
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **850** (unchanged — renderer setup) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: build
 **Commit**: `feat(renderer): set up a read-only monaco editor`
+**Status**: PASS — the stack is proven; Phase 3 proceeds as planned.
+
+> **Import paths.** Monaco 0.56 ships an `exports` map (`"./*": "./esm/vs/*.js"`), so the
+> widely documented `monaco-editor/esm/vs/editor/editor.api` resolves to `esm/vs/esm/vs/...`
+> and Rollup fails with "failed to resolve import". The correct specifiers drop the prefix:
+> `monaco-editor/editor/editor.api`, `monaco-editor/basic-languages/monaco.contribution`,
+> `monaco-editor/editor/editor.worker?worker`. F2 imports the same module and inherits this.
+>
+> **The spike mounts a DIFF editor, not a plain one.** A read-only editor with only Monarch
+> never starts a worker — it tokenises on the main thread — so it would have proved nothing
+> about the CSP's worker rule, and the check would have passed vacuously. The diff is computed
+> in the worker, which is also exactly F2's surface, so the spike drives `createDiffEditor` and
+> asserts `getLineChanges()` returns the planted changes. Verified in dev and packaged.
+>
+> **Bundle growth** (renderer, unminified — this project does not minify the renderer):
+> main chunk 1,229.12 kB to 6,363.49 kB (+5,134.37 kB); CSS 168.68 kB to 284.63 kB
+> (+115.95 kB); plus a 584.83 kB worker and 654.70 kB across 81 lazy language chunks.
+> Accepted by the owner on 2026-09-20: a local Electron app pays this in disk and parse,
+> not in transfer.
+>
+> **Pre-existing CSP violation, NOT caused by Monaco and not fixed here.** The packaged build
+> logs 38 `Loading the font 'data:font/woff...' violates ... "default-src 'self'"` errors: the
+> app's `@fontsource` CSS inlines fonts as `data:` URIs and the CSP sets no `font-src`, so
+> `default-src 'self'` blocks them and the app falls back silently. A control build with the
+> spike unmounted emits the identical 19 `data:font` occurrences and a byte-identical 168.68 kB
+> CSS, which is the proof it predates this feature. Dev does not show it, because the dev server
+> serves the fonts as files. Out of scope for F1 — see the Handoff note.
 
 ---
 
