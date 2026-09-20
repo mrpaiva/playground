@@ -5,6 +5,10 @@
  */
 
 .diff-section {
+  /* The stack is a flex column. Without this every section shrinks to share
+     the scroller's height between all of them — 44 files turned into 44
+     stripes a few pixels tall, with their editors clipped inside. */
+  flex: none;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
