@@ -867,15 +867,45 @@ T20 → T21
 
 **Done when**:
 
-- [ ] An uncommitted diff re-reads only when its own path is in a change batch
-- [ ] `gitStateChanged` re-reads every open diff and the stats
-- [ ] A base change re-reads only diff-to-origin diffs and stats
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **898** (unchanged)
+- [x] An uncommitted diff re-reads only when its own path is in a change batch — the non-`gitStateChanged` branch of the `files:changed` handler runs F1's `tabsAffected` over the uncommitted diff tabs' paths and re-reads nothing else
+- [x] `gitStateChanged` re-reads every open diff and the stats — every diff tab through `readDiff`, the counts through `refreshMode`, and `refreshToken` bumped for the stack
+- [x] A base change re-reads only diff-to-origin diffs and stats — an effect keyed on the resolved `mergeBase` walks the `since-base` diff tabs only
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1098** (unchanged; lint 0 errors / 18 warnings)
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): hold diff tabs and preferences in the files hook`
+**Status**: ✅ Complete
+
+> **`onPersist` now takes a `ui` patch, not the files map.** The two diff
+> preferences live in `ui.*` beside `sidebarWidth`, not in `FilesState`, and
+> App is the one config writer (D4). Widening the callback is one line in
+> `App.tsx` — `onPersist: update`, which is the writer itself — against
+> inventing a second channel for the same config object.
+>
+> **The base-change effect is keyed on the resolved merge base, not on the
+> chosen branch.** Both sides are read at `merge-base(HEAD, base)`, and that
+> value only exists once `files:changed-since` has answered for the new base;
+> firing on the branch name would re-read every diff-to-origin diff against the
+> *old* commit and then leave it there.
+>
+> **`FileTabs.tsx` was touched to keep the gate green**, and only that far: the
+> strip filters to file tabs and is keyed by `tabKeyOf`. T19 owns what it
+> renders. Between here and T19 a diff tab opens but has nowhere to show, which
+> is an interim state inside the phase, not a shipped one.
+>
+> **`activeTab` is a key now, and a focus naming a tab that is gone falls to
+> the first of the strip.** In both diff modes that is All changes, which is
+> what keeps the column from ever being empty there (FDIF-17). `closeTab` maps
+> the whole strip, not the open tabs, so `tabsAfterClose` can see the fixed tab
+> and refuse to close it.
+>
+> **The stack is not held here.** A diff *tab* keeps its `DiffSides` in the
+> hook; the All changes sections read their own, because two hundred of them
+> cannot live in one state object. The hook drives them by re-deriving
+> `requestFor` whenever the mode's list or the merge base moves, plus
+> `refreshToken` for the refresh that changes neither.
 
 ---
 

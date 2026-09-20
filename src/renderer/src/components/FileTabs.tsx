@@ -1,6 +1,7 @@
 import type { JSX } from 'react'
 import type { ShortcutTool } from '../../../shared/shortcuts'
 import { api } from '../lib/api'
+import { tabKeyOf } from '../lib/diff-view'
 import type { FileTab, UseFiles } from '../lib/use-files'
 import { CodeViewer } from './CodeViewer'
 import { FilePlaceholder } from './FilePlaceholder'
@@ -60,7 +61,10 @@ function TabBody({ tab }: { tab: FileTab }): JSX.Element {
  * per file and disposes it when the tab loses focus or closes (T14).
  */
 export function FileTabs({ files, onToast }: FileTabsProps): JSX.Element {
-  const active = files.tabs.find((tab) => tab.path === files.activeTab) ?? null
+  // T19 renders the diff tabs and the fixed All changes tab. Until then the
+  // strip shows what F1 shipped, keyed the way F2 keys it.
+  const open = files.tabs.filter((tab): tab is FileTab => tab.kind === 'file')
+  const active = open.find((tab) => tabKeyOf(tab) === files.activeTab) ?? null
 
   const launch = (tool: ShortcutTool): void => {
     const path = files.launchTarget
@@ -76,18 +80,18 @@ export function FileTabs({ files, onToast }: FileTabsProps): JSX.Element {
   return (
     <div className="file-tabs">
       <div className="file-tabs-strip" role="tablist" aria-label="Open files">
-        {files.tabs.map((tab) => (
+        {open.map((tab) => (
           <div
-            key={tab.path}
-            className={`file-tab${tab.path === files.activeTab ? ' active' : ''}`}
+            key={tabKeyOf(tab)}
+            className={`file-tab${tabKeyOf(tab) === files.activeTab ? ' active' : ''}`}
           >
             <button
               type="button"
               role="tab"
-              aria-selected={tab.path === files.activeTab}
+              aria-selected={tabKeyOf(tab) === files.activeTab}
               className="file-tab-label"
               title={tab.path}
-              onClick={() => files.focusTab(tab.path)}
+              onClick={() => files.focusTab(tabKeyOf(tab))}
             >
               {tab.path.split('/').pop() ?? tab.path}
             </button>
@@ -96,7 +100,7 @@ export function FileTabs({ files, onToast }: FileTabsProps): JSX.Element {
               className="file-tab-close"
               aria-label={`Close ${tab.path}`}
               title="Close"
-              onClick={() => files.closeTab(tab.path)}
+              onClick={() => files.closeTab(tabKeyOf(tab))}
             >
               <Icon name="x" size={12} />
             </button>

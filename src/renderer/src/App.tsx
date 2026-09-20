@@ -155,7 +155,7 @@ function App(): JSX.Element {
     worktreePath: selected?.worktree.path ?? null,
     active: ui?.direction === 'files',
     ui: ui ?? DEFAULT_CONFIG.ui,
-    onPersist: (next) => update({ files: next })
+    onPersist: update
   })
 
   /**
