@@ -856,16 +856,27 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] Clicking the counter from any direction lands in Files, uncommitted mode, on that worktree
-- [ ] The forced mode is what the worktree restores next time
-- [ ] `ChangesPopover` is no longer mounted by the counter; the file is removed if nothing else imports it
-- [ ] `status-bar/spec.md` STBR-30 and STBR-32 carry a "superseded by FXPL-31" note (the AD-018 pattern)
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **850** (unchanged)
+- [x] Clicking the counter from any direction lands in Files, uncommitted mode, on that worktree — the bar is mounted outside the direction switch, so the counter is reachable from all five; **verified by the T23 smoke**
+- [x] The forced mode is what the worktree restores next time — the same config write does both, because the mode is read back from `ui` every render; **verified by the T23 smoke**
+- [x] `ChangesPopover` is no longer mounted by the counter; the file is removed if nothing else imports it — `ChangesPopover.tsx` and `.css` deleted, no reference left in `src/`
+- [x] `status-bar/spec.md` STBR-30 and STBR-32 carry a "superseded by FXPL-31" note (the AD-018 pattern)
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **850** (unchanged) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): open the changed files from the status bar`
+**Status**: Complete
+
+> **Direction and mode go in one config patch, not two.** `update` merges a
+> partial patch and fires its own `config:patch`, so two calls are two writes; if
+> the second failed the user would land in Files with the previous mode. One
+> patch carries both.
+>
+> **`open` in `StatusBar` is now `'sync' | null`.** The counter no longer owns a
+> popover, so the "at most one popover is open" rule it shared with sync is gone
+> — the counter navigates away instead, which closes the bar's popover surface
+> by leaving it.
 
 ---
 

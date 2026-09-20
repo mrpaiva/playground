@@ -30,6 +30,7 @@ import {
 } from './lib/pane-layout'
 import { findWorktree } from './lib/tree-selection'
 import { dropCollapsedId, isCollapsed, toggleCollapsedId } from './lib/workspace-collapse'
+import { filesStateFor } from './lib/files-view'
 import { useFiles } from './lib/use-files'
 import { useSessions } from './lib/use-sessions'
 import { useTree } from './lib/use-tree'
@@ -129,6 +130,28 @@ function App(): JSX.Element {
     ui: ui ?? DEFAULT_CONFIG.ui,
     onPersist: (next) => update({ files: next })
   })
+
+  /**
+   * The status bar's changed-file counter lands in the Files direction on that
+   * worktree, in uncommitted-changes mode (FXPL-31, superseding STBR-30/32).
+   *
+   * One config write does both halves: the mode is read back from `ui` on every
+   * render, so the mode forced here *is* the mode that worktree restores next
+   * time (FXPL-32). Direction and mode go in the same patch rather than two,
+   * so a failed second write cannot leave the direction switched with the mode
+   * unchanged.
+   */
+  const openChangedFiles = (worktreeId: string): void => {
+    const current = ui ?? DEFAULT_CONFIG.ui
+    setSelectedId(worktreeId)
+    update({
+      direction: 'files',
+      files: {
+        ...current.files,
+        [worktreeId]: { ...filesStateFor(current, worktreeId), mode: 'uncommitted' }
+      }
+    })
+  }
 
   const refreshTasks = useCallback((): void => {
     api.invoke('tasks:refresh').then(setTasks).catch(console.error)
@@ -386,6 +409,7 @@ function App(): JSX.Element {
         selectedSessionId={selectedSessionId}
         direction={ui.direction}
         onToast={setToast}
+        onOpenChanges={openChangedFiles}
         onRefreshTree={refreshTree}
       />
       {dialogRepoPath && (
