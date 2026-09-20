@@ -1,0 +1,75 @@
+/*
+ * What a tab shows when the file cannot be rendered (FXPL-15/20/24). A centred
+ * card rather than a banner: this is the tab's whole content, not a notice
+ * layered over something else.
+ */
+
+.file-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 0;
+  padding: 24px;
+}
+
+.file-placeholder-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.file-placeholder-name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.file-placeholder-headline {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.file-placeholder-detail {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.file-placeholder-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.file-placeholder-launchers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.file-placeholder-launcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+
+.file-placeholder-launcher:hover {
+  border-color: var(--border-strong);
+}

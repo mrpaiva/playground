@@ -554,15 +554,43 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] Each of the four kinds has its own wording; size is human-readable
-- [ ] A deleted file shows no launcher that would open a missing path
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: **850** (unchanged)
+- [x] Each of the four kinds has its own wording; size is human-readable — `binary`, `too-large`, `missing`, `deleted` in `WORDING`; `formatSize` prints B/KB/MB/GB
+- [x] A deleted file shows no launcher that would open a missing path — `missing` and `deleted` render no launcher row at all
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: **850** (unchanged) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: build
 **Commit**: `feat(renderer): show a placeholder for files that cannot render`
+**Status**: Complete — Phase 3 closed.
+
+> **The launcher row appears in two places in the plan, and T18 must settle it.**
+> FXPL-25 puts File Explorer, VS Code, VS 2022 and VS 2026 under the tabs, owned
+> by `FileTabs` (T18); FXPL-20 says a binary tab shows "the launchers", and the
+> design lists launchers against `FilePlaceholder` as well. Built here as T15's
+> text states, so the placeholder carries its own row. **If T18 renders the
+> FXPL-25 row above the tab body, the two will show the same four buttons at
+> once** — at that point either drop the row from this component or keep it and
+> hide the strip's for these kinds. Recorded rather than pre-empted, because the
+> duplication is only visible once T18 exists.
+>
+> **No launcher for `missing` or `deleted`.** Every launcher here targets the
+> file: File Explorer selects it, the editors open it. With no file on disk each
+> one can only fail, so the row is not rendered rather than rendered disabled.
+> The parent folder still exists and could be offered, but no AC asks for it.
+>
+> **An icon was added to `Icon.tsx`.** The set had no `file` glyph and both
+> non-renderable kinds need one; `folder` and `alert` were the only near misses
+> and both say something untrue. Four lines, same 24px stroke geometry as its
+> neighbours.
+>
+> **`formatSize` and `fileType` are untested, inside the component.** Both are
+> presentation helpers used in one place, and T15 is planned with `Tests: none`
+> and an unchanged count. Extracting them to `files-view.ts` would put them under
+> the Test Coverage Matrix's rule for pure helpers and change the count the plan
+> fixes. Flagged for the Verifier: if it judges the matrix to win, they move and
+> gain unit tests.
 
 ---
 
