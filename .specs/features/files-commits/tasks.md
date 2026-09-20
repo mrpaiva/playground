@@ -399,7 +399,7 @@ renders only the body, including the base prompt, the way `SinceBase` does.
 
 ---
 
-### T13: Render a commit's tab
+### T13: Render a commit's tab ✅
 
 **What**: Create the `CommitTab` component — fetch `commits:files` once, then mount F2's `AllChangesTab` with the commit's files, stats and `commitDiffRequest` bound to its sha and parent; git's error line when the commit is gone.
 **Where**: `src/renderer/src/components/CommitTab.tsx`
@@ -411,11 +411,11 @@ renders only the body, including the base prompt, the way `SinceBase` does.
 
 **Done when**:
 
-- [ ] A merge commit's tab shows its first-parent changes, not an empty stack
-- [ ] Layout, whitespace and EOL markers behave exactly as in F2
-- [ ] `AllChangesTab` is mounted unmodified
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **945** (unchanged)
+- [x] A merge commit's tab shows its first-parent changes, not an empty stack (`commitFiles` names `^1`; unit-proved at T5)
+- [x] Layout, whitespace and EOL markers behave exactly as in F2 — both preferences are passed straight through
+- [x] `AllChangesTab` is mounted unmodified (no F2 file touched)
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **1168** (unchanged)
 
 **Tests**: none
 **Gate**: full
