@@ -364,16 +364,17 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] `buildTree` nests `a/b/c.ts` and `a/d.ts` under one `a`, keeping each leaf's status
-- [ ] Sorting matches `foldChildren`: folders first, then alphabetical, case-insensitive
-- [ ] `isSolution` accepts `.sln` and `.slnx` in any case and rejects `.sln.bak`
-- [ ] `files-view.test.ts` created
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 833 + 6 = **839**
+- [x] `buildTree` nests `a/b/c.ts` and `a/d.ts` under one `a`, keeping each leaf's status
+- [x] Sorting matches `foldChildren`: folders first, then alphabetical, case-insensitive
+- [x] `isSolution` accepts `.sln` and `.slnx` in any case and rejects `.sln.bak`
+- [x] `files-view.test.ts` created
+- [x] Gate passes: `npm test`
+- [x] Test count: 833 + 6 = **839** — measured **1021**
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(renderer): nest changed paths into a tree`
+**Status**: ✅ Complete
 
 ---
 
