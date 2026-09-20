@@ -46,25 +46,49 @@ Handoff snapshot.
 
 ## Handoff
 
-**Status (current, 2026-09-19): `status-bar` COMPLETE -- T1-T18 executed and independent Verifier
-**PASS** (round 3 of 3) on branch `feature/status-bar`, cut from `origin/main` `6ecd19c`. Pushed to
-`fork` and **PR #97 open upstream** (`viniciussaide:feature/status-bar` -> `obogoni:main`, opened
-2026-09-19 with owner go-ahead; CI `gate` **pass** in 4m6s, `mergeStateStatus` CLEAN, 31 files / +5351 -27). Merged locally into `develop`. Report:
-`.specs/features/status-bar/validation.md`; `validate_state.py` exit 0.**
+**Status (current, 2026-09-20): the Files epic's first three slices are COMPLETE and each has an
+open upstream PR. Merged locally into `develop` (`6912ce3`).**
 
-- **Verification:** suite **917 -> 979** (52 -> 55 files); typecheck, lint (18 warnings, the
-  pre-existing baseline) and `electron-vite build` exit 0. CDP smoke `scripts/smoke-status-bar.mjs`
-  **57/57** against the live dev app. Verifier round 3: 32/32 ACs and 6/6 edge cases evidenced,
-  8/8 mutants killed. Rounds 1-2 failed on evidence gaps and led to three product fixes: the
-  late sync-state answer race, the deleted-worktree-folder state, and `--no-rebase` on Pull/Sync.
-- **After the PASS, owner tweaks** covered by gate + smoke only: Visual Studio git glyphs on the
-  popover buttons, the branch split in half, and the branch cap raised from 50% to 70% of the bar.
-- **Open notes:** the spec says five directions and this branch has four (Hours arrives with #93);
-  the timeout message text is not asserted; `src/main/index.ts` still runs git directly in the
-  workflow fetch path, against AD-023. Candidate lessons L-019..L-026 await promotion.
+| Slice | Branch | Verifier | PR |
+| ----- | ------ | -------- | -- |
+| F1 `files-explore` | `feature/files-explore` `72d6e98` | PASS, round 3 of 3 | **#100** (depends on #97) |
+| F2 `files-diff` | `feature/files-diff` `1802d35` | PASS, round 1 | **#101** (depends on #100) |
+| F3 `files-commits` | `feature/files-commits` `cd44640` | PASS, round 2 of 3 | **#102** (depends on #101) |
 
-**Next:** F1 `files-explore`. `feature/files-explore` .. `feature/files-pr-github` were cut from the
-old status-bar tip `eb78540`; rebase the stack onto `feature/status-bar` before executing F1, and
-re-anchor F1's test baseline to **979**. After #97 merges upstream: `git fetch origin` -> `main`
-fast-forward -> merge `main` into `develop`, then `git rebase --onto origin/main feature/status-bar
-feature/files-explore` per AD-022.
+The three are stacked in that order on `feature/status-bar` (PR #97), which is still open upstream.
+Nothing has been merged into `obogoni/playground`; the local `develop` merge is the only integration.
+
+- **F3 verification:** suite **1168 -> 1177** (64 files); typecheck, lint (0 errors / 18 warnings,
+  the standing baseline) and `electron-vite build` exit 0. CDP smoke
+  `scripts/smoke-files-commits.mjs` **27/27** against a live dev app on a seeded repository of 104
+  commits, with an isolated `--user-data-dir`. Report: `.specs/features/files-commits/validation.md`.
+  Round 1 returned FAIL on test strength only — no shipped code was wrong — and named two surviving
+  mutants plus one AC with no evidence at all; all three are closed. Round 2 returned PASS with three
+  survivors, two of which were closed afterwards (recorded as an addendum in the report, marked
+  plainly as author self-check rather than a third round).
+- **Defect found and fixed during F3, in shipped code:** `commitFiles` used `Promise.all`, which
+  returns on the first rejection and leaves its sibling git process running. On Windows that child
+  held the worktree as its cwd and blocked the directory's removal — an intermittent EPERM roughly
+  one full-suite run in six. Now `allSettled`. It cost four wrong diagnoses before the error text was
+  finally captured; the lesson is L-029.
+- **Merge into `develop`:** six files conflicted, all additively (config keys, contract imports, two
+  helpers in `main/index.ts`, two top-bar directions, and two blocks of decision rows). Every
+  conflict kept both sides. Merged tree: **1504 tests / 82 files**, lint 0 errors / 17 warnings,
+  build green.
+- **Carried, non-blocking:** FCMT-07's *rendered* base prompt is unasserted on both sides (the pure
+  decision behind it is unit-tested); FCMT-32's window-focus path, FCMT-16's focus-when-already-open
+  and FCMT-11's restore-on-return are each argued rather than driven. `inTreeOrder` in
+  `AllChangesTab.tsx` is pure and untested. `files-diff/design.md` § Data Models still declares the
+  removed `FileStat { binary: boolean }`. Candidate lessons L-019..L-029 await promotion.
+- **Owner hand checks NOT yet done on F3** (a CDP smoke counts DOM nodes; it cannot see that a screen
+  is unreadable, mis-themed or drawn in tofu — in F2 the smoke found one defect and the owner found
+  three): click **Open in browser** on one real pushed commit of a real repository, since the smoke
+  never clicks an enabled one; hover a row and read the full message tooltip; and judge the
+  four-mode selector at the left column's narrowest width, where it now wraps to two lines.
+
+**Next:** F4 `files-pr-ado` (27 tasks), stacked on F3. Re-chain it with
+`git rebase --onto feature/files-commits eec156e feature/files-pr-ado` — the base is F3's **previous
+tip**, not the common ancestor, or the range replays F3's own commits. Re-measure the test baseline
+as the first act of Execute; it is **1177** on F3's tip. **F4's T1 writes to a real Azure DevOps pull
+request**: a sandbox PR the owner names, with a go-ahead at that moment. F4 also flips the README's
+"ADO is read-only" claim, per AD-027.
