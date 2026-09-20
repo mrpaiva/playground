@@ -133,18 +133,19 @@ T21 → T22 → T23
 
 **Done when**:
 
-- [ ] `foldChildren` turns recursive descendants (`src/a/f.ts` under `src/`) into one level: files plus folder names
-- [ ] A wholly untracked folder reported as `newdir/` becomes one `dir` entry flagged `untracked`
-- [ ] Folders sort before files, each group alphabetically, case-insensitive
-- [ ] Against a temp repo: an ignored folder never appears; an untracked non-ignored file does
-- [ ] A git failure returns `{ entries: [], error }` and never throws
-- [ ] `src/main/file-tree.test.ts` created
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: 797 + 7 = **804**
+- [x] `foldChildren` turns recursive descendants (`src/a/f.ts` under `src/`) into one level: files plus folder names
+- [x] A wholly untracked folder reported as `newdir/` becomes one `dir` entry flagged `untracked`
+- [x] Folders sort before files, each group alphabetically, case-insensitive
+- [x] Against a temp repo: an ignored folder never appears; an untracked non-ignored file does
+- [x] A git failure returns `{ entries: [], error }` and never throws
+- [x] `src/main/file-tree.test.ts` created
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: 797 + 7 = **804** — measured **986**
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(main): list one folder of a worktree`
+**Status**: ✅ Complete
 
 ---
 
