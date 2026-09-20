@@ -19,6 +19,35 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Baseline measured 2026-09-19** with `npx vitest run` on `origin/main` `6ecd19c`, after the upstream merged #88: **917 tests / 52 files**, all passing. The 748 the plans started from was recorded before #88 and is stale by **+169**. Its baseline becomes **1019**; every count below shifts by **+169** and this feature ends at **1067**, not 898. Still re-measure as the first act of Execute.
 
+**Baseline measured 2026-09-20** with `npm test` on this branch, rebased onto `feature/files-explore` `72d6e98`: **1042 tests / 59 files**, all passing; lint **0 errors / 18 warnings**. F1 ended 23 tests above the 1019 projected for it, so the shift from the written counts is **+192**, not +169. **Every count below reads +192**; T2's 850 means 1042, and this feature ends at **1090**. A measurement, not a projection.
+
+---
+
+## What F2 inherits from F1 that this plan predates
+
+Written 2026-09-20, after F1 shipped. Each of these was discovered during F1's execution and is not in the design below.
+
+| Fact | Consequence for F2 |
+| ---- | ------------------ |
+| **Monaco's import specifiers are not the documented ones.** 0.56 ships an `exports` map (`"./*": "./esm/vs/*.js"`), so `monaco-editor/esm/vs/...` resolves to `esm/vs/esm/vs/...` and Rollup fails | Import `monaco-editor/editor/editor.api`, `monaco-editor/basic-languages/monaco.contribution`, `monaco-editor/editor/editor.worker?worker`. F1's `monaco-setup.ts` already does |
+| **`followAppTheme()` is called inside `CodeViewer`**, once per mounted viewer, because F1 only ever mounts one Monaco surface at a time | Monaco's theme is global. The moment F2 mounts a diff editor beside a file tab, **move the call up to the direction root** (`FilesView`) and drop it from `CodeViewer`, or two observers will fight over one global |
+| **The editor worker runs and is a served file** — proved packaged in F1 T13, `file:///.../app.asar/out/renderer/assets/editor.worker-*.js`, not a `blob:` | F2's diff is computed in that worker. The CSP question is settled; do not re-spike it |
+| **`languageForPath(path)` exists in `monaco-setup.ts`**, matching filename first, then extension, then `plaintext` | Both sides of a diff take their language from it |
+| **A tab is a `FileTab` object**, not a path string, and `openFile(path, { fromDiffMode, deleted })` already carries `fromDiffMode` | FDIF's "a click in a diff mode opens a diff" replaces what `fromDiffMode` currently labels; the flag is the seam |
+| **`FilesState` is `{ mode, base? }`** and `filesStateFor(ui, worktreeId)` reads it | A per-worktree diff preference (side-by-side vs inline) goes here, and a config write must carry direction and mode in **one** patch (AD-028 pattern, T22) |
+| **AD-032**: `BaseOptions` carries an optional `error` | F2 inherits the base picker wholesale; a failed listing renders the git line disabled, not the FXPL-11 prompt |
+| **AD-033**: a `.sln` opens VS 2026 on a **double** click; a single click opens a tab; 3 s relaunch guard | F2's click handling in the tree must preserve this — the single-click path is deferred by 250 ms for solutions only |
+
+**Smoke lessons from F1 T23** — the CDP checks that passed while proving nothing, and what they cost:
+Monaco scrolls **virtually** (drive it with CDP `Input.dispatchMouseEvent` `mouseWheel`, assert the first
+**rendered line number**, never a `scrollTop` that stays 0); it renders spaces as **NBSP** in
+`view-line.textContent`; it emits `mtk1` for plaintext, so assert **distinct** `mtk` classes, not a token
+count; `Input.dispatchKeyEvent` needs `text` to produce a character; read-only is provable only by
+**typing and comparing**, never by a DOM property, because `NativeEditContext` sets `readonly`
+unconditionally. **Falsify every new check against a deliberately broken build before trusting it** —
+that is how a hole inside a fix for the previous hole was found. The smoke also needs a **freshly
+launched app** and an isolated `--user-data-dir`.
+
 ---
 
 ## Test Coverage Matrix
