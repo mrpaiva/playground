@@ -28,7 +28,7 @@ import {
   TASKS_DEFAULT_WIDTH,
   resolvePaneWidth
 } from './lib/pane-layout'
-import { findWorktree } from './lib/tree-selection'
+import { findWorktree, worktreeIdForPath } from './lib/tree-selection'
 import { dropCollapsedId, isCollapsed, toggleCollapsedId } from './lib/workspace-collapse'
 import { filesStateFor } from './lib/files-view'
 import { useFiles } from './lib/use-files'
@@ -241,9 +241,28 @@ function App(): JSX.Element {
     setNsSource(source)
   }
 
+  /**
+   * Picking a session also picks the worktree it runs in.
+   *
+   * The app has one current worktree, and every direction reads it — the
+   * Files tree, the status bar, the launcher row. Without this the Files
+   * direction kept showing whatever was last clicked in the Tree, so moving
+   * between agents left it pointing at another agent's branch.
+   *
+   * A session spawned in a folder that is no worktree, or in one the tree no
+   * longer holds, leaves the selection alone: there is nothing better to
+   * point at than where the user already was.
+   */
+  const selectSession = (id: string | null): void => {
+    setSelectedSessionId(id)
+    const cwd = sessions.find((session) => session.id === id)?.cwd ?? null
+    const worktreeId = worktreeIdForPath(tree, cwd)
+    if (worktreeId) setSelectedId(worktreeId)
+  }
+
   // Deep-link from an entry-point chip: select the session and switch to Agents.
   const openSession = (id: string): void => {
-    setSelectedSessionId(id)
+    selectSession(id)
     update({ direction: 'agents' })
   }
 
@@ -359,7 +378,7 @@ function App(): JSX.Element {
             agents={agents}
             tasks={tasks.tasks}
             selectedId={selectedSessionId}
-            onSelect={setSelectedSessionId}
+            onSelect={selectSession}
             onStop={stopSession}
             onRespawn={respawnSession}
             onRemove={removeSession}
