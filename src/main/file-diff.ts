@@ -99,8 +99,14 @@ export async function readDiffSides(
   request: DiffRequest,
   run: GitRunner = git
 ): Promise<DiffSides> {
-  const original = await readSide(worktreePath, request.original, run)
-  const modified = await readSide(worktreePath, request.modified, run)
+  // When the other side is the disk, read this one as the checkout WOULD have
+  // written it, not as the blob stores it (AD-035). Git for Windows ships
+  // `core.autocrlf=true` in its system config, so in any worktree without a
+  // `.gitattributes` the disk is CRLF and the blob is LF — and comparing the
+  // two raw would report an ending change on every line of every file, for a
+  // difference git itself undoes on commit.
+  const original = await readSide(worktreePath, request.original, run, isDisk(request.modified))
+  const modified = await readSide(worktreePath, request.modified, run, isDisk(request.original))
   if (original.kind !== 'text' || modified.kind !== 'text') {
     return { original, modified, eolChanged: [] }
   }
@@ -108,16 +114,28 @@ export async function readDiffSides(
   return { original, modified, eolChanged: eol.lines, eolFrom: eol.from, eolTo: eol.to }
 }
 
+/** Is this side the working tree rather than a revision? */
+function isDisk(ref: DiffRef | null): boolean {
+  return ref !== null && 'disk' in ref
+}
+
 /**
  * One side, from its reference. A revision is sized with `git cat-file -s`
  * before anything reads it, so a blob over the cap is reported by its size and
- * `git show` never runs (FDIF-06). The cap doubles as the guarantee that what
- * `show` does return fits `execFile`'s 1 MiB stdout buffer.
+ * nothing reads it (FDIF-06). The cap doubles as the guarantee that what the
+ * read does return fits `execFile`'s 1 MiB stdout buffer.
+ *
+ * `asCheckedOut` picks which bytes a revision yields: `git show` gives the
+ * blob's own, `git cat-file --filters` gives what a checkout would write to
+ * disk. They differ wherever a filter applies — on Windows, that is every text
+ * file under `core.autocrlf` (AD-035).
  */
 async function readSide(
   worktreePath: string,
   ref: DiffRef | null,
-  run: GitRunner
+  run: GitRunner,
+  /** Read the blob through the checkout filters, so it matches what is on disk. */
+  asCheckedOut = false
 ): Promise<DiffSide> {
   if (ref === null) return { kind: 'absent' }
   if ('disk' in ref) return readForView(worktreePath, ref.path)
@@ -130,7 +148,12 @@ async function readSide(
   }
   if (size > MAX_VIEW_BYTES) return { kind: 'too-large', size }
   try {
-    const { stdout } = await run(worktreePath, ['show', `${ref.rev}:${ref.path}`])
+    const { stdout } = await run(
+      worktreePath,
+      asCheckedOut
+        ? ['cat-file', '--filters', `${ref.rev}:${ref.path}`]
+        : ['show', `${ref.rev}:${ref.path}`]
+    )
     // The blob arrives decoded, so the sniff runs over the head re-encoded
     // rather than over git's bytes. A NUL survives the round trip, which is
     // the only byte F1's heuristic looks for.

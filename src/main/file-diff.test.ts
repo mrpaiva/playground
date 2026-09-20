@@ -25,6 +25,10 @@ const shortstat = (raw: string): { files: number; added: number; removed: number
   removed: Number(/(\d+) deletions?\(-\)/.exec(raw)?.[1] ?? 0)
 })
 
+/** Built from char codes so no editing layer can collapse what these tests are about. */
+const CARRIAGE = String.fromCharCode(13)
+const LINE_FEED = String.fromCharCode(10)
+
 describe('lineEndingChanges', () => {
   it('reports every line of a whole-file CRLF to LF flip', () => {
     // FDIF-15 / spike finding 1: Monaco's diff calls this "no changes", so main
@@ -321,6 +325,67 @@ describe('readDiffSides', () => {
     // The committed side must reach us with its terminators intact, or there
     // is nothing to compare (spike finding 1).
     expect(sides.original).toMatchObject({ kind: 'text', text: 'one\r\ntwo\r\nthree\r\n' })
+    expect(sides.eolChanged).toEqual([1, 2, 3])
+    expect(sides.eolFrom).toBe('CRLF')
+    expect(sides.eolTo).toBe('LF')
+  })
+})
+
+describe('readDiffSides against the working tree, under core.autocrlf', () => {
+  let root: string
+  let repo: string
+
+  beforeEach(() => {
+    root = realpathSync.native(mkdtempSync(join(tmpdir(), 'wtm-eol-')))
+    repo = join(root, 'repo')
+    mkdirSync(repo)
+    git(repo, 'init', '-b', 'main')
+    git(repo, 'config', 'user.email', 'test@test.local')
+    git(repo, 'config', 'user.name', 'Test')
+    // The condition this describes: Git for Windows sets this in its SYSTEM
+    // config, and a repository without a .gitattributes inherits it. Set here
+    // explicitly so the case exists on any machine, not only that one.
+    git(repo, 'config', 'core.autocrlf', 'true')
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('reports no ending change when only the checkout filter differs (AD-035)', async () => {
+    // Committed with LF, so the blob holds LF; checked out under autocrlf, so
+    // the disk holds CRLF. Git will undo that difference on commit, and the
+    // viewer must not report an ending change on every line because of it.
+    const lf = ['alpha', 'beta', 'gamma'].join(LINE_FEED) + LINE_FEED
+    writeFileSync(join(repo, 'a.txt'), lf, 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'init')
+    // What the checkout would have written, byte for byte.
+    const crlf = ['alpha', 'beta', 'gamma'].join(CARRIAGE + LINE_FEED) + CARRIAGE + LINE_FEED
+    writeFileSync(join(repo, 'a.txt'), crlf, 'utf8')
+
+    const sides = await readDiffSides(repo, {
+      original: { rev: 'HEAD', path: 'a.txt' },
+      modified: { disk: true, path: 'a.txt' }
+    })
+
+    expect(sides.eolChanged).toEqual([])
+  })
+
+  it('still reports a real ending change the filter does not explain (AD-035)', async () => {
+    // The same repository, but the disk now holds LF where the checkout would
+    // have written CRLF. That is a difference someone made, and it must show.
+    const lf = ['alpha', 'beta', 'gamma'].join(LINE_FEED) + LINE_FEED
+    writeFileSync(join(repo, 'a.txt'), lf, 'utf8')
+    git(repo, 'add', '.')
+    git(repo, 'commit', '-m', 'init')
+    writeFileSync(join(repo, 'a.txt'), lf, 'utf8')
+
+    const sides = await readDiffSides(repo, {
+      original: { rev: 'HEAD', path: 'a.txt' },
+      modified: { disk: true, path: 'a.txt' }
+    })
+
     expect(sides.eolChanged).toEqual([1, 2, 3])
     expect(sides.eolFrom).toBe('CRLF')
     expect(sides.eolTo).toBe('LF')
