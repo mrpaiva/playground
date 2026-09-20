@@ -421,17 +421,39 @@ T20 → T21
 
 **Done when**:
 
-- [ ] Diff-to-origin: `{ rev: mergeBase }` → `{ rev: 'HEAD' }`
-- [ ] Uncommitted: `{ rev: 'HEAD' }` → `{ disk: true }`
-- [ ] `added` and `untracked` → original `null`; `deleted` → modified `null`
-- [ ] `renamed` → original path is `oldPath`
-- [ ] `diff-view.test.ts` created
-- [ ] Gate passes: `npm test`
-- [ ] Test count: 870 + 6 = **876**
+- [x] Diff-to-origin: `{ rev: mergeBase }` → `{ rev: 'HEAD' }` — `diff-view.test.ts:13`
+- [x] Uncommitted: `{ rev: 'HEAD' }` → `{ disk: true }` — `:22`
+- [x] `added` and `untracked` → original `null` — `:32`, `:33`; `deleted` → modified `null` — `:39`
+- [x] `renamed` → original path is `oldPath` — `:49`
+- [x] `diff-view.test.ts` created
+- [x] Gate passes: `npm test`
+- [x] Test count: 1065 + 6 = **1071** (written 876 + 192 = 1068; the +3 is Phase 2's, not new)
 
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(renderer): decide the two sides of a diff`
+**Status**: ✅ Complete
+
+> **Two deviations from the design's signature, both to remove an impossible
+> state.** `mode` is `DiffMode = Exclude<FilesMode, 'full'>`, exported here:
+> full-folder mode has no second side, and typing it out beats an unreachable
+> branch with no spec-defined answer. And `mergeBase` is `string | null` with a
+> `DiffRequest | null` return, because uncommitted mode has no merge base to
+> pass and diff-to-origin has no diff to build when the base stopped resolving —
+> the spec's edge case puts F1's FXPL-11 prompt there instead of a stale diff.
+> T18 and T17 must handle the `null`.
+>
+> **The rename rule is `oldPath ?? path`, not a `status === 'renamed'` test.**
+> `ChangedPath.oldPath` is documented as the source of a rename *or a copy*, and
+> both want the same original side. Same outcome for FDIF-05, one branch fewer.
+>
+> Mutation-checked: 7 deliberate breaks, all killed, each by the test that owns
+> its criterion. Putting the disk on the since-base modified side dies on
+> FDIF-01, HEAD on the uncommitted one dies on FDIF-02, the merge base on the
+> uncommitted original dies on FDIF-02 and FDIF-04, keeping an original for an
+> added file dies on FDIF-03, keeping a modified side for a deleted file dies on
+> FDIF-04, reading a rename at its new path dies on FDIF-05, and building a diff
+> with no merge base dies on the edge-case test.
 
 ---
 
