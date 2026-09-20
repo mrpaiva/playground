@@ -309,15 +309,16 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] Each handler is a one-line delegation
-- [ ] The watcher is closed on app quit
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Phase gate passes: `npx electron-vite build`
-- [ ] Test count: **833** (unchanged — wiring)
+- [x] Each handler is a one-line delegation
+- [x] The watcher is closed on app quit
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Phase gate passes: `npx electron-vite build`
+- [x] Test count: **833** (unchanged — wiring) — measured **1015**, unchanged
 
 **Tests**: none
 **Gate**: build
 **Commit**: `feat(main): serve the files direction channels`
+**Status**: ✅ Complete — Phase 1 done
 
 ---
 
