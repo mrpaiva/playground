@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { ChangedPath, CommitRow } from '../../../shared/files'
+import type { ChangedPath, CommitPage, CommitRow } from '../../../shared/files'
 import {
   browseState,
+  commitListState,
   commitDiffRequest,
   commitTabTitle,
   mergePages,
@@ -121,5 +122,65 @@ describe('browseState', () => {
 
   it('enables the action on a pushed commit of a recognized host', () => {
     expect(browseState(row('a', true), { browse: 'azure-devops' })).toBe('enabled')
+  })
+})
+
+describe('commitListState', () => {
+  const page = (over: Partial<CommitPage> = {}): CommitPage => ({
+    commits: [],
+    hasMore: false,
+    cursor: null,
+    upstream: null,
+    browse: null,
+    ...over
+  })
+
+  it('asks for a base when the repository names none (FCMT-07)', () => {
+    // No `origin/HEAD`, so `defaultBase` is null and nothing was picked: the
+    // one state where the list has to ask instead of guessing.
+    expect(commitListState({ defaultBase: null, branches: ['main'] }, undefined, null)).toEqual({
+      kind: 'no-base'
+    })
+  })
+
+  it('shows git line instead of asking, when the branches could not be listed', () => {
+    // AD-032: there is nothing to choose from, so the prompt would be a lie.
+    expect(
+      commitListState(
+        { defaultBase: null, branches: [], error: 'fatal: not a repository' },
+        undefined,
+        null
+      )
+    ).toEqual({ kind: 'error', message: 'fatal: not a repository' })
+  })
+
+  it('waits rather than asking for a base before the branches are known', () => {
+    // Prompting here would ask for something `origin/HEAD` may be about to name.
+    expect(commitListState(null, undefined, null)).toEqual({ kind: 'loading' })
+  })
+
+  it('waits while the page is in flight', () => {
+    expect(
+      commitListState({ defaultBase: 'origin/main', branches: [] }, 'origin/main', null)
+    ).toEqual({ kind: 'loading' })
+  })
+
+  it('shows git line when the log itself failed', () => {
+    expect(
+      commitListState(
+        { defaultBase: 'origin/main', branches: [] },
+        'origin/main',
+        page({ error: 'fatal: bad revision' })
+      )
+    ).toEqual({ kind: 'error', message: 'fatal: bad revision' })
+  })
+
+  it('is a list even when the branch has no commits of its own (FCMT-10)', () => {
+    // An empty list is a state, not a failure: the caller says so in words.
+    const empty = page()
+
+    expect(
+      commitListState({ defaultBase: 'origin/main', branches: [] }, 'origin/main', empty)
+    ).toEqual({ kind: 'list', page: empty })
   })
 })

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import type { CommitRow } from '../../../shared/files'
-import { browseState, uncommittedRowLabel } from '../lib/commit-view'
+import { browseState, commitListState, uncommittedRowLabel } from '../lib/commit-view'
 import { relativeTime } from '../lib/relative-time'
 import type { UseFiles } from '../lib/use-files'
 import './CommitList.css'
@@ -33,20 +33,16 @@ export function CommitList({ files, onToast }: CommitListProps): JSX.Element {
     return () => clearInterval(timer)
   }, [])
 
-  // AD-032: with no branch list there is no base to choose, so the prompt below
-  // would invite the user to pick from nothing.
-  if (files.bases?.error) return <div className="file-tree-error">{files.bases.error}</div>
-  if (!files.bases) return <div className="file-tree-note">Loading…</div>
-  if (files.base === undefined) {
+  const state = commitListState(files.bases, files.base, files.commits)
+  if (state.kind === 'error') return <div className="file-tree-error">{state.message}</div>
+  if (state.kind === 'loading') return <div className="file-tree-note">Loading…</div>
+  if (state.kind === 'no-base') {
     // FCMT-07: the same prompt diff-to-origin mode shows, for the same reason —
     // the repository has no `origin/HEAD` to fall back on.
     return <div className="file-tree-note">Choose a base branch to compare this branch with.</div>
   }
 
-  const page = files.commits
-  if (!page) return <div className="file-tree-note">Loading…</div>
-  if (page.error) return <div className="file-tree-error">{page.error}</div>
-
+  const page = state.page
   const uncommitted = uncommittedRowLabel(files.uncommittedCount)
 
   return (

@@ -1,4 +1,5 @@
 import type {
+  BaseOptions,
   ChangedPath,
   CommitPage,
   CommitRow,
@@ -71,6 +72,45 @@ export function mergePages(current: readonly CommitRow[], next: readonly CommitR
  */
 export function uncommittedRowLabel(n: number): string | null {
   return n > 0 ? `Uncommitted changes (${n})` : null
+}
+
+/** What the Commits list has to show right now (FCMT-07/10). */
+export type CommitListState =
+  | { kind: 'error'; message: string }
+  | { kind: 'loading' }
+  | { kind: 'no-base' }
+  // The page travels with the state, so the caller that renders the list is
+  // holding the one the guards above already proved is there.
+  | { kind: 'list'; page: CommitPage }
+
+/**
+ * Which of its states the list is in, decided apart from the rendering so the
+ * order of the guards can be tested (FCMT-07).
+ *
+ * The order carries the meaning. A repository whose branches could not be
+ * listed shows git's line and never the base prompt (AD-032): there is nothing
+ * to choose from, so inviting a choice would be a lie. Until `files:bases`
+ * answers, neither is known, so the list waits rather than prompting for a base
+ * the repository may already name through `origin/HEAD`. Only then, with no
+ * base in hand, does the prompt of FCMT-07 apply.
+ *
+ * A page that came back with an error is git's line again; an empty list is a
+ * list, not a failure, and the caller says the branch has none of its own
+ * (FCMT-10).
+ *
+ * Pure.
+ */
+export function commitListState(
+  bases: BaseOptions | null,
+  base: string | undefined,
+  page: CommitPage | null
+): CommitListState {
+  if (bases?.error) return { kind: 'error', message: bases.error }
+  if (!bases) return { kind: 'loading' }
+  if (base === undefined) return { kind: 'no-base' }
+  if (!page) return { kind: 'loading' }
+  if (page.error) return { kind: 'error', message: page.error }
+  return { kind: 'list', page }
 }
 
 /** What a row's Open in browser looks like (FCMT-23/25/26). */
