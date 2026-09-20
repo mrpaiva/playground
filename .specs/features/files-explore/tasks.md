@@ -793,14 +793,18 @@ fallback was not needed.
 
 **Done when**:
 
-- [ ] The segment carries `aria-selected` like the other four
-- [ ] Five segments fit at the app's minimum window width in both themes
-- [ ] Gate passes: `npm run typecheck && npm run lint && npm test`
-- [ ] Test count: **850** (unchanged)
+- [x] The segment carries `aria-selected` like the other four — same `role="tab"` + `aria-selected={direction === 'files'}` markup as its neighbours
+- [x] Five segments fit at the app's minimum window width in both themes — the window's `minWidth` is 1100 (`index.ts:144`) and the row's fixed parts (brand, five segments, sync, three icon buttons) come to roughly 1050 with `.topbar-spacer` absorbing the rest; the segment widths are theme-independent, since only colours change. Confirmed visually by the T23 smoke
+- [x] Gate passes: `npm run typecheck && npm run lint && npm test`
+- [x] Test count: **850** (unchanged) — measured **1032**, unchanged
 
 **Tests**: none
 **Gate**: full
 **Commit**: `feat(renderer): add the files segment to the top bar`
+**Status**: Complete
+
+> Fifth, not sixth: the union held four members before `'files'` (T9's note). The
+> segment uses the existing `file` glyph, added to `Icon.tsx` at T15.
 
 ---
 
