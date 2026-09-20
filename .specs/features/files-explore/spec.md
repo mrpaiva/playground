@@ -233,8 +233,10 @@ showing my uncommitted changes, so that the counter leads somewhere useful.
 | FXPL-30 | P1: Hand off to the right tool | Design | Pending |
 | FXPL-31 | P2: Arrive from the status bar | Design | Pending |
 | FXPL-32 | P2: Arrive from the status bar | Design | Pending |
+| FXPL-28a | P1: Hand off to a tool | T17 (`FileTree.tsx`) | Done |
+| FXPL-28b | P1: Hand off to a tool | T17 (`FileTree.tsx`) | Done |
 
-**Coverage:** 32 total, 0 mapped to tasks yet (Design not run), 0 unmapped
+**Coverage:** 34 total (FXPL-28a and FXPL-28b added 2026-09-20 by AD-033), 0 mapped to tasks yet (Design not run), 0 unmapped
 
 ---
 

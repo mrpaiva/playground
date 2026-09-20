@@ -118,6 +118,18 @@ function seed() {
   writeFileSync(join(REPO, 'src', 'main.ts'), 'export const answer = 43\n')
   writeFileSync(join(REPO, 'scratch.txt'), 'untracked\n')
 
+  // A SECOND worktree, so the lens-per-worktree memory of FXPL-06/13 can be
+  // driven at all: switching away and back is the only way to observe it.
+  execFileSync(
+    'git',
+    ['worktree', 'add', '-q', '-b', 'feature/other', join(WS_PATH, 'app-other'), 'main'],
+    {
+      cwd: REPO,
+      windowsHide: true
+    }
+  )
+  writeFileSync(join(WS_PATH, 'app-other', 'other.txt'), 'second worktree\n')
+
   const config = existsSync(CONFIG_PATH) ? JSON.parse(readFileSync(CONFIG_PATH, 'utf8')) : {}
   if (!Array.isArray(config.workspaces)) config.workspaces = []
   const entry = { id: WS_PATH.toLowerCase(), path: WS_PATH, displayName: 'fx-smoke-seed' }
@@ -256,7 +268,7 @@ async function drive() {
   )
   check('The TopBar offers a Files segment (FXPL-01)', hasSegment === true)
 
-  // 2. Empty state before a worktree is selected (FXPL-02).
+  // 2. Empty state before a worktree is selected (FXPL-03).
   await evaluate(ws, clickByText('.topbar-segment, .topbar button', 'Files'))
   await sleep(800)
   const empty = await evaluate(
@@ -264,7 +276,7 @@ async function drive() {
     `document.querySelector('.files-view-empty')?.textContent?.trim() ?? null`
   )
   check(
-    'Empty state with no worktree selected (FXPL-02)',
+    'Empty state with no worktree selected (FXPL-03)',
     typeof empty === 'string' && empty.length > 0,
     String(empty)
   )
@@ -300,28 +312,28 @@ async function drive() {
   await evaluate(ws, clickByText('.file-tree-mode', 'Folder'))
   await sleep(1200)
 
-  // 3. The ignored folder never appears (FXPL-05).
+  // 3. The ignored folder never appears (FXPL-04).
   let names = await evaluate(ws, treeNames)
   check(
-    'Ignored folder is not listed (FXPL-05)',
+    'Ignored folder is not listed (FXPL-04)',
     !names.includes('build'),
     `top level: ${names.join(', ')}`
   )
 
-  // 4. The untracked file does appear.
+  // 4. The untracked file does appear (FXPL-04).
   check(
-    'Untracked file is listed (FXPL-05)',
+    'Untracked file is listed (FXPL-04)',
     names.includes('scratch.txt'),
     `top level: ${names.join(', ')}`
   )
 
-  // 5. Folders expand lazily (FXPL-04).
+  // 5. Folders expand lazily (FXPL-05).
   const beforeExpand = names.length
   await evaluate(ws, clickByText('.file-tree-name', 'src'))
   await sleep(900)
   names = await evaluate(ws, treeNames)
   check(
-    'A folder expands to its direct children (FXPL-04)',
+    'A folder expands to its direct children (FXPL-05)',
     names.includes('main.ts') && names.length > beforeExpand,
     `after expand: ${names.join(', ')}`
   )
@@ -371,19 +383,25 @@ async function drive() {
     `(() => {
        const ed = document.querySelector('.code-viewer-editor .monaco-editor')
        if (!ed) return null
+       // domReadOnly makes Monaco render its input surface as a readonly
+       // ime-text-area instead of an editable inputarea, so the DOM property
+       // is a real discriminator. Asking the DOM whether the editor exists,
+       // as an earlier version of this check did, is a tautology.
+       const input = ed.querySelector('textarea')
        return {
          tokens: document.querySelectorAll('.code-viewer-editor .view-line span[class*="mtk"]').length,
-         readOnly: !!document.querySelector('.code-viewer-editor .monaco-editor')
+         readOnly: input ? input.readOnly : null
        }
      })()`
   )
   check(
-    'The viewer renders the file highlighted (FXPL-17)',
-    viewer !== null && viewer.tokens > 0,
+    'The viewer renders the file highlighted and read-only (FXPL-17)',
+    viewer !== null && viewer.tokens > 0 && viewer.readOnly === true,
     JSON.stringify(viewer)
   )
 
-  // 10. A disk change updates the tab within 1 s and keeps the scroll (FXPL-21).
+  // 10. A disk change updates the tab within 1 s (FXPL-21), on a short file so
+  // the appended line is inside the rendered viewport.
   writeFileSync(
     join(REPO, 'src', 'main.ts'),
     'export const answer = 43\n// appended by the smoke\n'
@@ -400,7 +418,68 @@ async function drive() {
   check(
     'An open tab updates within 1 s of a disk change (FXPL-21)',
     typeof updated === 'string' && updated.includes('appended by the smoke'),
-    `lines now: ${JSON.stringify(String(updated ?? '').slice(0, 120))}`
+    `lines now: ${JSON.stringify(String(updated ?? '').slice(0, 80))}`
+  )
+
+  // 10b. The SCROLL half of FXPL-21, which needs a file tall enough to scroll.
+  //
+  // Monaco scrolls virtually and handles wheel input itself: the scrollable
+  // element's scrollTop stays 0, assigning to it does nothing, and a synthetic
+  // WheelEvent is ignored. Only a real input event through CDP moves it. The
+  // assertion is the first RENDERED line number, not the offset — an earlier
+  // version asserted an offset that never moved and reported 0 -> 0 as a pass.
+  const tall = Array.from({ length: 400 }, (_, i) => `const line${i} = ${i}`).join('\n') + '\n'
+  writeFileSync(join(REPO, 'src', 'main.ts'), tall)
+  await sleep(1500)
+
+  const firstRenderedLine = `(() => {
+    const el = document.querySelector('.code-viewer-editor .view-line')
+    if (!el) return null
+    const m = el.textContent.replace(/\u00a0/g, ' ').match(/const line(\\d+)/)
+    return m ? Number(m[1]) : null
+  })()`
+
+  const box = await evaluate(
+    ws,
+    `(() => {
+       const s = document.querySelector('.code-viewer-editor .monaco-scrollable-element')
+       if (!s) return null
+       const r = s.getBoundingClientRect()
+       return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }
+     })()`
+  )
+  if (box) {
+    for (let i = 0; i < 20; i++) {
+      await send(ws, 'Input.dispatchMouseEvent', {
+        type: 'mouseWheel',
+        x: box.x,
+        y: box.y,
+        deltaX: 0,
+        deltaY: 600,
+        pointerType: 'mouse'
+      })
+      await sleep(120)
+    }
+  }
+  await sleep(900)
+  const lineBefore = await evaluate(ws, firstRenderedLine)
+  check(
+    'The viewer really scrolled away from the top',
+    typeof lineBefore === 'number' && lineBefore > 10,
+    `first rendered line ${lineBefore}`
+  )
+
+  // Append past the viewport: the tab must re-read without moving the view.
+  writeFileSync(join(REPO, 'src', 'main.ts'), tall + '// appended past the viewport\n')
+  await sleep(1500)
+  const lineAfter = await evaluate(ws, firstRenderedLine)
+  check(
+    'The tab keeps its scroll position across the update (FXPL-21)',
+    typeof lineAfter === 'number' &&
+      typeof lineBefore === 'number' &&
+      lineBefore > 10 &&
+      Math.abs(lineAfter - lineBefore) <= 1,
+    `first rendered line ${lineBefore} -> ${lineAfter}`
   )
 
   // 11. A binary file shows a placeholder, not content (FXPL-20).
@@ -479,6 +558,109 @@ async function drive() {
     afterDelete.tabs.some((t) => t.includes('main.ts')) &&
       afterDelete.headline === 'This file no longer exists',
     JSON.stringify(afterDelete)
+  )
+
+  // 15. The launcher row of FXPL-25 exists and offers exactly its four tools.
+  const launchers = await evaluate(
+    ws,
+    `[...document.querySelectorAll('.file-tabs-launcher')].map((e) => e.textContent.trim())`
+  )
+  check(
+    'The launcher row offers Explorer, VS Code, VS 2022 and VS 2026 (FXPL-25)',
+    launchers.length === 4 &&
+      ['Explorer', 'VS Code', '2022', '2026'].every((name) =>
+        launchers.some((l) => l.includes(name))
+      ),
+    `launchers: ${launchers.join(', ')}`
+  )
+
+  // 16. A file opened from a diff mode says so rather than pretending to be a
+  // diff (FXPL-14), and a file the branch deleted gets the placeholder that
+  // names the deletion rather than an error (FXPL-15).
+  await evaluate(ws, clickByText('.file-tree-mode', 'Diff to origin'))
+  await sleep(1300)
+  await evaluate(ws, clickByText('.file-tree-name', 'added.ts'))
+  await sleep(1300)
+  const diffNote = await evaluate(
+    ws,
+    `(document.querySelector('.code-viewer-note') || {}).textContent || null`
+  )
+  check(
+    'A file opened from a diff mode is labelled as a file view (FXPL-14)',
+    diffNote === 'Showing the current file, not a diff',
+    String(diffNote)
+  )
+
+  await evaluate(ws, clickByText('.file-tree-name', 'notes.md'))
+  await sleep(1300)
+  const deletedHeadline = await evaluate(
+    ws,
+    `document.querySelector('.file-placeholder-headline')?.textContent?.trim() ?? null`
+  )
+  check(
+    'A file the branch deleted shows the deleted placeholder (FXPL-15)',
+    deletedHeadline === 'This file was deleted',
+    String(deletedHeadline)
+  )
+
+  // 17. A file appearing on disk shows up in the current mode's LIST within 1 s
+  // (FXPL-22) — the tab reaction of FXPL-21 is a different guarantee, and the
+  // earlier checks only ever observed the tab.
+  await evaluate(ws, clickByText('.file-tree-mode', 'Folder'))
+  await sleep(1300)
+  const namesBeforeAdd = await evaluate(ws, treeNames)
+  writeFileSync(join(REPO, 'appeared.txt'), 'created while the tree was open\n')
+  await sleep(1500)
+  const namesAfterAdd = await evaluate(ws, treeNames)
+  check(
+    'A file created on disk appears in the list within 1 s (FXPL-22)',
+    !namesBeforeAdd.includes('appeared.txt') && namesAfterAdd.includes('appeared.txt'),
+    `${namesBeforeAdd.length} entries -> ${namesAfterAdd.length}`
+  )
+
+  // 18. Each worktree keeps its own lens and its own tabs (FXPL-06/13/18).
+  // The mode is set here, the other worktree is visited, and both are read back
+  // on return — the only way to observe the per-worktree memory at all.
+  await evaluate(ws, clickByText('.file-tree-mode', 'Uncommitted'))
+  await sleep(1200)
+  const tabsBeforeSwitch = await evaluate(ws, tabLabels)
+
+  await evaluate(ws, clickByText('.topbar-segment', 'Tree'))
+  await sleep(900)
+  const switched = await evaluate(ws, clickBranch('feature/other'))
+  await sleep(900)
+  await evaluate(ws, clickByText('.topbar-segment', 'Files'))
+  await sleep(1400)
+  const otherMode = await evaluate(
+    ws,
+    `[...document.querySelectorAll('.file-tree-mode')]
+       .filter((e) => e.getAttribute('aria-selected') === 'true')
+       .map((e) => e.textContent.trim())[0] ?? null`
+  )
+  const otherTabs = await evaluate(ws, tabLabels)
+  check(
+    'A second worktree opens with its own lens and no inherited tabs (FXPL-06/18)',
+    switched === true && otherMode === 'Folder' && otherTabs.length === 0,
+    `switched=${switched}, mode=${otherMode}, tabs=${otherTabs.length}`
+  )
+
+  await evaluate(ws, clickByText('.topbar-segment', 'Tree'))
+  await sleep(900)
+  await evaluate(ws, clickBranch('feature/smoke'))
+  await sleep(900)
+  await evaluate(ws, clickByText('.topbar-segment', 'Files'))
+  await sleep(1500)
+  const backMode = await evaluate(
+    ws,
+    `[...document.querySelectorAll('.file-tree-mode')]
+       .filter((e) => e.getAttribute('aria-selected') === 'true')
+       .map((e) => e.textContent.trim())[0] ?? null`
+  )
+  const backTabs = await evaluate(ws, tabLabels)
+  check(
+    'Returning to a worktree restores its lens and its tabs (FXPL-06/13/18)',
+    backMode === 'Uncommitted' && backTabs.length === tabsBeforeSwitch.length,
+    `mode=${backMode}, tabs ${tabsBeforeSwitch.length} -> ${backTabs.length}`
   )
 
   // 15. The status-bar counter lands in Files, uncommitted mode (FXPL-31/32).

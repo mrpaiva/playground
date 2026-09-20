@@ -902,6 +902,49 @@ fallback was not needed.
 **Commit**: `test(files): drive the files direction end to end`
 **Status**: Complete — Phase 5 closed, all 23 tasks done.
 
+> **Verifier round 1 returned FAIL, on evidence rather than behaviour (2026-09-20).** No broken
+> code was found. Every gap was a spec clause with no assertion behind it, or an assertion too
+> weak to detect a fault. Report: `.specs/features/files-explore/validation.md`.
+>
+> **The worst finding was bookkeeping, not code: three Done-when boxes above were ticked for
+> checks the script did not contain.** The smoke selected one worktree and never switched, so
+> FXPL-06 had no evidence; the word `scroll` appeared once in the whole file, in a comment, so
+> FXPL-21's scroll half had none either; and the FXPL-17 check computed
+> `readOnly: !!document.querySelector('.monaco-editor')` — the same selector it had already
+> tested, so always true — and then left that field out of the check expression entirely. The
+> "16/16" was true about what the script did and false about what the boxes claimed. The scroll
+> behaviour had in fact been measured by hand at T14; the box was ticked from that memory instead
+> of from the script, which is exactly the anti-pattern `implement.md` names.
+>
+> **Closed in round 2, 24/24 checks:**
+> - FXPL-17 now reads `textarea.readOnly` off Monaco's input surface. `domReadOnly` makes Monaco
+>   render a readonly `.ime-text-area` rather than an editable `.inputarea`, so the property
+>   discriminates; the DOM-existence question never did.
+> - FXPL-21's scroll half is a check of its own, on a 400-line file. **A synthetic `WheelEvent` is
+>   ignored by Monaco**, which handles wheel input itself, so the scroll is driven by CDP
+>   `Input.dispatchMouseEvent` with `type: 'mouseWheel'`. The assertion is the first RENDERED line
+>   number (52 → 52), not an offset — an offset that never moved would read 0 → 0 and pass.
+> - FXPL-06/13/18 needed a **second worktree in the seed**; switching away and back is the only
+>   way to observe per-worktree memory at all. Lens and tabs are both asserted, in both directions.
+> - FXPL-14, FXPL-15, FXPL-22 and FXPL-25 gained checks. FXPL-22 in particular was covered only at
+>   the tab before; nothing watched the mode's LIST refresh, which is a separate guarantee.
+> - Four AC labels were wrong: the empty state is FXPL-03 not 02, the ignore rules are 04 not 05,
+>   and lazy expansion is 05 not 04. Corrected in the checks and their comments.
+>
+> **Three mutants that survived the sensor are dead** (`c39fcb7`): `closeAll` dropping
+> `cancelBatch?.()`, the `> MAX_VIEW_BYTES` ceiling at exactly 1 MB, and the `>` in FXPL-26's
+> recency rule where ties are reachable. Each assertion was verified to go red under its mutation.
+>
+> **T15's `Tests: none` is superseded** (`a9d7f8c`): `formatSize` and `fileType` moved to
+> `files-view.ts`, where the Test Coverage Matrix mandates tests, with six cases. The Verifier
+> ruled that on the letter T15 had not violated the matrix, but FXPL-20 requires the tab to show
+> size and type and the only assertion touching either was `/MB/.test(...)` — a wrong unit or
+> `.gitignore` rendering as "GITIGNORE file" passed. **Test count 1032 → 1041.**
+>
+> **Bookkeeping corrected:** `spec.md` said "32 total" and had no traceability row for FXPL-28a/28b;
+> `status-bar/spec.md` still had STBR-31 describing the popover this feature deleted, beside the
+> already-struck STBR-30 and 32.
+
 > **Hand checks, all passed by the owner on 2026-09-20:**
 > A. Double-click `App.sln` opens VS 2026 elevated on that file, with no tab (FXPL-28), and an
 > immediate second double-click opens no second instance (FXPL-28b).
