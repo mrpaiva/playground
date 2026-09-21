@@ -87,6 +87,9 @@ export interface AppConfig {
     /** What the Files direction last showed per worktree; absent = full folder
      *  and the `origin/HEAD` default (FXPL-13, design D4). */
     files?: Record<string, FilesState>
+    /** The worktree selected when the app last closed, restored on launch
+     *  (FXPL-33); absent, or naming a worktree that is gone, selects nothing. */
+    selectedWorktree?: string
   }
   workspaces: WorkspaceEntry[]
   /** Editable coding-agent registry; seeded from `SEEDED_AGENTS` (AGCF-01). */

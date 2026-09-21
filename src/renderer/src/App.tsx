@@ -123,6 +123,33 @@ function App(): JSX.Element {
   // Files has to send `files:watch(null)` instead of racing FilesView's unmount
   // (FXPL-23). The hook reads the persisted lens out of `ui` and writes it back
   // through `update`, the one config writer (FXPL-13).
+  /**
+   * The worktree the app closed on comes back on launch (FXPL-33).
+   *
+   * Restored once, and only after both the config and the tree have arrived —
+   * the tree is what says whether that worktree still exists. A saved folder
+   * that has since been removed selects nothing rather than a stale row.
+   *
+   * The write is held back until the restore has run. Persisting on every
+   * change from the first render would save the mount's empty selection over
+   * the stored one before there was anything to restore from.
+   */
+  const restored = useRef(false)
+  const live = useRef(update)
+  useEffect(() => {
+    live.current = update
+  })
+  useEffect(() => {
+    if (restored.current || !ui || tree.length === 0) return
+    restored.current = true
+    const saved = ui.selectedWorktree
+    if (saved && findWorktree(tree, saved)) setSelectedId(saved)
+  }, [ui, tree, setSelectedId])
+  useEffect(() => {
+    if (!restored.current) return
+    live.current({ selectedWorktree: selectedId ?? undefined })
+  }, [selectedId])
+
   const selected = findWorktree(tree, selectedId)
   const files = useFiles({
     worktreePath: selected?.worktree.path ?? null,

@@ -49,7 +49,13 @@ import { join } from 'node:path'
 
 const PORT = Number(process.env.SMOKE_PORT ?? 9222)
 const MODE =
-  process.argv[2] === '--seed' ? 'seed' : process.argv[2] === '--clean' ? 'clean' : 'drive'
+  process.argv[2] === '--seed'
+    ? 'seed'
+    : process.argv[2] === '--clean'
+      ? 'clean'
+      : process.argv[2] === '--after-restart'
+        ? 'after-restart'
+        : 'drive'
 const BASE = process.env.SMOKE_BASE ?? process.argv[3] ?? process.env.TEMP ?? '.'
 const WS_PATH = join(BASE, 'fx-smoke-seed')
 const REPO = join(WS_PATH, 'app')
@@ -782,8 +788,19 @@ async function drive() {
     `restored mode: ${restoredMode}`
   )
 
+  // FXPL-33, the saved half: the selection is written to the config, so a
+  // relaunch has something to come back to. The restored half needs a second
+  // launch and is checked by `--after-restart`.
+  const savedSelection = JSON.parse(readFileSync(CONFIG_PATH, 'utf8')).ui?.selectedWorktree
+  check(
+    'The selected worktree is written to the config (FXPL-33)',
+    typeof savedSelection === 'string' && savedSelection.toLowerCase().includes('fx-smoke-seed'),
+    `ui.selectedWorktree = ${JSON.stringify(savedSelection)}`
+  )
+
   const failed = checks.filter((c) => !c.ok)
   console.log(`\n${checks.length - failed.length}/${checks.length} checks passed`)
+  console.log('\nNow relaunch the app and run `--after-restart` to check FXPL-33 comes back.')
   console.log(
     '\nHand checks this smoke deliberately does NOT script (they raise UAC or a shell window):'
   )
@@ -799,10 +816,78 @@ async function drive() {
 
 /* ------------------------------------------------------------------ main -- */
 
+/* --------------------------------------------------------- after restart -- */
+
+/**
+ * FXPL-33, the restored half. Run against a SECOND launch, without re-seeding:
+ * the drive left its worktree selected, and the app must come back on it —
+ * which is what lets the Files direction open on something at all.
+ */
+async function afterRestart() {
+  const target = await pageTarget()
+  const ws = new WebSocket(target.webSocketDebuggerUrl)
+  ws.addEventListener('message', (event) => {
+    const msg = JSON.parse(event.data)
+    if (msg.id && pending.has(msg.id)) {
+      const { resolve, reject } = pending.get(msg.id)
+      pending.delete(msg.id)
+      if (msg.error) reject(new Error(msg.error.message))
+      else resolve(msg.result)
+    }
+  })
+  await new Promise((resolve, reject) => {
+    ws.addEventListener('open', resolve, { once: true })
+    ws.addEventListener('error', () => reject(new Error('CDP socket failed')), { once: true })
+  })
+  await send(ws, 'Runtime.enable')
+  for (let i = 0; ; i++) {
+    if (await evaluate(ws, `document.querySelector('.topbar') !== null`)) break
+    if (i >= 30) throw new Error('Top bar never appeared after 30s')
+    await sleep(1000)
+  }
+  // Nothing is clicked: the point is what the app selected on its own. The
+  // status bar names the selected worktree in every direction, and the sidebar
+  // does not exist outside the Tree — which is where the app lands when Files
+  // was the direction it closed in.
+  await sleep(2500)
+  const branch = await evaluate(
+    ws,
+    `document.querySelector('.status-bar-branch')?.textContent.trim() ?? null`
+  )
+  check(
+    'The app relaunched on the worktree it closed on (FXPL-33)',
+    typeof branch === 'string' && branch.includes('feature/smoke'),
+    `status bar branch: ${JSON.stringify(branch)}`
+  )
+
+  await evaluate(ws, clickByText('.topbar-segment', 'Files'))
+  await sleep(2000)
+  // Named rows, not "rows or a note": the note is exactly what appears when
+  // nothing is selected, so accepting it would pass the failure this checks.
+  const names = await evaluate(
+    ws,
+    `[...document.querySelectorAll('.file-tree-name')].map((e) => e.textContent.trim())`
+  )
+  check(
+    'Files opens listing that worktree, not an empty column (FXPL-33)',
+    names.includes('src') && names.includes('main.ts'),
+    `tree rows: ${JSON.stringify(names)}`
+  )
+
+  const failed = checks.filter((c) => !c.ok)
+  console.log(`\n${checks.length - failed.length}/${checks.length} checks passed`)
+  ws.close()
+  return failed.length
+}
+
+/* ------------------------------------------------------------------ main -- */
+
 if (MODE === 'seed') {
   seed()
 } else if (MODE === 'clean') {
   clean()
+} else if (MODE === 'after-restart') {
+  process.exit((await afterRestart()) ? 1 : 0)
 } else {
   const failed = await drive()
   process.exit(failed ? 1 : 0)

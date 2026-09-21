@@ -117,6 +117,7 @@ branch changed, and what I have not committed, so that I look at exactly the fil
 11. IF the repository has no `origin/HEAD` THEN the base picker SHALL ask the user to choose a base and the mode SHALL list nothing until one is chosen <!-- unwanted-behavior -->
 12. WHILE in uncommitted-changes mode the tree SHALL list exactly the paths `worktrees:changes` returns, each with its change status <!-- state-driven -->
 13. WHEN the user returns to a worktree THEN the view SHALL restore the mode last used for it, persisted across restarts, defaulting to full folder <!-- event-driven -->
+33. WHEN the app is launched THEN it SHALL select the worktree that was selected when it last closed, and select nothing if that worktree no longer exists **[added 2026-09-20, AD-039]** <!-- event-driven -->
 14. WHILE F2 has not shipped, WHEN the user opens a file from either diff mode THEN the view SHALL show its current content labelled as a file view, not a diff <!-- complex -->
 15. IF the user opens a file listed as deleted THEN the view SHALL show a placeholder stating the file was deleted <!-- unwanted-behavior -->
 
@@ -232,6 +233,7 @@ showing my uncommitted changes, so that the counter leads somewhere useful.
 | FXPL-29 | P1: Hand off to the right tool | Design | Pending |
 | FXPL-30 | P1: Hand off to the right tool | Design | Pending |
 | FXPL-31 | P2: Arrive from the status bar | Design | Pending |
+| FXPL-33 | P1: Switch the lens | Design | Pending |
 | FXPL-32 | P2: Arrive from the status bar | Design | Pending |
 | FXPL-28a | P1: Hand off to a tool | T17 (`FileTree.tsx`) | Done |
 | FXPL-28b | P1: Hand off to a tool | T17 (`FileTree.tsx`) | Done |
