@@ -316,6 +316,31 @@ describe('LinkOpener.openFileUrl (LINK-21)', () => {
     expect(fakes.spawns).toEqual([])
   })
 
+  it('refuses a file url with no local drive path instead of throwing', async () => {
+    const fakes = makeFakes({ files: [FILE] })
+    const opener = new LinkOpener(fakes)
+    expect(await opener.openFileUrl('file:////server/share/a.txt')).toEqual({
+      ok: false,
+      error: 'Only local file links open here — file:////server/share/a.txt'
+    })
+    expect(await opener.openFileUrl('file:///tmp/a.txt')).toEqual({
+      ok: false,
+      error: 'Only local file links open here — file:///tmp/a.txt'
+    })
+    expect(fakes.statCalls).toEqual([])
+    expect(fakes.openedPaths).toEqual([])
+    expect(fakes.spawns).toEqual([])
+  })
+
+  it('opens a file url whose host is localhost', async () => {
+    const fakes = makeFakes({ files: [FILE] })
+    const result = await new LinkOpener(fakes).openFileUrl(
+      'file://localhost/C:/Users/MAUROP%7E1/scratch/a.txt'
+    )
+    expect(result).toEqual({ ok: true })
+    expect(fakes.openedPaths).toEqual([FILE])
+  })
+
   it('reports a file that no longer exists', async () => {
     const fakes = makeFakes()
     expect(

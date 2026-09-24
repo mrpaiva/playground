@@ -98,7 +98,12 @@ export class LinkOpener {
     }
     parsed.hash = ''
     parsed.search = ''
-    const absolutePath = fileURLToPath(parsed, { windows: true }).replace(/(?::\d+){1,2}$/, '')
+    let absolutePath: string
+    try {
+      absolutePath = fileURLToPath(parsed, { windows: true }).replace(/(?::\d+){1,2}$/, '')
+    } catch {
+      return { ok: false, error: `Only local file links open here — ${url}` }
+    }
     return this.openAbsolute(path.normalize(absolutePath))
   }
 
