@@ -260,8 +260,8 @@ underlines on hover and Ctrl+click opens example.com. In a Claude Code session, 
 | LINK-18 | P1: Mouse | Execute | Verified |
 | LINK-19 | P1: Mouse | Execute | Verified |
 | LINK-20 | P2: OSC 8 | Execute | Verified |
-| LINK-21 | P2: OSC 8 | Execute (amendment) | Reinstated — pending |
-| LINK-22 | P2: OSC 8 | Execute (amendment) | Amended — pending |
+| LINK-21 | P2: OSC 8 | Execute (amendment) | Verified (reinstated 2026-09-19) |
+| LINK-22 | P2: OSC 8 | Execute (amendment) | Verified (amended 2026-09-19) |
 | LINK-23 | Edge | - | Verified |
 | LINK-24 | Edge | - | Verified |
 | LINK-25 | Edge | - | Verified |
@@ -271,12 +271,12 @@ underlines on hover and Ctrl+click opens example.com. In a Claude Code session, 
 | LINK-29 | Edge | - | Verified |
 | LINK-30 | Edge | - | Verified |
 | LINK-31 | Edge | - | Verified |
-| LINK-32 | Edge (amendment) | Execute (amendment) | Pending |
-| LINK-33 | Edge (amendment) | Execute (amendment) | Pending |
+| LINK-32 | Edge (amendment) | Execute (amendment) | Verified |
+| LINK-33 | Edge (amendment) | Execute (amendment) | Verified |
 
 **ID format:** `LINK-[NUMBER]`
 
-**Coverage:** 33 active (LINK-21 reinstated 2026-09-19), 33 mapped to tasks (`tasks.md` §Requirement → Task Coverage), 30 verified (`validation.md`), 3 pending the amendment's Verifier pass (LINK-21, LINK-32, LINK-33; LINK-22 re-verification)
+**Coverage:** 33 active (LINK-21 reinstated 2026-09-19), 33 mapped to tasks (`tasks.md` §Requirement → Task Coverage), 33 verified (`validation.md`; the amendment's LINK-21/22/32/33 in passes 3–4, 2026-09-24)
 
 ---
 
@@ -290,6 +290,6 @@ underlines on hover and Ctrl+click opens example.com. In a Claude Code session, 
 - [ ] `echo .` → Ctrl+click opens Explorer on the worktree
 - [ ] Shift+drag selection, right-click copy/paste and plain clicks behave exactly as before
       (TCU suite still green)
-- [ ] In a live Claude Code session (alternate screen, mouse tracking on): the path in a
+- [x] In a live Claude Code session (alternate screen, mouse tracking on): the path in a
       `Write(...)` header shows dashed, hover underlines it and Ctrl+click opens the file; a
       markdown link shows blue + dashed and Ctrl+click opens the browser (amendment 2026-09-19)
