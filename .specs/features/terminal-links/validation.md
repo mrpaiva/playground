@@ -1,6 +1,6 @@
 # Terminal Links Validation
 
-**Result**: ✅ PASS (pass 2, `49a70c1..626762f`) — 30/30 active ACs spec-anchored (19/19 P1, 2/2 P2, 9/9 edge); gate 1021/1021 green (typecheck 0, lint 0 errors); sensor 9/9 mutants killed (8 in pass 1, +1 in pass 2). Pass 1 (`6ecd19c..49a70c1`) returned FAIL on one evidence-only gap (`LINK-20`, no smoke row) and one optional inspection finding (stale `pendingLink`); both closed by `9afe7f6` (one-line reset) and `626762f` (smoke rows 18–21, two spec assumptions). 0 spec-precision gaps open. Pass-1 report and the pass-2 re-verification below the owner smoke.
+**Result**: ❌ FAIL, minor (pass 3, amendment `3563b91..a83e62b`). LINK-20, LINK-22, LINK-32 and LINK-33 verified, and the amendment Success Criterion is met. LINK-21 needs one small fix: `openFileUrl` throws instead of returning `{ ok: false }` for file URLs that parse but have no Windows path (4-slash UNC, drive-less), and its `localhost` clause has no test. Gate 1034/1034 green (typecheck 0, lint 0 errors); sensor 5/5 killed (14/14 cumulative). Passes 1–2 (`6ecd19c..626762f`, original delivery): PASS after one fix round, 30/30 ACs. Full reports are below the owner smoke.
 
 **Date**: 2026-09-18
 **Spec**: `.specs/features/terminal-links/spec.md`
@@ -487,3 +487,214 @@ into defined behaviour. Gate green, sensor 9/9, tree clean. Ready.
 **Non-blocking, for the owner** (no fix task): (a) LINK-22 AC wording "no underline" vs the assumption's
 "link underline" — cosmetic; (b) optional test pinning the balanced-parentheses URL behaviour; (c) pass-1
 Observation 2 (un-hovered OSC 8 first click) remains a known, out-of-AC limit of Design approach B.
+
+---
+
+## Re-verification (pass 3 — amendment, 3563b91..a83e62b)
+
+**Date**: 2026-09-24
+**Spec**: `.specs/features/terminal-links/spec.md` — amendment 2026-09-19: LINK-21 (reinstated), LINK-22
+(amended), LINK-32, LINK-33, LINK-20 (re-check), Success Criteria last bullet
+**Diff range**: `3563b91..a83e62b` — 5 commits: `6b2e493` T12, `1182ca1` T13, `f3436bf` T14 (code + tests),
+`fb662e6` handoff (`.specs/STATE.md` only), `a83e62b` T15 (`.specs/` only: smoke rows 22–30, one `design.md`
+line, `tasks.md` checkboxes). Source surface: 11 files, +266/−15.
+**Verifier**: independent sub-agent (author ≠ verifier), third pass. Read-only over the real tree except
+this file. Each mutation followed the same cycle: back up the original to the scratchpad, edit, run the
+covering test file, copy the original back, then check that `git status --short` is empty. The tree was
+clean after every mutation and at the end.
+**Baseline**: 1021 tests at `cb18b7a` → **1034** at `a83e62b` (+13)
+
+### Task Completion
+
+| Task | Commit | Status | Notes |
+| ---- | ------ | ------ | ----- |
+| T12 active buffer | `6b2e493 fix(renderer): read the active buffer on every terminal link lookup` | ✅ Done | `activeBufferOf` (`terminal-buffer-lines.ts:37-42`), pane passes it (`TerminalPane.tsx:171`); +2 tests in `terminal-buffer-lines.test.ts`, +1 in `terminal-link-provider.test.ts` |
+| T13 `FORCE_HYPERLINK` | `1182ca1 feat(main): claim hyperlink support for agent sessions` | ✅ Done | `terminal-env.ts:17`; +2 tests |
+| T14 OSC 8 `file://` | `f3436bf feat(terminal): open osc 8 file links with ctrl+click` | ⚠️ Done with one defect | Done-when bullets met as written, but `openFileUrl` rejects on unconvertible file URLs (Fix 1). Done-when bullet 3 wording ("`null` falls through to `links.hitTest`") contradicts the code and `design.md:144`, and the code is the correct one (Observation a). Bullet 2 typo "`C:\dir.txt`" (Observation b) |
+| T15 smoke + handoff | `a83e62b docs(specs): record the hyperlink smoke for terminal-links` (+ `fb662e6`) | ✅ Done | Rows 22–30, run 2026-09-24 against `fb662e6` (code identical to `a83e62b`, since `a83e62b` touches only `.specs/`). The `WT_SESSION` control (row-block preamble) is what makes rows 25–26 attributable to LINK-33 rather than to Windows Terminal's variable |
+
+### Spec-Anchored Acceptance Criteria (amendment)
+
+Evidence rule as in passes 1–2. The tested seams (`src/main/*`, `src/renderer/src/lib/*`) need a `file:line`
+plus the assertion expression. Pane wiring, which is hand-verified by convention (`tasks.md` Test Coverage
+Matrix, `vitest.config.ts`), needs the smoke row **and** the inspected source line. Conjunction rule: every
+clause of an AC needs its own evidence.
+
+| Criterion | Spec-defined outcome | `file:line` + assertion | Result |
+| --------- | -------------------- | ----------------------- | ------ |
+| LINK-20 (re-check) OSC 8 `http(s)` target → Ctrl+click opens it per LINK-02/04/05, regardless of the visible text | `{ kind: 'url', url }` → `links:openUrl` | `terminal-link-provider.test.ts:252-259` — `expect(hitForOscTarget('https://example.com/x')).toEqual({ kind: 'url', url: 'https://example.com/x' })`, same for `http://`. Wiring `TerminalPane.tsx:209-210` (the cell is inside the `hoveredOsc` range, so the hit is `hitForOscTarget(hoveredOsc.text)`, where `text` is the OSC 8 **URI**: `node_modules/@xterm/xterm/src/browser/OscLinkProvider.ts` pushes `{ text: uri, … hover: (e, text) => linkHandler?.hover?.(e, text, range) }`), and `:193-194` (`links:openUrl`). Smoke row 27: visible text "IANA reserved", mousedown `osc: https://www.iana.org/…` → `hit { kind: 'url' }` → browser opened. Main-side scheme gate unchanged (`link-opener.test.ts:152-161`) | ✅ PASS |
+| LINK-21 (a) `file://` target converted in main: `file:///C:/dir/a.txt` → `C:\dir\a.txt` | exact Windows path, percent-decoded | `link-opener.test.ts:262-271` — `openFileUrl('file:///C:/Users/MAUROP%7E1/scratch/a.txt')` → `expect(result).toEqual({ ok: true })`; `expect(fakes.statCalls).toEqual([FILE])` with `FILE = 'C:\\Users\\MAUROP~1\\scratch\\a.txt'` (the conversion, including `%7E` → `~`, which is the form Claude Code actually emits per smoke row 26). The spec's literal example is not the test input. Re-derived with the same code path by the Verifier: `file:///C:/dir/a.txt` → `C:\dir\a.txt` | ✅ PASS |
+| LINK-21 (b) `#L10C5` fragment dropped | the path opened is the bare file | `link-opener.test.ts:290` — `openFileUrl('…/a.txt#L10C5')` → `toEqual({ ok: true })`; `:296` — `expect(fakes.openedPaths).toEqual([FILE, FILE])` | ✅ PASS |
+| LINK-21 (c) `:line:col` suffix dropped | same | `link-opener.test.ts:293-296` — `openFileUrl('…/a.txt:12:3')` → `{ ok: true }`, `openedPaths` `[FILE, FILE]` (mutation 13 killed) | ✅ PASS |
+| LINK-21 (d) the file rules of LINK-09..13 apply | association → `openPath`; none → chooser; dir → Explorer; failure → error naming the path | `link-opener.test.ts:269-270` — `expect(fakes.associationQueries).toEqual(['.txt'])`, `expect(fakes.openedPaths).toEqual([FILE])` (LINK-09); `:278` — `expect(chooser.spawns).toEqual([['rundll32.exe', ['shell32.dll,OpenAs_RunDLL', FILE]]])` (LINK-10); `:284` — `expect(explorer.spawns).toEqual([['explorer.exe', [DIR]]])` (LINK-11); `:323` — `toEqual({ ok: false, error: `${FILE} no longer exists` })` (LINK-13). The spawn-failure errors reuse `openAbsolute` (`link-opener.ts:106-120`), which `openPath`'s tests `:236-246` already pin; the refactor preserves `openPath` behaviour (`:226-234` still green) | ✅ PASS, with one exception: a URL that parses but cannot be converted fails without a toast naming the target. See Fix 1 |
+| LINK-21 (e) regardless of the visible text | the OSC 8 URI, not the cell text, is what opens | Wiring `TerminalPane.tsx:209-210`, `:195-196` (`fileUrl` → `links:openFileUrl`); `index.ts:237`. Smoke row 26: visible `hello.txt`, `osc: file:///C:/Users/MauroPaiva/…/tl-smoke/hello.txt` → `hit { kind: 'fileUrl' }` → `Notepad.exe "C:\…\hello.txt"` whose parent is the app's main process | ✅ PASS |
+| LINK-21 (f) host other than empty or `localhost` (UNC) → refused with a toast, not opened | `{ ok: false, error }`, no stat or launch; the pane toasts it | `link-opener.test.ts:302-305` — `toEqual({ ok: false, error: 'Only local file links open here — file://server/share/a.txt' })` (exact string from `tasks.md` T14); `:306-313` — `https://…` and `not a url` get the same shape; `:314-316` — `statCalls`, `openedPaths`, `spawns` all `[]` (mutation 12 killed). Toast: `TerminalPane.tsx:198` (`!result.ok` → `onToastRef.current(result.error …)`, smoke-verified in row 15 for the shared branch) | ✅ PASS for the host form. ⚠️ The 4-slash UNC form `file:////server/share/a.txt` has an **empty** host, so this rule lets it through. It is still not opened, but only because the conversion throws (Fix 1) |
+| LINK-21 (g) host empty **or `localhost`** is accepted | `file://localhost/C:/…` opens like `file:///C:/…` | **No test.** Behaviour is correct as measured: the Verifier ran `openFileUrl('file://localhost/C:/dir/a.txt')` with fakes and it reached `stat C:\dir\a.txt`. WHATWG URL rewrites a `file:` host of `localhost` to empty, so the `parsed.hostname !== 'localhost'` operand at `link-opener.ts:96` can never be true. Only a test can pin the behaviour | ❌ GAP, evidence only (Fix 1b) |
+| LINK-22 (amended) any other OSC 8 scheme → not opened: Ctrl+click passes through as an ordinary click, nothing launched (hover underline/pointer accepted) | `hitForOscTarget` → `null`; gesture `'pass'`; no `stopPropagation`; `activateLink` not called | `terminal-link-provider.test.ts:270-273` — `toBeNull()` for `mailto:a@b.c`, `vscode://file/E:/x/y.ts`, `ms-teams:launch`, `not a url` (mutation 11 killed); `terminal-link-gesture.test.ts:23-25` — `expect(linkGestureOnMouseDown(ctrlClick, null)).toBe('pass')`. Wiring `TerminalPane.tsx:209-213`: a `null` from `hitForOscTarget` ends the hit test and does **not** fall back to text detection, so a `mailto:` link whose visible text looks like a URL still launches nothing, and `:213` returns before `preventDefault`/`stopPropagation`. `allowNonHttpProtocols: true` at `:178`; xterm then provides every scheme (`OscLinkProvider.ts`: the `ignoreLink` check runs only when `!linkHandler?.allowNonHttpProtocols`). Defense in depth: `link-opener.test.ts:306-309` (`openFileUrl` refuses `https:`), `:152-161` (`openUrl` refuses `file:`/`mailto:`). Smoke row 29: `osc: mailto:a@b.c` → `hit: null` → not intercepted, `activateLink` never called, no process; hover shows underline + pointer (accepted assumption) | ✅ PASS |
+| LINK-32 alternate screen: hover and Ctrl+click read the buffer active **at that moment** (alternate while shown, normal after `?1049l`) | every `getLine`/`getNullCell` delegates to `term.buffer.active` at call time | `terminal-buffer-lines.test.ts:242-248` — `toBe('normal')` → swap → `toBe('alt')` → swap back → `toBe('normal')`; `:260` — `expect(buffer.getNullCell()).toBe(marker)` after the swap; `terminal-link-provider.test.ts:237-246` — normal: `provideLinks` `undefined`, `hitTest(10, 1)` `null` → alternate: `['https://example.com/x']`, `{ kind: 'url', url: 'https://example.com/x' }` → normal again: `undefined`/`null` (both directions; mutation 10 killed 3 tests). Wiring `TerminalPane.tsx:171` `buffer: activeBufferOf(term)`. The click geometry already reads per call (`terminal-buffer-lines.ts:181` `terminal.buffer.active.viewportY`), and xterm's own `OscLinkProvider` reads `_bufferService.buffer` per call. Smoke rows 22 (`buffer.active.type === 'alternate'`), 23 (hover underline in the alternate buffer), 24 (Ctrl+click → text-detected `url` hit → browser) | ✅ PASS |
+| LINK-33 every session gets `FORCE_HYPERLINK=1` besides `TERM`/`COLORTERM`; no `TERM_PROGRAM` | `env.FORCE_HYPERLINK === '1'`, also over a parent `0`; `TERM_PROGRAM` undefined | `terminal-env.test.ts:18-19` — `expect(env.FORCE_HYPERLINK).toBe('1')`; `expect(env.TERM_PROGRAM).toBeUndefined()`; `:23` — `expect(buildPtyEnv({ FORCE_HYPERLINK: '0' }).FORCE_HYPERLINK).toBe('1')`; `:7-8` `TERM`/`COLORTERM` from the same `buildPtyEnv({})` (mutation 14 killed 2 tests). "Every session": `pty-port.ts:32` is the sole `buildPtyEnv` call (and the only node-pty importer), and the forced spread comes last, so a per-session `env` cannot unset it. Smoke row 25: with `WT_SESSION`/`WT_PROFILE_ID` removed from the app environment, the `Write(hello.txt)` header renders as `<span class="xterm-underline-5">` (the OSC 8 dashed decoration). The owner cross-checked on the nightly build: no decoration | ✅ PASS |
+| Success Criterion (amendment) live Claude Code session (alternate screen, mouse tracking on): `Write(...)` path dashed, hover underlines it, Ctrl+click opens the file; markdown link blue + dashed, Ctrl+click opens the browser | observable in the real agent | Rows 22 (alternate), 25 (dashed + hover underline + pointer), 26 (Ctrl+click → Notepad on the file), 27 (blue + dashed → browser), 30 (owner hands-on: "os links funcionaram … o clique no hello txt também funcionou") | ✅ Met. Evidence note: rows 22–30 do not record `term.modes.mouseTrackingMode` (Observation d) |
+
+**Status**: 4/5 amendment ACs fully evidenced (LINK-20, LINK-22, LINK-32, LINK-33). LINK-21 has 6 of 7 clauses
+evidenced. Clause (g) (`localhost` accepted) has no test, and the conversion step throws on unconvertible
+URLs (Fix 1). No spec-precision gap: every asserted value above is the spec's (or `tasks.md` T14's exact
+string) outcome.
+
+### Edge cases touched by the amendment
+
+- [x] LINK-32 alternate ↔ normal swap, both directions, hover and hit test
+- [x] LINK-33 parent `FORCE_HYPERLINK=0` overridden; `TERM_PROGRAM` still unclaimed
+- [x] LINK-21 UNC host form refused before any disk access
+- [ ] LINK-21 file URLs that parse but have no Windows path (`file:////server/share/a.txt`, `file:///tmp/a.txt`,
+  `file:///C:/dir%2Fa.txt`, `file:///`). The Verifier called `openFileUrl` directly with fakes and got a
+  **rejection** (`ERR_INVALID_FILE_URL_PATH`: "File URL path must be absolute" / "must not include encoded \ or
+  / characters"), with no stat and no spawn. The pane's catch (`TerminalPane.tsx:226-228`) toasts the
+  wrapped IPC error (`api.ts` → "IPC 'links:openFileUrl' failed: Error invoking remote method … File URL path
+  must be absolute"). Nothing opens, so the outcome is safe, but the toast does not name the target.
+- [x] LINK-27 unchanged: the amendment adds no listener or provider. `hitForOscTarget` is pure, and
+  `activeBufferOf` holds only the `term` reference, which dies with the effect
+
+### Gate Check (Build level, run on `a83e62b`)
+
+- **Gate command**: `npm run typecheck && npm run lint && npm test` (`tasks.md` §Gate Check Commands)
+- **typecheck**: exit 0 (`tsconfig.node.json` + `tsconfig.web.json`)
+- **lint**: exit 0, **0 errors, 18 warnings**, all `prettier/prettier`, in the same four pre-existing files as
+  passes 1–2 (`scripts/fixtures/implement-ticket/workflow.ts`, `scripts/smoke-agent-config.mjs`,
+  `scripts/smoke-agents.mjs`, `src/shared/tasks.test.ts`); none in the diff
+- **tests**: `npm test -- --reporter=json` → exit 0, **240/240 suites, 1034 passed, 0 failed, 0 skipped, 0 todo**
+- **Test count before the amendment**: 1021 (`cb18b7a`, `tasks.md` §Amendment baseline)
+- **Test count after**: 1034. **Delta +13**: `link-opener.test.ts` 27 → 32 (+5), `terminal-env.test.ts` 4 → 6 (+2),
+  `terminal-buffer-lines.test.ts` 18 → 20 (+2), `terminal-link-provider.test.ts` 15 → 19 (+4)
+- **Test integrity**: the diff only adds to test files. The 2 lines removed in `terminal-link-provider.test.ts`
+  are its import lines, restructured. No assertion was deleted or weakened
+- **Skipped / failures**: none
+
+### Discrimination Sensor (pass 3, +5)
+
+| # | File:line | Mutation | Killed by | Result |
+| - | --------- | -------- | --------- | ------ |
+| 10 | `src/renderer/src/lib/terminal-buffer-lines.ts:38-41` | `activeBufferOf` captures `terminal.buffer.active` once at creation (the LINK-32 bug itself) | `reads whichever buffer is active…` (`expected 'normal' to be 'alt'`), `takes the null cell from the active buffer too`, `alternate screen (LINK-32)` (`expected undefined to deeply equal ['https://example.com/x']`), 3 failures over the two files (36/39 passed) | ✅ Killed |
+| 11 | `src/renderer/src/lib/terminal-link-provider.ts:65` | `hitForOscTarget` final `return null` → `return { kind: 'url', url: target }` (every other scheme sent to the browser) | `opens nothing for any other scheme…` (`expected { kind: 'url', url: 'mailto:a@b.c' } to be null`), 18/19 | ✅ Killed |
+| 12 | `src/main/link-opener.ts:96` | host rule dropped: `parsed.protocol !== 'file:' \|\| (hostname …)` → `parsed.protocol !== 'file:'` | `refuses a unc host and a non-file scheme…` (error string mismatch, since the mutant stats `\\server\share\a.txt`), 31/32 | ✅ Killed |
+| 13 | `src/main/link-opener.ts:101` | `.replace(/(?::\d+){1,2}$/, '')` removed (`:line:col` no longer stripped) | `drops a #L10C5 fragment and a :line:col suffix…` (`expected { ok: false, … } to deeply equal { ok: true }`), 31/32 | ✅ Killed |
+| 14 | `src/main/terminal-env.ts:17` | `FORCE_HYPERLINK: '1'` removed from `PTY_ENV_FORCED` | both LINK-33 tests (`expected undefined to be '1'`, `expected '0' to be '1'`), 4/6 | ✅ Killed |
+
+**Not mutated, and why**: `parsed.hash = ''` / `parsed.search = ''` (`link-opener.ts:99-100`) and the
+`!== 'localhost'` operand (`:96`) have no observable effect. The Verifier's probe showed that
+`fileURLToPath` reads only `pathname` (`file:///C:/dir/a.txt#L10C5` and `?x=1` convert to `C:\dir\a.txt`
+without clearing), and WHATWG empties a `localhost` file host. Removing either would be an equivalent
+mutant, so no test can guard them. `TerminalPane.tsx` is hand-verified by convention and was not mutated.
+
+**Sensor depth**: lightweight, 5 behaviour-level mutations on the highest-risk new code.
+**Result**: 5/5 killed. Cumulative 14/14. PASS ✅
+
+### Code Quality
+
+| Principle | Status | Notes |
+| --------- | ------ | ----- |
+| Minimum code | ✅ | `activeBufferOf` 6 lines; `hitForOscTarget` 11; `openFileUrl` 15; `openAbsolute` extracted for two real callers (`openPath`, `openFileUrl`), not single use. Two no-op lines and one unreachable operand in `openFileUrl` (Observation c) |
+| Surgical changes | ✅ | Pane: import lists, one `buffer:` argument, `allowNonHttpProtocols`, one routing ternary, the OSC hit swap, and the rewritten comment. `index.ts`: one `handle` line. `ipc-contract.ts`: one doc-commented channel. `openPath` refactor keeps behaviour (its 10 tests unchanged and green) |
+| No scope creep | ✅ | No `TERM_PROGRAM`, no scheme allow-list beyond `http`/`https`/`file`, no line delivery for `#L10C5` |
+| Matches patterns | ⚠️ | The `LaunchResult` channels return failures and never throw: `ipc-contract.ts:40,42,50`, and `openUrl` catches its own parse failure (`link-opener.ts:50-55`). `openFileUrl` guards `new URL` but not `fileURLToPath` (`:101`), so it breaks that pattern for URLs Node cannot convert (Fix 1). Otherwise it mirrors `openUrl`'s parse-then-gate shape and the DI-with-fakes tests |
+| Would a senior engineer approve? | ⚠️ | Yes once the conversion is guarded. It is a one-line move plus two tests |
+| Spec-anchored outcome check | ✅ | Every asserted value matches the spec (or `tasks.md` T14's exact error string); nothing vague passed |
+| Per-layer Coverage Expectation | ⚠️ | Main service: `openFileUrl`'s happy, chooser, Explorer, suffix, UNC and missing paths are each tested. The conversion-failure path and the `localhost` acceptance are not (Fix 1). Renderer libs: 1:1 to LINK-20/21/22/32. Pane: smoke rows 22–30 plus inspection |
+| Every test maps to an AC / edge / Done-when | ✅ | `describe` titles carry `LINK-21`, `LINK-32`, `LINK-33`, `LINK-20/21/22`; no unclaimed test |
+| Documented guidelines followed | ✅ | `README.md` pre-PR gate run; `vitest.config.ts` layering (libs + main tested, pane hand-verified); L-005 (fakes only, no real spawn) respected in the new `openFileUrl` tests |
+
+**Observations (non-blocking):**
+
+a. `tasks.md:454` (T14 Done-when) says "`null` falls through to `links.hitTest` on the text". The code
+   (`TerminalPane.tsx:207-211`) and `design.md:144` ("`null` otherwise (pass-through, LINK-22)") do **not**
+   fall through, and they are right. A fall-through would open an `https` URL printed as the visible text
+   of a `mailto:` OSC 8 link, which violates LINK-22's "nothing is launched". Fix the doc wording only.
+b. `tasks.md:453` reads "stats `C:\dir.txt`". It should read `C:\dir\a.txt` (typo).
+c. `link-opener.ts:99-100` (`hash`/`search` cleared) are no-ops before `fileURLToPath`, and `:96`'s
+   `!== 'localhost'` operand is unreachable for `file:`. They are harmless and document intent. Mentioned,
+   not a fix.
+d. The Success Criterion says "mouse tracking on". Rows 22–30 record `buffer.active.type` but not
+   `term.modes.mouseTrackingMode`. Row 26's "never reached the agent" is inferred from process parentage
+   (one Notepad, whose parent is the app's main process; none from `claude.exe`), not from a mouse-report
+   probe as in rows 12/19. A `fileUrl` hit goes through the same interception code as rows 12/19
+   (`TerminalPane.tsx:213-216`, `:219-221`), so LINK-14 still holds by inspection. The `TerminalPane.tsx`
+   comment at `:352-353` records Claude Code's `mouseTracking "any"` (2026-09-09). This is a note on
+   evidence strength, not a gap.
+e. Pass-1 Observation 2 (first Ctrl+click on an **un-hovered** OSC 8 link) now sits on the main path. Claude
+   Code's `Write(...)` headers are OSC 8, and their visible text (`hello.txt`) is no text-detectable path. A
+   Ctrl+click on output painted under a parked pointer, with no mousemove, therefore passes through to the
+   agent. LINK-19 is worded for path candidates, so this stays out of the ACs. It is worth a follow-up now
+   that OSC 8 is the primary link source.
+
+### Fix Plans
+
+#### Fix 1 (LINK-21, Minor): guard the file-URL conversion and pin `localhost`
+
+- **Root cause**: `openFileUrl` (`link-opener.ts:89-103`) guards only `new URL`. `fileURLToPath(parsed,
+  { windows: true })` at `:101` throws `ERR_INVALID_FILE_URL_PATH` for URLs that parse but have no Windows
+  path. Measured: `file:////server/share/a.txt` (the 4-slash UNC form, whose empty host passes the rule at
+  `:96`), `file:///tmp/a.txt`, `file:///C:/dir%2Fa.txt`, `file:///`. The rejection crosses IPC
+  (`index.ts:237`), `api.ts` wraps it, and the pane's catch toasts a technical message that does not name
+  the target. Separately, clause (g) (`localhost` accepted) has no assertion.
+- **Fix task**:
+  - (a) Make any conversion throw return `{ ok: false, error: 'Only local file links open here — <url>' }`,
+    for example by moving `fileURLToPath(...)` into the existing `try` with `new URL`.
+  - (b) In `link-opener.test.ts` › `LinkOpener.openFileUrl (LINK-21)`, add:
+    `file:////server/share/a.txt` and `file:///tmp/a.txt` → exactly
+    `{ ok: false, error: 'Only local file links open here — <url>' }`, with `statCalls` and `spawns` `[]`;
+    and `file://localhost/C:/Users/MAUROP%7E1/scratch/a.txt` → `{ ok: true }`, `openedPaths` `[FILE]`.
+- **Verify**: `npx vitest run src/main/link-opener.test.ts` green (+2 tests, 1036 total). Undo the guard and
+  the new refusal test must fail. Build gate green.
+- **Priority**: Minor. Nothing unsafe opens today and the main path (Claude Code's `file:///C:/…`) is
+  verified end to end.
+
+### Requirement Traceability Update (proposal; the orchestrator applies it to `spec.md`)
+
+| Requirement | Previous Status | New Status |
+| ----------- | --------------- | ---------- |
+| LINK-20 | Verified | ✅ Verified (re-checked against the amended routing; smoke row 27) |
+| LINK-21 | Reinstated — pending | ❌ Needs Fix (Fix 1: unguarded conversion + `localhost` clause unevidenced) |
+| LINK-22 | Amended — pending | ✅ Verified |
+| LINK-32 | Pending | ✅ Verified |
+| LINK-33 | Pending | ✅ Verified |
+| Success Criteria, amendment bullet | — | ✅ Met (rows 22–27, 30) |
+
+### Lesson candidates
+
+- A method whose contract is "failures are returned, never thrown" has to guard **every** throwing step,
+  not just the first parse. `fileURLToPath` throws on file URLs that `new URL` accepted (4-slash UNC,
+  drive-less, encoded separator). Grounded in Fix 1, `link-opener.ts:101`.
+- When an AC names an **allowed** set ("host empty or `localhost`"), test each allowed member, not only the
+  refused case. Check whether the platform parser already normalizes a member away: WHATWG maps a `file:`
+  host of `localhost` to empty. When it does, the in-code guard is dead and only a test pins the
+  behaviour. Grounded in LINK-21 (g).
+- Done-when prose can drift from the design's step text. Here T14 said "falls through" and the design said
+  "pass-through". Before trusting either, check the Done-when against the design step **and** the AC.
+  Grounded in Observation a.
+
+### Summary
+
+**Overall**: ⚠️ Issues. The amendment works end to end in a live Claude Code session. One Minor fix remains
+in the new main-side converter.
+
+**Spec-anchored check**: 4/5 amendment ACs fully evidenced; LINK-21 6/7 clauses plus one robustness defect;
+0 spec-precision gaps
+**Sensor**: 5/5 killed (cumulative 14/14)
+**Gate**: 1034 passed, 0 failed, 0 skipped; typecheck clean; lint 0 errors (18 pre-existing warnings)
+
+**What works**:
+
+- The provider follows the buffer that is active at each call, in both directions. This fixes the
+  alternate-screen blindness, measured in the real agent.
+- `FORCE_HYPERLINK=1` is forced on every PTY over any parent value, still with no `TERM_PROGRAM`.
+- OSC 8 targets are classified by scheme in a pure, tested function:
+  - `http(s)` goes to the browser;
+  - `file` goes to main's converter, then the same default app, chooser or Explorer routes as printed paths;
+  - anything else passes through to the agent untouched.
+- The `WT_SESSION` control in the smoke isolates LINK-33 from Windows Terminal's own hyperlink signal.
+
+**Issues found**: Fix 1. Guard `fileURLToPath` so unconvertible file URLs return the `LaunchResult`
+refusal, and add the `localhost` acceptance test.
+
+**Next steps**: apply Fix 1, then run pass 4 (link-opener tests + build gate + one sensor mutation on the
+guard). After that, update `spec.md` traceability per the table above. Fix `tasks.md:453-454` wording
+(Observations a, b) at the same time.
