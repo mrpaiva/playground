@@ -38,8 +38,9 @@ Handoff snapshot.
 **Status (2026-09-24): `terminal-links` complete on `feature/terminal-links` — amendment T12–T15 and fix F3
 committed, independent Verifier PASS (pass 4, `dd83777..77d4e34`; pass 3 over `3563b91..a83e62b` found one
 Minor LINK-21 gap, closed by F3). All 33 LINK requirements Verified. Gate: typecheck 0, lint 0 errors (18
-pre-existing prettier warnings), `npm test` 1036/1036 (917 before T1). The owner approved the push to `fork`
-and a regular PR to `obogoni/playground` — playground PRs are not drafts.**
+pre-existing prettier warnings), `npm test` 1036/1036 (917 before T1). Pushed to `fork` and opened as
+[PR #104](https://github.com/obogoni/playground/pull/104) on 2026-09-24 — a regular PR; playground PRs are
+not drafts.**
 
 **What landed since the 2026-09-19 handoff:**
 
