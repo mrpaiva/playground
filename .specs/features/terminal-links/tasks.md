@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Design**: `.specs/features/terminal-links/design.md`
 **Status**: Done — T1–T11 committed on `feature/terminal-links`; fix tasks F1 (`9afe7f6`, stale `pendingLink`) and F2 (OSC 8 smoke rows 18–21) closed after the first Verifier pass; see `validation.md`
-**Amendment 2026-09-19** (§Amendment below): T12–T15 — alternate-screen bug (LINK-32), `FORCE_HYPERLINK` (LINK-33), OSC 8 `file://` (LINK-21 reinstated, LINK-22 amended). Verifier re-runs after T15.
+**Amendment 2026-09-19** (§Amendment below): T12–T15 — alternate-screen bug (LINK-32), `FORCE_HYPERLINK` (LINK-33), OSC 8 `file://` (LINK-21 reinstated, LINK-22 amended). T12–T14 committed (`6b2e493`, `1182ca1`, `f3436bf`); T15 smoke run 2026-09-24 (`validation.md` rows 22–30). Verifier re-runs after T15.
 
 ---
 
@@ -412,9 +412,9 @@ T12 → T13 → T14 → T15
 
 **Done when**:
 
-- [ ] `activeBufferOf({ buffer: { active } })` returns the line/null cell of whichever buffer is `active` at call time — swapping `active` between two calls swaps the answers
-- [ ] a provider built over `activeBufferOf` finds the URL in the alternate buffer after the swap (`provideLinks` + `hitTest`) and nothing on that row once the normal buffer is active again
-- [ ] `TerminalPane` passes `activeBufferOf(term)`; gate `npx vitest run src/renderer/src/lib/terminal-buffer-lines.test.ts src/renderer/src/lib/terminal-link-provider.test.ts` green, count ≥ baseline for those files
+- [x] `activeBufferOf({ buffer: { active } })` returns the line/null cell of whichever buffer is `active` at call time — swapping `active` between two calls swaps the answers
+- [x] a provider built over `activeBufferOf` finds the URL in the alternate buffer after the swap (`provideLinks` + `hitTest`) and nothing on that row once the normal buffer is active again
+- [x] `TerminalPane` passes `activeBufferOf(term)`; gate `npx vitest run src/renderer/src/lib/terminal-buffer-lines.test.ts src/renderer/src/lib/terminal-link-provider.test.ts` green, count ≥ baseline for those files
 
 **Tests**: unit
 **Gate**: quick
@@ -430,9 +430,9 @@ T12 → T13 → T14 → T15
 
 **Done when**:
 
-- [ ] `buildPtyEnv({})` yields `FORCE_HYPERLINK === '1'` and still `TERM_PROGRAM === undefined`
-- [ ] a parent `FORCE_HYPERLINK=0` is overridden to `'1'`
-- [ ] gate `npx vitest run src/main/terminal-env.test.ts` green
+- [x] `buildPtyEnv({})` yields `FORCE_HYPERLINK === '1'` and still `TERM_PROGRAM === undefined`
+- [x] a parent `FORCE_HYPERLINK=0` is overridden to `'1'`
+- [x] gate `npx vitest run src/main/terminal-env.test.ts` green
 
 **Tests**: unit
 **Gate**: quick
@@ -442,17 +442,17 @@ T12 → T13 → T14 → T15
 ### T14: Open OSC 8 `file://` links
 
 **What**: `hitForOscTarget(uri)` (pure) classifies an OSC 8 target; `LinkOpener.openFileUrl` converts `file://` to a path and applies the file rules; new `links:openFileUrl` channel; the pane sets `allowNonHttpProtocols: true` and routes by kind.
-**Where**: `src/renderer/src/lib/terminal-links.ts` (+ `.test.ts`), `src/renderer/src/lib/terminal-link-provider.ts` (`KnownLinkHit` gains `fileUrl`), `src/main/link-opener.ts` (+ `.test.ts`), `src/shared/ipc-contract.ts`, `src/main/index.ts`, `src/renderer/src/components/TerminalPane.tsx` (modify)
+**Where**: `src/renderer/src/lib/terminal-link-provider.ts` (+ `.test.ts`; `hitForOscTarget`, and `KnownLinkHit` gains `fileUrl`), `src/main/link-opener.ts` (+ `.test.ts`), `src/shared/ipc-contract.ts`, `src/main/index.ts`, `src/renderer/src/components/TerminalPane.tsx` (modify)
 **Depends on**: T12
 **Reuses**: `openPath` body, `LaunchResult`, the `hoveredOsc` wiring
 **Requirement**: LINK-20, LINK-21, LINK-22
 
 **Done when**:
 
-- [ ] `hitForOscTarget('https://x')` → `{ kind: 'url', url }`; `'http://x'` same; `'file:///C:/a.txt'` → `{ kind: 'fileUrl', url }`; `'mailto:a@b.c'`, `'vscode://file/x'`, `'ms-teams:launch'`, garbage → `null` (LINK-20/21/22)
-- [ ] `openFileUrl('file:///C:/dir/a.txt')` stats `C:\dir.txt` and opens it like `openPath` (association → `openPath`, none → chooser, dir → Explorer); `#L10C5` and `:12:3` are dropped; `file://server/share/x` and `http://…` → `{ ok: false, error: 'Only local file links open here — <url>' }`; a missing file → `'<path> no longer exists'` (LINK-21, LINK-09..13)
-- [ ] `TerminalPane`: `allowNonHttpProtocols: true`; Ctrl+mousedown over an OSC 8 range uses `hitForOscTarget`; `null` falls through to `links.hitTest` on the text; `activate` sends `fileUrl` to `links:openFileUrl`
-- [ ] gate `npm run typecheck && npm run lint && npm test` green, count ≥ T13's
+- [x] `hitForOscTarget('https://x')` → `{ kind: 'url', url }`; `'http://x'` same; `'file:///C:/a.txt'` → `{ kind: 'fileUrl', url }`; `'mailto:a@b.c'`, `'vscode://file/x'`, `'ms-teams:launch'`, garbage → `null` (LINK-20/21/22)
+- [x] `openFileUrl('file:///C:/dir/a.txt')` stats `C:\dir.txt` and opens it like `openPath` (association → `openPath`, none → chooser, dir → Explorer); `#L10C5` and `:12:3` are dropped; `file://server/share/x` and `http://…` → `{ ok: false, error: 'Only local file links open here — <url>' }`; a missing file → `'<path> no longer exists'` (LINK-21, LINK-09..13)
+- [x] `TerminalPane`: `allowNonHttpProtocols: true`; Ctrl+mousedown over an OSC 8 range uses `hitForOscTarget`; `null` falls through to `links.hitTest` on the text; `activate` sends `fileUrl` to `links:openFileUrl`
+- [x] gate `npm run typecheck && npm run lint && npm test` green, count ≥ T13's
 
 **Tests**: unit
 **Gate**: build
@@ -468,11 +468,11 @@ T12 → T13 → T14 → T15
 
 **Done when**:
 
-- [ ] Claude pane (alternate buffer): hover on a plain URL underlines it; Ctrl+click opens the browser (LINK-32)
-- [ ] `Write(C:\…)` header: dashed by xterm; hover underlines; Ctrl+click opens the file (LINK-21, LINK-33)
-- [ ] markdown link: blue + dashed; Ctrl+click opens the browser (LINK-20)
-- [ ] `mailto:` OSC 8: Ctrl+click passes through, nothing opens (LINK-22)
-- [ ] rows written to `validation.md`; gate `npm run typecheck && npm run lint && npm test` green
+- [x] Claude pane (alternate buffer): hover on a plain URL underlines it; Ctrl+click opens the browser (LINK-32)
+- [x] `Write(C:\…)` header: dashed by xterm; hover underlines; Ctrl+click opens the file (LINK-21, LINK-33)
+- [x] markdown link: blue + dashed; Ctrl+click opens the browser (LINK-20)
+- [x] `mailto:` OSC 8: Ctrl+click passes through, nothing opens (LINK-22)
+- [x] rows written to `validation.md`; gate `npm run typecheck && npm run lint && npm test` green
 
 **Tests**: none (hand-verified through the CDP driver)
 **Gate**: build

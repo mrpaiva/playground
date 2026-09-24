@@ -55,6 +55,53 @@ machine, Ctrl+click on any `.ts` path opens Media Player. This is AD-021 working
 recorded in `context.md` (VS Code at line via `code -g`, or a Shift+Ctrl alternate) are the way out if it
 annoys in practice.
 
+## Owner-run smoke — amendment (T15)
+
+Run on 2026-09-24 by the author, with the owner at the window, against `feature/terminal-links` @ `fb662e6`
+(`electron-vite dev -- --remote-debugging-port=9223 --user-data-dir=<scratch>`, Electron 39.8.10, xterm
+6.0.0, Claude Code 2.1.281 on Haiku 4.5, Windows 11 Pro 10.0.26200), driven through the Chrome DevTools
+Protocol. Three controls shaped the run:
+
+- **No `WT_SESSION` in the app's environment.** Claude Code also turns hyperlinks on when it sees
+  `WT_SESSION` (`if("WT_SESSION"in process.env)return!0` in its bundled `supports-hyperlinks`), and a dev app
+  started from a Windows Terminal tab hands that variable down through `buildPtyEnv`. That is why the owner
+  saw links on `main` with none of this branch in it. The smoke app was launched with `WT_SESSION` and
+  `WT_PROFILE_ID` removed, so only `FORCE_HYPERLINK` (LINK-33) could produce them. Owner cross-check on the
+  nightly (no branch, launched from the Start menu): the same markdown reply renders with no link
+  decoration.
+- **Isolated user data.** A second instance on the shared `userData` rewrites
+  `agent-hooks/claude-settings.json` and breaks the first instance's hooks (STATE trap). With
+  `--user-data-dir` the owner's `main` dev instance kept running untouched (hook file mtime and port
+  unchanged before and after).
+- **Channel read from logpoints.** `window.api` is frozen by `contextBridge` in this build, so the invoke
+  recorder of the first run is a silent no-op. Two CDP logpoints (conditional breakpoints that log and never
+  pause) in the served `TerminalPane.tsx` recorded what `onLinkMouseDown` resolved (`hoveredOsc`, cell,
+  `hit`) and what `activateLink` received (`known.kind` picks the channel: `url` → `links:openUrl`,
+  `fileUrl` → `links:openFileUrl`, `path` → `links:openPath`). Outcomes came from the OS (process parent
+  chain, window titles).
+
+Fixture: an ad-hoc `claude --model haiku --permission-mode acceptEdits` session in a scratch folder
+`tl-smoke`, asked to Write `hello.txt`, to reply with `[IANA reserved](https://www.iana.org/domains/reserved)`
+and `[mail me](mailto:a@b.c)`, and to reply with `` `https://example.com/plain-url` `` (a code span: printed as
+plain text, no OSC 8); an ad-hoc `pwsh` session for the OSC 8 `mailto:` row.
+
+| # | Check | Requirement | Method | Observed | Result |
+| - | ----- | ----------- | ------ | -------- | ------ |
+| 22 | The agent runs in the alternate screen | LINK-32 (precondition) | `term.buffer.active.type` once Claude Code drew | `alternate` | ✅ |
+| 23 | Hover a plain URL in the alternate buffer | LINK-32, LINK-01 | mousemove over `https://example.com/plain-url` (no OSC 8 on those cells) | the provider returned `https://example.com/plain-url` for that row; the span gained `text-decoration: underline`; `xterm-cursor-pointer` on the screen | ✅ |
+| 24 | Ctrl+click it | LINK-32, LINK-02 | Ctrl+click with the logpoints | mousedown `osc: null` → `hit { kind: 'url', url: 'https://example.com/plain-url' }` (text detection); activate `url`; Comet "Example Domain" | ✅ |
+| 25 | The `Write(hello.txt)` header is an OSC 8 file link | LINK-33 | DOM of the header row, app without `WT_SESSION` | `<span class="xterm-underline-5">hello.txt</span>` (xterm's dashed OSC 8 decoration); hover adds `text-decoration: underline` and the pointer | ✅ |
+| 26 | Ctrl+click the header path | LINK-21, LINK-14 | Ctrl+click with the logpoints, then the process parent chain | mousedown `osc: file:///C:/Users/MauroPaiva/…/tl-smoke/hello.txt` → `hit { kind: 'fileUrl' }`; activate `fileUrl`; `Notepad.exe "C:\Users\MauroPaiva\…\tl-smoke\hello.txt"` whose parent is the smoke app's main `electron.exe` — one launch, none from `claude.exe`, so the Ctrl+click never reached the agent | ✅ |
+| 27 | Markdown link: blue + dashed, Ctrl+click opens the browser | LINK-20 | screenshot, then Ctrl+click on "IANA reserved" with the logpoints | blue text with the dashed decoration; mousedown `osc: https://www.iana.org/domains/reserved` → `hit { kind: 'url' }`; Comet "IANA-managed Reserved Domains" | ✅ |
+| 28 | A `mailto:` markdown link in Claude Code | LINK-22 (precondition) | `[mail me](mailto:a@b.c)` in the reply | Claude Code 2.1.281 emits **no** OSC 8 for `mailto:` — it prints `mail me (a@b.c)` as plain text, so there is nothing to provide or open. The OSC 8 `mailto:` case was driven from pwsh instead | ℹ️ |
+| 29 | OSC 8 `mailto:` target | LINK-22 | pwsh `[Console]::WriteLine` with `ESC ] 8 ; ; mailto:a@b.c BEL mail me ESC ] 8 ; ; BEL`; hover, Ctrl+click with the logpoints, process list | hover: `xterm-underline-5` + `text-decoration: underline` + pointer (the accepted assumption: `allowNonHttpProtocols` provides every OSC 8 target); mousedown `osc: mailto:a@b.c` → `hit: null` → not intercepted; `activateLink` never called; no process started | ✅ |
+| 30 | Owner hands-on | LINK-20, LINK-21, LINK-22, LINK-32 | the owner used the smoke window directly | "os links funcionaram. apenas o de email que não" and "o clique no hello txt também funcionou" — the e-mail not opening is LINK-22 as specified (and row 28: Claude Code does not make it a link) | ✅ |
+
+Cleanup verified: both smoke sessions stopped and removed (`sessions:list` empty in the smoke user data), the
+smoke app's process tree ended (ports 5174 and 9223 free), Notepad windows closed, no `OpenWith`/`rundll32`
+left; the owner's `main` dev instance and its sessions untouched. The browser tabs opened by rows 24 and 27
+were left to the owner.
+
 ---
 
 # Verifier report — terminal-links
