@@ -123,3 +123,7 @@ is listed under Deferred Ideas.
 - Bare filename detection against the cwd (VS Code's word-link detector).
 - Upgrading `@xterm/xterm` to 6.1 for `mouseEventsRequireAlt` (Orca's way of keeping a link
   gesture from the TUI).
+- Ctrl+click on an OSC 8 link that was never hovered (output painted under a still pointer): the
+  pane only knows the OSC 8 target from xterm's last `hover`, so it falls to text detection. Every
+  Claude Code tool header is OSC 8 since LINK-33, so this is now the common case of LINK-19;
+  resolving the target at mousedown would close it (found by the pass 3 Verifier, 2026-09-24).

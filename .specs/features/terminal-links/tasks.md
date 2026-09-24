@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Design**: `.specs/features/terminal-links/design.md`
 **Status**: Done — T1–T11 committed on `feature/terminal-links`; fix tasks F1 (`9afe7f6`, stale `pendingLink`) and F2 (OSC 8 smoke rows 18–21) closed after the first Verifier pass; see `validation.md`
-**Amendment 2026-09-19** (§Amendment below): T12–T15 — alternate-screen bug (LINK-32), `FORCE_HYPERLINK` (LINK-33), OSC 8 `file://` (LINK-21 reinstated, LINK-22 amended). T12–T14 committed (`6b2e493`, `1182ca1`, `f3436bf`); T15 smoke run 2026-09-24 (`validation.md` rows 22–30). Verifier re-runs after T15.
+**Amendment 2026-09-19** (§Amendment below): T12–T15 — alternate-screen bug (LINK-32), `FORCE_HYPERLINK` (LINK-33), OSC 8 `file://` (LINK-21 reinstated, LINK-22 amended). T12–T14 committed (`6b2e493`, `1182ca1`, `f3436bf`); T15 smoke run 2026-09-24 (`validation.md` rows 22–30). Verifier pass 3 → one Minor gap on LINK-21, closed by F3 (`7da1cc1`, `openFileUrl` refuses a file URL with no local drive path instead of throwing); pass 4 re-verifies.
 
 ---
 
@@ -450,8 +450,8 @@ T12 → T13 → T14 → T15
 **Done when**:
 
 - [x] `hitForOscTarget('https://x')` → `{ kind: 'url', url }`; `'http://x'` same; `'file:///C:/a.txt'` → `{ kind: 'fileUrl', url }`; `'mailto:a@b.c'`, `'vscode://file/x'`, `'ms-teams:launch'`, garbage → `null` (LINK-20/21/22)
-- [x] `openFileUrl('file:///C:/dir/a.txt')` stats `C:\dir.txt` and opens it like `openPath` (association → `openPath`, none → chooser, dir → Explorer); `#L10C5` and `:12:3` are dropped; `file://server/share/x` and `http://…` → `{ ok: false, error: 'Only local file links open here — <url>' }`; a missing file → `'<path> no longer exists'` (LINK-21, LINK-09..13)
-- [x] `TerminalPane`: `allowNonHttpProtocols: true`; Ctrl+mousedown over an OSC 8 range uses `hitForOscTarget`; `null` falls through to `links.hitTest` on the text; `activate` sends `fileUrl` to `links:openFileUrl`
+- [x] `openFileUrl('file:///C:/dir/a.txt')` stats `C:\dir\a.txt` and opens it like `openPath` (association → `openPath`, none → chooser, dir → Explorer); `#L10C5` and `:12:3` are dropped; `file://server/share/x` and `http://…` → `{ ok: false, error: 'Only local file links open here — <url>' }`; a missing file → `'<path> no longer exists'` (LINK-21, LINK-09..13)
+- [x] `TerminalPane`: `allowNonHttpProtocols: true`; Ctrl+mousedown over an OSC 8 range uses `hitForOscTarget`; `null` ends the hit test — no fall-back to the visible text, which would open a URL shown as the text of a `mailto:` link (LINK-22); `activate` sends `fileUrl` to `links:openFileUrl`
 - [x] gate `npm run typecheck && npm run lint && npm test` green, count ≥ T13's
 
 **Tests**: unit
