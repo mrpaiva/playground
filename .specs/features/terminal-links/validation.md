@@ -1,6 +1,6 @@
 # Terminal Links Validation
 
-**Result**: ❌ FAIL, minor (pass 3, amendment `3563b91..a83e62b`). LINK-20, LINK-22, LINK-32 and LINK-33 verified, and the amendment Success Criterion is met. LINK-21 needs one small fix: `openFileUrl` throws instead of returning `{ ok: false }` for file URLs that parse but have no Windows path (4-slash UNC, drive-less), and its `localhost` clause has no test. Gate 1034/1034 green (typecheck 0, lint 0 errors); sensor 5/5 killed (14/14 cumulative). Passes 1–2 (`6ecd19c..626762f`, original delivery): PASS after one fix round, 30/30 ACs. Full reports are below the owner smoke.
+**Result**: ✅ PASS (pass 4, Fix 1 `dd83777..77d4e34`). `openFileUrl` now returns the refusal instead of throwing for file URLs with no local drive path, and LINK-21's `localhost` clause has a test. LINK-20, LINK-21, LINK-22, LINK-32 and LINK-33 are all verified. Gate 1036/1036 (typecheck 0, lint 0 errors); sensor 5/5 killed (19/19 cumulative). Pass 3 (amendment `3563b91..a83e62b`) failed on that one Minor gap, now closed. Passes 1–2 (`6ecd19c..626762f`, original delivery) passed after one fix round, 30/30 ACs. Full reports are below the owner smoke.
 
 **Date**: 2026-09-18
 **Spec**: `.specs/features/terminal-links/spec.md`
@@ -698,3 +698,196 @@ refusal, and add the `localhost` acceptance test.
 **Next steps**: apply Fix 1, then run pass 4 (link-opener tests + build gate + one sensor mutation on the
 guard). After that, update `spec.md` traceability per the table above. Fix `tasks.md:453-454` wording
 (Observations a, b) at the same time.
+
+---
+
+## Re-verification (pass 4 — Fix 1, dd83777..77d4e34)
+
+**Date**: 2026-09-24
+**Spec**: `.specs/features/terminal-links/spec.md`, LINK-21 (P2 OSC 8, acceptance criterion 2) and the file
+rules it references (LINK-09..13); pass 3 §Fix Plans › Fix 1 for the task and its Verify criteria
+**Diff range**: `dd83777..77d4e34`, 2 commits. `7da1cc1 fix(main): refuse file links that have no local drive
+path` touches `src/main/link-opener.ts` (+6/−1) and `src/main/link-opener.test.ts` (+25). `77d4e34 docs(specs):
+correct T14's done-when and defer the unhovered osc click` touches `tasks.md` (3 lines) and `context.md` (+4).
+`TerminalPane.tsx`, `index.ts`, `ipc-contract.ts`, `design.md` and `spec.md` are unchanged.
+**Verifier**: independent sub-agent (author ≠ verifier), fourth pass. Read-only over the real tree except
+this file. The sensor ran on scratch copies outside the worktree (see Sensor).
+**Baseline**: 1034 at `dd83777` → **1036** at `77d4e34` (+2)
+
+### Fix completion
+
+| Item | Commit | Status | Notes |
+| ---- | ------ | ------ | ----- |
+| Fix 1 (a): guard the conversion | `7da1cc1` | ✅ Done | `link-opener.ts:101-106`: `fileURLToPath(…)` and the `:line:col` strip now sit in their own `try`. The `catch` returns `{ ok: false, error: `Only local file links open here — ${url}` }`, the same string as the two refusals above it (`:94`, `:97`). The Fix Plan suggested moving the call into the `new URL` try, but that try runs before the host rule (`:96`), so a second try after the rule is the minimal form. It has the same `let x; try { x = … } catch { return refusal }` shape as `openUrl` (`:50-55`) |
+| Fix 1 (b): tests | `7da1cc1` | ✅ Done | `link-opener.test.ts:319-333` and `:335-342`, with exactly the inputs and outcomes the Fix Plan named |
+| Fix 1 Verify: "undo the guard and the new refusal test must fail" | — | ✅ | Mutation 15 below |
+| Fix 1 Verify: +2 tests, 1036 total, build gate green | — | ✅ | `link-opener.test.ts` 32 → 34; suite 1036; see Gate |
+| Pass-3 Observations a, b (T14 Done-when wording) | `77d4e34` | ✅ Done | See Doc corrections |
+
+### Independent probe: the four URLs
+
+The Verifier loaded the real `link-opener.ts` twice with the worktree's `tsx`: once at HEAD and once at
+`dd83777` (via `git show`). It gave both the same fakes and called `openFileUrl` directly (scratch
+`verifier4/probe.mts`). Neither run touched the disk or spawned anything.
+
+| URL | WHATWG host | `fileURLToPath(…, { windows: true })` | `dd83777` | HEAD `77d4e34` | Evidence |
+| --- | ----------- | ------------------------------------- | --------- | -------------- | -------- |
+| `file:////server/share/a.txt` | `""` | throws `ERR_INVALID_FILE_URL_PATH`, "File URL path must be absolute" | **rejects** | `{ ok: false, error: 'Only local file links open here — file:////server/share/a.txt' }`; no stat, open or spawn | test `:322-325` |
+| `file:///tmp/a.txt` | `""` | same throw, "must be absolute" | rejects | the refusal naming the URL; no disk access | test `:326-329` |
+| `file:///C:/dir%2Fa.txt` | `""` | throws "must not include encoded \ or / characters" | rejects | the refusal naming the URL | **By construction.** The `catch` at `:104` catches everything, so any throw from the same call takes the same branch. The two tests hit only the "must be absolute" throw. The probe shows the encoded-separator throw (also `file:///C:/dir%5Ca.txt`) returns the same refusal |
+| `file:///` | `""` | "must be absolute" | rejects | the refusal | **By construction**: the same throw as the two tested URLs |
+
+Controls behave the same in both versions:
+
+- `file://server/share/a.txt` is refused by the host rule at `:96`. It converts cleanly to
+  `\\server\share\a.txt`, so the host rule refuses it, not the new catch (mutation 19).
+- `file://localhost/C:/dir/a.txt` → `{ ok: true }` and stats `C:\dir\a.txt`.
+- `file:///C:/dir/a.txt`, with or without `#L10C5`, `:12:3` or `?x=1`, → `{ ok: true }` and stats
+  `C:\dir\a.txt`.
+
+### Spec-anchored check: LINK-21, all clauses
+
+Clause letters follow pass 3. (f′) and (f″) are the robustness rows that Fix 1 added.
+
+| Clause | Spec-defined outcome | `file:line` + assertion | Result |
+| ------ | -------------------- | ----------------------- | ------ |
+| (a) converted in main: `file:///C:/dir/a.txt` → `C:\dir\a.txt` | exact Windows path, percent-decoded | `link-opener.test.ts:264-268`: `openFileUrl('file:///C:/Users/MAUROP%7E1/scratch/a.txt')` → `expect(result).toEqual({ ok: true })`; `expect(fakes.statCalls).toEqual([FILE])`, with `FILE = 'C:\\Users\\MAUROP~1\\scratch\\a.txt'` (`:259`). The probe re-derived the spec's own example: it stats `C:\dir\a.txt` | ✅ PASS |
+| (b) `#L10C5` dropped | the bare file is opened | `:290` → `toEqual({ ok: true })`; `:296` `expect(fakes.openedPaths).toEqual([FILE, FILE])` | ✅ PASS |
+| (c) `:line:col` dropped | same | `:293-296` (pass-3 mutation 13) | ✅ PASS |
+| (d) file rules of LINK-09..13 | association → `openPath`; none → chooser; dir → Explorer; failure → error naming the path | `:269-270` `associationQueries` `['.txt']`, `openedPaths` `[FILE]` (LINK-09); `:278` `[['rundll32.exe', ['shell32.dll,OpenAs_RunDLL', FILE]]]` (LINK-10); `:284` `[['explorer.exe', [DIR]]]` (LINK-11); `:344-348` `toEqual({ ok: false, error: `${FILE} no longer exists` })` (LINK-13). Pass 3's exception, where a URL that parsed but could not be converted gave no toast naming the target, is closed by (f′)/(f″) | ✅ PASS |
+| (e) regardless of the visible text | the OSC 8 URI opens, not the cell text | unchanged since pass 3: `TerminalPane.tsx:209-210`, `:195-196`; smoke row 26 | ✅ PASS |
+| (f) a host other than empty or `localhost` (UNC form) is refused with a toast, not opened | `{ ok: false, error }`, no stat or launch; the pane toasts it | `:302-305`: `toEqual({ ok: false, error: 'Only local file links open here — file://server/share/a.txt' })`; `:314-316`: `statCalls`, `openedPaths`, `spawns` all `[]` (mutations 12 and 19) | ✅ PASS |
+| (f′) the 4-slash UNC form `file:////server/share/a.txt` (empty host, still "a UNC form") | same outcome as (f) | `:322-325`: `toEqual({ ok: false, error: 'Only local file links open here — file:////server/share/a.txt' })`; `:330-332`: `statCalls`, `openedPaths`, `spawns` all `[]` (mutations 15, 16, 17). Toast: the IPC result is now `{ ok: false }`, so `TerminalPane.tsx:198` toasts `result.error`, which names the URL. Before the fix it arrived through the rejection path `:226-228` with Node's text | ✅ PASS (was ⚠️ in pass 3) |
+| (f″) drive-less `file:///tmp/a.txt`: no local path to open | a returned refusal, not a throw (the `LaunchResult` channel contract, `ipc-contract.ts:49`) | `:326-329`, exact string; `:330-332`, no disk access | ✅ PASS |
+| (g) host `localhost` accepted | `file://localhost/C:/…` opens like `file:///C:/…` | `:337-341`: `openFileUrl('file://localhost/C:/Users/MAUROP%7E1/scratch/a.txt')` → `expect(result).toEqual({ ok: true })`; `expect(fakes.openedPaths).toEqual([FILE])`. Only this test kills mutation 18 | ✅ PASS (was ❌ GAP) |
+
+**Status**: all 7 LINK-21 clauses are evidenced, plus the two robustness rows. With LINK-20, LINK-22, LINK-32
+and LINK-33 from pass 3 (none of their code or tests changed in this diff), the amendment is **5/5 ACs**.
+Every asserted value is the spec's outcome or T14's exact error string, so there is no spec-precision gap. The
+spec gives no message for a drive-less URL beyond the toast. The implementation reuses T14's refusal string,
+which names the target as LINK-13 asks.
+
+Pass-3 edge-case row, now closed:
+
+- [x] LINK-21 file URLs that parse but have no Windows path (`file:////server/share/a.txt`, `file:///tmp/a.txt`,
+  `file:///C:/dir%2Fa.txt`, `file:///`): all return `{ ok: false, error: 'Only local file links open here — <url>' }`
+  with no stat and no spawn. Two are tested; the other two are covered by construction and by the probe
+
+### Gate Check (Build level, run on `77d4e34`)
+
+- **Gate command**: `npm run typecheck && npm run lint && npm test` (`tasks.md` §Gate Check Commands)
+- **typecheck**: exit 0 (`tsconfig.node.json` + `tsconfig.web.json`)
+- **lint**: exit 0, **0 errors, 18 warnings**, all `prettier/prettier`, in the same four pre-existing files as
+  passes 1–3. The main lint uses `--cache`, so the two changed source files were also checked directly with
+  the worktree binaries: `eslint --no-cache` exit 0, and `prettier --check` clean
+- **tests**: `npm test -- --reporter=json` → exit 0, **240/240 suites, 1036 passed, 0 failed, 0 skipped, 0 todo**
+- **Test count**: 1034 → 1036, **+2**, both in `link-opener.test.ts` (32 → 34)
+- **Test integrity**: the diff only adds two `it` blocks to the test file; no assertion was removed or weakened
+- **Tree**: `git status --short` empty after the gate, after every mutation, and before this file was written
+
+### Discrimination Sensor (pass 4, +5)
+
+**Method.** The first attempt to mutate `src/main/link-opener.ts` in place was refused by the session's
+permission guard before any change landed. A Bash command sent in the same batch then ran the suite on the
+unmutated file (34/34; no information, discarded) and copied the backup over it. The backup was
+byte-identical, and `git status --short` showed 0 lines. The sensor then used the temp-copy route that
+`validate.md` §5 allows:
+
+- **Harness.** `link-opener.ts`, `link-opener.test.ts` and the two type-only shared files were copied to
+  `scratchpad/verifier4/sensor/`. They were run by the worktree's vitest 4.1.9, through a scratch config
+  that aliases `vitest` to the worktree's package.
+- **Baseline.** Unmutated, the harness gave 34/34, the same as the worktree.
+- **Per mutant.** Edit the scratch copy, run it, copy the original back (`cmp` identical), then confirm the
+  worktree's `git status --short` is 0 lines.
+
+| # | File:line | Mutation | Killed by | Result |
+| - | --------- | -------- | --------- | ------ |
+| 15 | `src/main/link-opener.ts:101-106` | guard removed: back to `dd83777`'s unguarded `const absolutePath = fileURLToPath(…)` (Fix 1's own Verify) | `refuses a file url with no local drive path instead of throwing`: `TypeError: File URL path must be absolute` (33/34) | ✅ Killed |
+| 16 | `src/main/link-opener.ts:105` | catch returns `{ ok: true }` | same test: `expected { ok: true } to deeply equal { ok: false, … }` (33/34) | ✅ Killed |
+| 17 | `src/main/link-opener.ts:105` | catch message changed to `Couldn’t open ${url}` (LINK-13's wording, a plausible slip) | same test: deep-equal mismatch on `error` (33/34) | ✅ Killed |
+| 18 | `src/main/link-opener.ts:96` | host rule rewritten on the raw string: `!url.startsWith('file:///')`. It still refuses `file://server/…` but now also refuses `file://localhost/…` | `opens a file url whose host is localhost`: `expected { ok: false, … } to deeply equal { ok: true }` (33/34); no other test notices | ✅ Killed |
+| 19 | `src/main/link-opener.ts:96` | host rule dropped. This is pass 3's mutation 12, re-run on the fixed code to check that the new catch has not made the rule redundant | `refuses a unc host and a non-file scheme…` (33/34). `file://server/share/a.txt` converts to `\\server\share\a.txt` and would be stat'ed; the new catch does not cover it | ✅ Killed |
+
+**Sensor depth**: lightweight, 5 behaviour-level mutations on the fix and the clause it pins.
+**Result**: 5/5 killed. Cumulative 19/19. PASS ✅
+
+### Doc corrections (`77d4e34`)
+
+| Change | Checked against | Verdict |
+| ------ | --------------- | ------- |
+| `tasks.md:453`: `C:\dir.txt` → `C:\dir\a.txt` | Byte scan of `dd83777:tasks.md`: line 453, column 58 held **0x07 (BEL)** where `\a` belonged. Pass 3's Observation b took it for a typo, but a write had turned the `\a` escape into a control byte | ✅ Correct. At HEAD, all five `.specs/features/terminal-links/*.md` have 0 C0 control bytes (other than TAB/CR/LF) and no DEL |
+| `tasks.md:454`: "`null` ends the hit test — no fall-back to the visible text … (LINK-22)" | `TerminalPane.tsx:209-213`: inside the hovered OSC range the hit is `hitForOscTarget`, and a `null` returns at `:213` before `preventDefault`/`stopPropagation`. `links.hitTest` runs only in the else branch (`:211`). `design.md:144`: "`null` otherwise (pass-through, LINK-22)" | ✅ Accurate; pass-3 Observation a closed |
+| `tasks.md:13`: header status | `7da1cc1` exists. "F3" continues the header's F1/F2 numbering of fix tasks; this file calls the same item "pass-3 Fix 1" | ✅ Accurate. "pass 4 re-verifies" is this section |
+| `context.md:126-129`: deferred idea (Ctrl+click on an un-hovered OSC 8 link) | `TerminalPane.tsx:176-186`: `hoveredOsc` is set only by `hover` and cleared by `leave`. `:209-211`: with no hover, the hit comes from `links.hitTest` (text detection) | ✅ The mechanism is described correctly. Nit: it says "found by the pass 3 Verifier", but pass 1 first recorded it (Observation 2, 2026-09-18); pass 3 (Observation e) re-raised it because OSC 8 is now the main path |
+
+### Code Quality
+
+| Principle | Status | Notes |
+| --------- | ------ | ----- |
+| Minimum code | ✅ | +5 net source lines; no helper, no new error type, no new message |
+| Surgical changes | ✅ | Only the conversion step of `openFileUrl` changed. Its doc comment (`:83-88`, "Only a local URL is accepted") is unchanged and still true |
+| No scope creep | ✅ | No UNC support, no line/col delivery, no extra scheme |
+| Matches patterns | ✅ | Same try, catch, return-refusal shape as `openUrl` (`:50-55`) and as `openFileUrl`'s own parse guard (`:90-95`). The `LaunchResult` never-throw contract (`ipc-contract.ts:49`) now holds for every input (⚠️ in pass 3) |
+| Would a senior engineer approve? | ✅ | Yes |
+| Spec-anchored outcome check | ✅ | Every asserted value is the spec's or T14's exact string |
+| Per-layer Coverage Expectation | ✅ | `openFileUrl` now has a test for each path: happy, chooser, Explorer, suffix/fragment, host refusal, conversion refusal, `localhost`, missing file |
+| Every test maps to an AC / edge / Done-when | ✅ | Both new tests sit in `describe('LinkOpener.openFileUrl (LINK-21)')` and map to (f′)/(f″) and (g) |
+| Test integrity | ✅ | Additions only |
+| Documented guidelines followed | ✅ | `README.md` pre-PR gate run; `vitest.config.ts` layering; L-005 (the new tests use `makeFakes`, with no real spawn) |
+
+**Observations (non-blocking):**
+
+a. `design.md:170` lists `openFileUrl`'s refusals as protocol and host only. The conversion-failure refusal
+   that F3 added is not in the design step, and the Error Handling table (`design.md:235-245`) has no
+   `openFileUrl` row. This is one clause of doc drift, not a gap.
+b. The new test's title ("…instead of throwing") describes the fix's history rather than the behaviour.
+   Harmless.
+c. Pass-3 Observation c still holds (`hash`/`search` cleared as no-ops, and the `!== 'localhost'` operand is
+   unreachable). Mutation 18 shows the `localhost` test now pins the behaviour however the rule is written.
+d. `context.md` attribution nit (see Doc corrections).
+
+### Requirement Traceability Update (proposal; the orchestrator applies it to `spec.md`)
+
+| Requirement | `spec.md` today | New Status |
+| ----------- | --------------- | ---------- |
+| LINK-20 | Verified | ✅ Verified (pass 3 re-check, smoke row 27; untouched by this diff) |
+| LINK-21 | Reinstated — pending | ✅ Verified (pass 4: 7/7 clauses plus the conversion guard; mutations 12, 13, 15–19) |
+| LINK-22 | Amended — pending | ✅ Verified (pass 3; `hitForOscTarget` and the pane unchanged since) |
+| LINK-32 | Pending | ✅ Verified (pass 3) |
+| LINK-33 | Pending | ✅ Verified (pass 3) |
+| `spec.md` Coverage line | "30 verified … 3 pending the amendment's Verifier pass" | "33 active, 33 verified" |
+| Success Criteria, amendment bullet | unticked | ✅ Met (pass 3: rows 22–27, 30). The other five boxes are also unticked; pass 1 reported them covered by the T11 smoke, so tick them in the same edit if the owner agrees |
+
+### Lesson candidates
+
+Not recorded with `scripts/lessons.py` (the orchestrator decides). Pass 3's candidates stand; the fix confirms
+the first one ("guard every throwing step"). New in this pass:
+
+- Escape sequences in spec prose can be eaten on write: `C:\dir\a.txt` became `C:\dir<BEL>.txt`, which
+  renders as `C:\dir.txt`. A later reviewer then reads a mangled Windows path as a typo. When a path in a spec
+  file looks wrong, scan the file for C0 control bytes before editing the prose. Grounded in `dd83777:tasks.md:453:58`
+  (0x07) and pass-3 Observation b.
+- When an in-place mutation of a tracked file is not allowed, run the sensor on a scratch copy of the module
+  and its test outside the repo, with the runner's import aliased to the repo's package. First check that the
+  unmutated baseline in the harness matches the repo run. The verdict is the same and the tree is never at
+  risk. Grounded in this pass's method (baseline 34/34 in both).
+
+### Summary
+
+**Overall**: ✅ Ready. Fix 1 is closed with the minimum change, and every amendment AC is evidenced.
+
+**Spec-anchored check**: LINK-21 7/7 clauses plus 2 robustness rows; amendment 5/5 ACs (LINK-20/21/22/32/33);
+0 spec-precision gaps
+**Sensor**: 5/5 killed (cumulative 19/19)
+**Gate**: 1036 passed, 0 failed, 0 skipped; typecheck clean; lint 0 errors (18 pre-existing warnings)
+
+**What works**: `openFileUrl` keeps the `LaunchResult` contract for every input. A file URL with no local drive
+path (the 4-slash UNC form, a drive-less POSIX path, an encoded separator, a bare `file:///`) now returns the
+same refusal that names the URL, with no disk access, instead of rejecting across IPC. The host rule is still
+load-bearing for the `file://server/…` form. `localhost` acceptance is pinned by a test that fails if the rule
+is rewritten to refuse it.
+
+**Issues found**: none blocking. Observations a–d are documentation nits.
+
+**Next steps**: apply the traceability proposal to `spec.md` (LINK-21/22/32/33 → Verified, Coverage line,
+Success Criteria). Optionally add the conversion-failure refusal to `design.md:170` and the Error Handling table.
