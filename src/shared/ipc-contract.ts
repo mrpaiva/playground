@@ -198,6 +198,9 @@ export interface IpcEvents {
   /** What the session's agent is doing, folded from its lifecycle hooks; `null`
    *  clears it back to the plain `running` rendering (ACTV-05). */
   'session:activity': { id: string; activity: SessionActivity | null }
+  /** The agent's own session name changed; `null` clears it back to the agent
+   *  display name (SNAME-02, SNAME-04). */
+  'session:name': { id: string; name: string | null }
   /** A run's folded lifecycle status changed (WF2-12). */
   'workflow:status': { runId: string; status: RunStatus }
   /** A `step-started` event — an executed `ctx.*` primitive / `ctx.step` group (WF2-10). */
