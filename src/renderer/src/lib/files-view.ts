@@ -1,6 +1,7 @@
 import type { AppConfig, FilesState } from '../../../shared/config'
 import type { ChangedPath } from '../../../shared/files'
 import type { ChangeStatus } from '../../../shared/worktrees'
+import { ALL_CHANGES_KEY } from './diff-view'
 
 /** A changed file as the tree renders it, carrying the status it was listed with. */
 export interface FileNode {
@@ -65,13 +66,19 @@ export function isSolution(path: string): boolean {
  * Closing the active tab moves focus to the next one, or to the previous when
  * there is no next; closing the last remaining tab leaves `null`, the empty
  * state. Closing an inactive tab leaves the focus where it was. Tabs are
- * identified by path, as opening an already-open file does (FXPL-16).
+ * identified by their key (`tabKeyOf`), which for a file tab is built from the
+ * path, as opening an already-open file does (FXPL-16).
+ *
+ * The All changes tab is the one exception: it cannot be closed (FDIF-17), so a
+ * close request naming it changes nothing. It stays in the list either way,
+ * which is also why closing the tab beside it never leaves the view empty.
  */
 export function tabsAfterClose(
   tabs: string[],
   closedIndex: number,
   activePath: string | null
 ): { tabs: string[]; active: string | null } {
+  if (tabs[closedIndex] === ALL_CHANGES_KEY) return { tabs, active: activePath }
   const left = tabs.filter((_, index) => index !== closedIndex)
   if (tabs[closedIndex] !== activePath) return { tabs: left, active: activePath }
   const adjacent = left[closedIndex] ?? left[closedIndex - 1] ?? null

@@ -640,33 +640,50 @@ async function drive() {
     `launchers: ${launchers.join(', ')}`
   )
 
-  // 16. A file opened from a diff mode says so rather than pretending to be a
-  // diff (FXPL-14), and a file the branch deleted gets the placeholder that
-  // names the deletion rather than an error (FXPL-15).
+  // 16. A click in a diff mode opens a DIFF (FDIF-01/02), which is what
+  // `files-diff` T18 replaced these two checks with.
+  //
+  // Until then this smoke asserted the interim caption "Showing the current
+  // file, not a diff" (FXPL-14) and the "This file was deleted" card
+  // (FXPL-15). Both requirements are struck through in `files-explore/spec.md`
+  // as superseded, and the card's placeholder kind was removed with them. These
+  // checks were rewritten because the behaviour they named no longer exists —
+  // NOT to make a red check pass. A check that was failing for any other reason
+  // must be left failing.
   await evaluate(ws, clickByText('.file-tree-mode', 'Diff to origin'))
   await sleep(1300)
   await evaluate(ws, clickByText('.file-tree-name', 'added.ts'))
-  await sleep(1300)
-  const diffNote = await evaluate(
+  await sleep(1600)
+  const openedDiff = await evaluate(
     ws,
-    `(document.querySelector('.code-viewer-note') || {}).textContent || null`
+    `({
+       diffEditor: document.querySelectorAll('.diff-viewer .monaco-diff-editor').length,
+       fileViewer: document.querySelectorAll('.code-viewer-editor .monaco-editor').length,
+       caption: (document.querySelector('.code-viewer-note') || {}).textContent || null
+     })`
   )
   check(
-    'A file opened from a diff mode is labelled as a file view (FXPL-14)',
-    diffNote === 'Showing the current file, not a diff',
-    String(diffNote)
+    'A click in a diff mode opens a diff, not the file (FDIF-01)',
+    openedDiff.diffEditor === 1 && openedDiff.fileViewer === 0 && openedDiff.caption === null,
+    JSON.stringify(openedDiff)
   )
 
+  // A file the branch deleted is a diff whose modified side is absent, which
+  // shows what was lost instead of only naming the deletion (FDIF-04).
   await evaluate(ws, clickByText('.file-tree-name', 'notes.md'))
-  await sleep(1300)
-  const deletedHeadline = await evaluate(
+  await sleep(1600)
+  const deletedDiff = await evaluate(
     ws,
-    `document.querySelector('.file-placeholder-headline')?.textContent?.trim() ?? null`
+    `({
+       diffEditor: document.querySelectorAll('.diff-viewer .monaco-diff-editor').length,
+       placeholder:
+         document.querySelector('.file-placeholder-headline')?.textContent?.trim() ?? null
+     })`
   )
   check(
-    'A file the branch deleted shows the deleted placeholder (FXPL-15)',
-    deletedHeadline === 'This file was deleted',
-    String(deletedHeadline)
+    'A file the branch deleted opens as a diff with an absent side (FDIF-04)',
+    deletedDiff.diffEditor === 1 && deletedDiff.placeholder === null,
+    JSON.stringify(deletedDiff)
   )
 
   // 17. A file appearing on disk shows up in the current mode's LIST within 1 s

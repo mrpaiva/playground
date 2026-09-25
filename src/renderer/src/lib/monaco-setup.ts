@@ -1,5 +1,6 @@
 import * as monaco from 'monaco-editor/editor/editor.api'
 import 'monaco-editor/basic-languages/monaco.contribution'
+import 'monaco-codicon.css'
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker'
 
 /**

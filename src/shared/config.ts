@@ -90,6 +90,11 @@ export interface AppConfig {
     /** The worktree selected when the app last closed, restored on launch
      *  (FXPL-33); absent, or naming a worktree that is gone, selects nothing. */
     selectedWorktree?: string
+    /** How every open diff is laid out; absent = side by side (FDIF-11/12). */
+    diffLayout?: 'side-by-side' | 'inline'
+    /** Hide leading and trailing whitespace changes, and the line-ending strip
+     *  and markers with them; absent = whitespace shown (FDIF-15/16). */
+    diffIgnoreWhitespace?: boolean
   }
   workspaces: WorkspaceEntry[]
   /** Editable coding-agent registry; seeded from `SEEDED_AGENTS` (AGCF-01). */

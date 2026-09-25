@@ -58,6 +58,20 @@
   color: var(--text);
 }
 
+/* FDIF-17: the fixed tab is not one of the reader's, so it does not look like one. */
+.file-tab.fixed .file-tab-label {
+  padding-right: 10px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+/* FDIF-08: a diff tab and a file tab of the same path read apart at a glance. */
+.file-tab-glyph {
+  margin-right: 5px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .file-tab-close {
   display: flex;
   align-items: center;
@@ -67,6 +81,74 @@
 
 .file-tab-close:hover {
   color: var(--text);
+}
+
+/*
+ * The diff controls (FDIF-12/16/25/27), shown only while a diff surface is in
+ * front of the reader. Above the launcher row, so the row stays where FXPL-25
+ * put it whatever the tab is.
+ */
+.file-tabs-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-tabs-controls-gap {
+  flex: 1;
+}
+
+.file-tabs-toggle {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  transition: border-color 0.12s;
+}
+
+.file-tabs-toggle:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.file-tabs-toggle[aria-pressed='true'] {
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.file-tabs-nav {
+  display: flex;
+  align-items: center;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text-muted);
+}
+
+.file-tabs-nav:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.file-tabs-nav:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+/* Previous points up, next points down: one glyph, turned. */
+.file-tabs-nav svg {
+  transform: rotate(180deg);
+}
+
+.file-tabs-nav.next svg {
+  transform: none;
 }
 
 /* FXPL-25: under the tabs, above whatever the tab shows. */

@@ -234,16 +234,25 @@ export function FileTree({ worktreePath, files, onToast }: FileTreeProps): JSX.E
       .catch((err) => onToast(err instanceof Error ? err.message : String(err)))
   }
 
+  /**
+   * FDIF-01/02/10: in either diff mode a click opens the file's diff, never the
+   * plain file view F1 stood in (FXPL-14, superseded). The row carries only the
+   * path and the status, so the listed change is looked back up for the
+   * `oldPath` a rename needs (FDIF-05).
+   */
   const openInTab = (path: string, status?: ChangeStatus): void => {
-    files.openFile(path, {
-      fromDiffMode: files.mode !== 'full',
-      deleted: status === 'deleted'
-    })
+    const lens = files.mode
+    if (lens === 'full') {
+      files.openFile(path)
+      return
+    }
+    const listed = files.changedFiles.find((file) => file.path === path)
+    files.openDiff(listed ?? { path, status: status ?? 'modified' }, lens)
   }
 
   const openFile = (path: string, status?: ChangeStatus): void => {
-    // A solution the branch deleted has nothing to launch; it gets the
-    // placeholder like any other deleted file (FXPL-15).
+    // A solution the branch deleted has nothing to launch; it opens like any
+    // other row of the list (AD-033 applies to the live ones).
     if (status === 'deleted' || !isSolution(path)) {
       openInTab(path, status)
       return

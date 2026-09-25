@@ -38,7 +38,7 @@ them in tabs without leaving the app, and hand one off to the right external too
 
 | Feature | Reason |
 | ------- | ------ |
-| Any diff rendering | F2. Until then the two diff modes open the file's current content (FXPL-14) |
+| Any diff rendering | F2, shipped. Until then the two diff modes opened the file's current content (FXPL-14, now superseded by FDIF-10) |
 | Commit list | F3 |
 | Pull requests and comments | F4 (Azure DevOps), F5 (GitHub) |
 | Editing, saving, or any write to a file | Owner decision (grill Q2): read-only. The worktrees are where agents write; the app does not compete with them. Editing is handed off by the launchers |
@@ -118,8 +118,8 @@ branch changed, and what I have not committed, so that I look at exactly the fil
 12. WHILE in uncommitted-changes mode the tree SHALL list exactly the paths `worktrees:changes` returns, each with its change status <!-- state-driven -->
 13. WHEN the user returns to a worktree THEN the view SHALL restore the mode last used for it, persisted across restarts, defaulting to full folder <!-- event-driven -->
 33. WHEN the app is launched THEN it SHALL select the worktree that was selected when it last closed, and select nothing if that worktree no longer exists **[added 2026-09-20, AD-039]** <!-- event-driven -->
-14. WHILE F2 has not shipped, WHEN the user opens a file from either diff mode THEN the view SHALL show its current content labelled as a file view, not a diff <!-- complex -->
-15. IF the user opens a file listed as deleted THEN the view SHALL show a placeholder stating the file was deleted <!-- unwanted-behavior -->
+14. ~~WHILE F2 has not shipped, WHEN the user opens a file from either diff mode THEN the view SHALL show its current content labelled as a file view, not a diff~~ **Superseded by FDIF-10**, delivered 2026-09-20 in `files-diff` T20: a click in either diff mode now opens the diff, so there is no file view to label. The requirement was scoped "while F2 has not shipped" and that condition has expired. <!-- complex -->
+15. ~~IF the user opens a file listed as deleted THEN the view SHALL show a placeholder stating the file was deleted~~ **Superseded by FDIF-01..05**, delivered 2026-09-20 in `files-diff` T18: a click in either diff mode opens the diff, and a file the branch deleted is a diff whose modified side is absent — which says the same thing and also shows what was lost. Nothing produces the placeholder any more, so its kind was removed with the requirement (the AD-018 pattern). The `missing` placeholder of FXPL-24 is untouched: a file deleted from disk while its tab is open still has one. <!-- unwanted-behavior -->
 
 **Independent Test**: On a branch two commits past `main` with one uncommitted edit, the diff mode lists the committed files, the uncommitted mode lists the edited one with `modified`, and switching worktrees and back restores the last mode.
 
@@ -215,7 +215,7 @@ showing my uncommitted changes, so that the counter leads somewhere useful.
 | FXPL-11 | P1: Switch the lens | Design | Pending |
 | FXPL-12 | P1: Switch the lens | Design | Pending |
 | FXPL-13 | P1: Switch the lens | Design | Pending |
-| FXPL-14 | P1: Switch the lens | Design | Pending |
+| FXPL-14 | P1: Switch the lens | Design | **Superseded by FDIF-10** |
 | FXPL-15 | P1: Switch the lens | Design | Pending |
 | FXPL-16 | P1: Read files in tabs | Design | Pending |
 | FXPL-17 | P1: Read files in tabs | Design | Pending |
