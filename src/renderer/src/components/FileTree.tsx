@@ -3,6 +3,7 @@ import type { JSX } from 'react'
 import type { FilesMode } from '../../../shared/files'
 import type { ChangeStatus } from '../../../shared/worktrees'
 import { api } from '../lib/api'
+import { CommitList } from './CommitList'
 import { buildTree, isSolution, type TreeNode } from '../lib/files-view'
 import { absoluteIn, type UseFiles } from '../lib/use-files'
 import { Icon } from './Icon'
@@ -20,7 +21,8 @@ interface FileTreeProps {
 const MODES: { mode: FilesMode; label: string }[] = [
   { mode: 'full', label: 'Folder' },
   { mode: 'since-base', label: 'Diff to origin' },
-  { mode: 'uncommitted', label: 'Uncommitted' }
+  { mode: 'uncommitted', label: 'Uncommitted' },
+  { mode: 'commits', label: 'Commits' }
 ]
 
 const STATUS_LETTER: Record<ChangeStatus, string> = {
@@ -242,7 +244,9 @@ export function FileTree({ worktreePath, files, onToast }: FileTreeProps): JSX.E
    */
   const openInTab = (path: string, status?: ChangeStatus): void => {
     const lens = files.mode
-    if (lens === 'full') {
+    // Commits mode lists no paths, so nothing here can be clicked in it; it is
+    // named alongside full-folder mode to keep the narrowing honest.
+    if (lens === 'full' || lens === 'commits') {
       files.openFile(path)
       return
     }
@@ -293,11 +297,15 @@ export function FileTree({ worktreePath, files, onToast }: FileTreeProps): JSX.E
         ))}
       </div>
 
-      {files.mode === 'since-base' && <BasePicker files={files} />}
+      {/* FCMT-06: Commits mode compares against the same base, and shares its
+          picker — two pickers would disagree silently. */}
+      {(files.mode === 'since-base' || files.mode === 'commits') && <BasePicker files={files} />}
 
       <div className="file-tree-body">
         {files.mode === 'full' ? (
           <FolderRows dir="" depth={0} files={files} onFile={openFile} />
+        ) : files.mode === 'commits' ? (
+          <CommitList files={files} onToast={onToast} />
         ) : files.mode === 'uncommitted' ? (
           files.uncommitted.length === 0 ? (
             <div className="file-tree-note">No uncommitted changes.</div>

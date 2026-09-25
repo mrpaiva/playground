@@ -41,30 +41,55 @@ Handoff snapshot.
 | AD-035 | 2026-09-20 | **A diff against the working tree reads the revision as the checkout would have written it, not as the blob stores it.** `readDiffSides` reads a revision with `git cat-file --filters rev:path` whenever the *other* side is the disk, and with plain `git show` when both sides are revisions. `--filters` applies the checkout filters, so the comparison becomes "what git would put on disk" against "what is on disk" — the difference a commit would preserve. Diff-to-origin is untouched: both sides get the same treatment either way. | **Git for Windows ships `core.autocrlf=true` in its SYSTEM config** — measured on this machine: system `true`, global and local unset. In any worktree without a `.gitattributes`, the disk is therefore CRLF while the blob is LF, and comparing them raw made FDIF-15 report an ending change **on every line of every file** in the uncommitted diff — for a difference git itself undoes on commit. The feature would have been pure noise wherever it was most used, and `playground` escaped it only because its own `.gitattributes` sets `* text=auto eol=lf`; the owner's other repositories may not. Measured, not assumed: `git show HEAD:f` returns `a\nb\nc\n` where `git cat-file --filters HEAD:f` returns `a\r\nb\r\nc\r\n`. Rejected alternatives: suppressing the strip in uncommitted mode, which would also hide a real ending change an agent made, and leaving the FDIF-16 whitespace toggle to hide it, which makes noise the default and the feature something to be switched off. Found by the F2 Phase 2 worker, which measured the behaviour and stopped rather than inventing an unspecified normalization. |
 | AD-036 | 2026-09-20 | **The folder listing asks git for one level, never for the subtree.** `listDir` reads `ls-tree HEAD:<dir>` for what the commit holds at that level, `diff --cached --name-status HEAD` for what the index changed since, and the existing `ls-files --others` for untracked entries — three reads in parallel, through `allSettled` so no git child is left running. `git.ts` also gains an explicit 64 MiB `maxBuffer`, as a floor under every other call. **Numbered 036, skipping 035**, which `feature/files-diff` already uses. | `ls-files --cached` lists every tracked *descendant*, so drawing twenty rows read every path beneath them. Measured on a repository of ~47,000 files: the root returned **4.59 MB in 1.5 s** and a single top-level folder **4.2 MB in 1.5 s** — both past `execFile`'s 1 MiB default, so the mode rendered nothing but `stdout maxBuffer length exceeded`, a message that says nothing about the repository being large. A pathspec did not help, because one folder held 42,197 of the files. One level is **1.9 kB in 0.11 s**; end to end on that repository the root now lists in 564 ms and the big folder in 531 ms, where both previously failed. Rejected: raising the buffer alone, which keeps reading megabytes to draw a screen; and a `readdir`-based listing, which would be faster still but redefines the set FXPL-02/04/05 specifies, and that is not a change to make inside an open PR. The index delta is what keeps a file staged but not committed visible — reading the commit alone would hide it. |
 | AD-037 | 2026-09-20 | **Selecting a session selects the worktree it runs in.** `worktreeIdForPath` resolves a session's `cwd` to the deepest worktree containing it — case-insensitively and separator-agnostically, since the app is Windows only — and every session-selection entry point sets the worktree selection with it. A `cwd` no worktree holds leaves the selection untouched. | The app has one current worktree and every direction reads it: the Files tree, the status bar, the launcher row. Only the Tree set it, so moving between agents left the Files direction pointing at whatever branch was last clicked there — reported by the owner against PR #100. Resolving the containing worktree rather than requiring an exact match covers an agent spawned in a subfolder, which the New Session dialog allows. |
+| AD-038 | 2026-09-20 | **A commit row leads with the subject, and its two actions move to a right-click menu.** The short sha leaves the row — it stays in the row's tooltip, in the menu's Copy sha, and in the commit tab's title, where two commits sharing a subject still need telling apart. Copy sha and Open in browser become items of a context menu built like the sidebar's. FCMT-03, 21 and 23 amended; 22, 25 and 26 hold as written, one menu level down. | Owner review of PR #102. The subject is what a reader scans for, and the sha led instead. The two buttons were worse than redundant: `opacity: 0` hides a button but does not release its width, so ~150px of row was reserved for actions that were not on screen, and the author's name was clipped to its first letter. Moving them fixes both complaints with one change, and the layout defect is now asserted rather than eyeballed — the smoke compares `scrollWidth` against `clientWidth` on every row, which reading `textContent` cannot detect. |
 | AD-039 | 2026-09-20 | **The app reopens on the worktree it closed on, and Files sits beside Agents.** `ui.selectedWorktree` persists the selection; it is restored once, after both the config and the tree have arrived, and only when the tree still holds that worktree. The write is held back until the restore has run. The top bar's order becomes Tree, Board, Agents, Files, Workflows. | Owner request after reviewing PR #100. The selection was plain React state, so every launch started on nothing and the Files direction had no worktree to open on — the one thing it needs before it can show anything. The restore waits for the tree because only the tree can say the folder still exists, and the write waits for the restore because persisting from the first render would save the mount's empty selection over the stored one. Files moves next to Agents because both are about the worktree an agent is working in, and the two are switched between constantly. FXPL-33 added. |
 
 
 ## Handoff
 
-**Status (current, 2026-09-19): `status-bar` COMPLETE -- T1-T18 executed and independent Verifier
-**PASS** (round 3 of 3) on branch `feature/status-bar`, cut from `origin/main` `6ecd19c`. Pushed to
-`fork` and **PR #97 open upstream** (`viniciussaide:feature/status-bar` -> `obogoni:main`, opened
-2026-09-19 with owner go-ahead; CI `gate` **pass** in 4m6s, `mergeStateStatus` CLEAN, 31 files / +5351 -27). Merged locally into `develop`. Report:
-`.specs/features/status-bar/validation.md`; `validate_state.py` exit 0.**
+**Status (current, 2026-09-20): the Files epic's first three slices are COMPLETE and each has an
+open upstream PR. Merged locally into `develop` (`6912ce3`).**
 
-- **Verification:** suite **917 -> 979** (52 -> 55 files); typecheck, lint (18 warnings, the
-  pre-existing baseline) and `electron-vite build` exit 0. CDP smoke `scripts/smoke-status-bar.mjs`
-  **57/57** against the live dev app. Verifier round 3: 32/32 ACs and 6/6 edge cases evidenced,
-  8/8 mutants killed. Rounds 1-2 failed on evidence gaps and led to three product fixes: the
-  late sync-state answer race, the deleted-worktree-folder state, and `--no-rebase` on Pull/Sync.
-- **After the PASS, owner tweaks** covered by gate + smoke only: Visual Studio git glyphs on the
-  popover buttons, the branch split in half, and the branch cap raised from 50% to 70% of the bar.
-- **Open notes:** the spec says five directions and this branch has four (Hours arrives with #93);
-  the timeout message text is not asserted; `src/main/index.ts` still runs git directly in the
-  workflow fetch path, against AD-023. Candidate lessons L-019..L-026 await promotion.
+| Slice | Branch | Verifier | PR |
+| ----- | ------ | -------- | -- |
+| F1 `files-explore` | `feature/files-explore` `72d6e98` | PASS, round 3 of 3 | **#100** (depends on #97) |
+| F2 `files-diff` | `feature/files-diff` `1802d35` | PASS, round 1 | **#101** (depends on #100) |
+| F3 `files-commits` | `feature/files-commits` `cd44640` | PASS, round 2 of 3 | **#102** (depends on #101) |
 
-**Next:** F1 `files-explore`. `feature/files-explore` .. `feature/files-pr-github` were cut from the
-old status-bar tip `eb78540`; rebase the stack onto `feature/status-bar` before executing F1, and
-re-anchor F1's test baseline to **979**. After #97 merges upstream: `git fetch origin` -> `main`
-fast-forward -> merge `main` into `develop`, then `git rebase --onto origin/main feature/status-bar
-feature/files-explore` per AD-022.
+The three are stacked in that order on `feature/status-bar` (PR #97), which is still open upstream.
+Nothing has been merged into `obogoni/playground`; the local `develop` merge is the only integration.
+
+- **F3 verification:** suite **1168 -> 1177** (64 files); typecheck, lint (0 errors / 18 warnings,
+  the standing baseline) and `electron-vite build` exit 0. CDP smoke
+  `scripts/smoke-files-commits.mjs` **27/27** against a live dev app on a seeded repository of 104
+  commits, with an isolated `--user-data-dir`. Report: `.specs/features/files-commits/validation.md`.
+  Round 1 returned FAIL on test strength only — no shipped code was wrong — and named two surviving
+  mutants plus one AC with no evidence at all; all three are closed. Round 2 returned PASS with three
+  survivors, two of which were closed afterwards (recorded as an addendum in the report, marked
+  plainly as author self-check rather than a third round).
+- **Defect found and fixed during F3, in shipped code:** `commitFiles` used `Promise.all`, which
+  returns on the first rejection and leaves its sibling git process running. On Windows that child
+  held the worktree as its cwd and blocked the directory's removal — an intermittent EPERM roughly
+  one full-suite run in six. Now `allSettled`. It cost four wrong diagnoses before the error text was
+  finally captured; the lesson is L-029.
+- **Merge into `develop`:** six files conflicted, all additively (config keys, contract imports, two
+  helpers in `main/index.ts`, two top-bar directions, and two blocks of decision rows). Every
+  conflict kept both sides. Merged tree: **1504 tests / 82 files**, lint 0 errors / 17 warnings,
+  build green.
+- **Carried, non-blocking:** FCMT-07's *rendered* base prompt is unasserted on both sides (the pure
+  decision behind it is unit-tested); FCMT-32's window-focus path, FCMT-16's focus-when-already-open
+  and FCMT-11's restore-on-return are each argued rather than driven. `inTreeOrder` in
+  `AllChangesTab.tsx` is pure and untested. `files-diff/design.md` § Data Models still declares the
+  removed `FileStat { binary: boolean }`. Candidate lessons L-019..L-029 await promotion.
+- **Owner hand checks NOT yet done on F3** (a CDP smoke counts DOM nodes; it cannot see that a screen
+  is unreadable, mis-themed or drawn in tofu — in F2 the smoke found one defect and the owner found
+  three): click **Open in browser** on one real pushed commit of a real repository, since the smoke
+  never clicks an enabled one; hover a row and read the full message tooltip; and judge the
+  four-mode selector at the left column's narrowest width, where it now wraps to two lines.
+
+**Next:** F4 `files-pr-ado` (27 tasks), stacked on F3. Re-chain it with
+`git rebase --onto feature/files-commits eec156e feature/files-pr-ado` — the base is F3's **previous
+tip**, not the common ancestor, or the range replays F3's own commits. Re-measure the test baseline
+as the first act of Execute; it is **1177** on F3's tip. **F4's T1 writes to a real Azure DevOps pull
+request**: a sandbox PR the owner names, with a go-ahead at that moment. F4 also flips the README's
+"ADO is read-only" claim, per AD-027.

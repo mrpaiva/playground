@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 27,
+  "next_id": 30,
   "lessons": [
     {
       "id": "L-001",
@@ -386,6 +386,60 @@
       ],
       "created": "2026-09-19T18:18:03Z",
       "last_seen": "2026-09-19T18:18:03Z"
+    },
+    {
+      "id": "L-027",
+      "key": "surviving_mutant::a rejection fixture must reach the guard it claims to test a wrong shape input that is also the wrong length dies on the length check leaving the real guard unproven",
+      "text": "A rejection fixture must reach the guard it claims to test: a wrong-shape input that is also the wrong length dies on the length check, leaving the real guard unproven.",
+      "signal": "surviving_mutant",
+      "scope": "tests/fixtures",
+      "status": "candidate",
+      "features": [
+        "files-commits"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M1 (src/main/remote-url.ts:29; src/main/remote-url.test.ts:59) (tests/fixtures)"
+      ],
+      "created": "2026-09-20T22:58:11Z",
+      "last_seen": "2026-09-20T22:58:11Z"
+    },
+    {
+      "id": "L-028",
+      "key": "surviving_mutant::when an ac says more than n seed a fixture at exactly n counts above and below it cannot tell from",
+      "text": "When an AC says 'more than N', seed a fixture at exactly N: counts above and below it cannot tell > from >=.",
+      "signal": "surviving_mutant",
+      "scope": "tests/boundaries",
+      "status": "candidate",
+      "features": [
+        "files-commits"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M5 (src/main/commit-log.ts:82) (tests/boundaries)"
+      ],
+      "created": "2026-09-20T22:58:11Z",
+      "last_seen": "2026-09-20T22:58:11Z"
+    },
+    {
+      "id": "L-029",
+      "key": "gate_fail::promise all returns on the first rejection and abandons its siblings still running on windows a child holding a temp directory as its cwd then blocks its removal so use allsettled when every branch spawns a process",
+      "text": "Promise.all returns on the first rejection and abandons its siblings still running; on Windows a child holding a temp directory as its cwd then blocks its removal, so use allSettled when every branch spawns a process.",
+      "signal": "gate_fail",
+      "scope": "src/main/**, windows",
+      "status": "candidate",
+      "features": [
+        "files-commits"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "src/main/commit-log.ts commitFiles; intermittent EPERM in commit-log.test.ts teardown (src/main/**, windows)"
+      ],
+      "created": "2026-09-20T22:58:11Z",
+      "last_seen": "2026-09-20T22:58:11Z"
     }
   ]
 }

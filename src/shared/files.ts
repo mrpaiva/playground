@@ -1,11 +1,11 @@
 import type { ChangeStatus } from './worktrees'
 
 /**
- * The three lenses the Files direction puts over one worktree (FXPL-07): the
- * whole folder, what the branch changed since its base, and what is not
- * committed yet.
+ * The lenses the Files direction puts over one worktree (FXPL-07, FCMT-01):
+ * the whole folder, what the branch changed since its base, what is not
+ * committed yet, and the branch's own commits since that same base.
  */
-export type FilesMode = 'full' | 'since-base' | 'uncommitted'
+export type FilesMode = 'full' | 'since-base' | 'uncommitted' | 'commits'
 
 /** One row of a folder listing — a direct child, never a descendant. */
 export interface FileEntry {
@@ -132,3 +132,68 @@ export interface FileStat {
    */
   uncountable?: 'binary' | 'too-large'
 }
+
+/**
+ * One row of the Commits list (FCMT-03/05/12). A row carries everything the
+ * list draws, so drawing it needs no second call: the subject for the line,
+ * the whole message for the tooltip (FCMT-04), and whether the commit has
+ * reached the branch's upstream.
+ */
+export interface CommitRow {
+  /** The full 40-character sha — what Copy sha puts on the clipboard (FCMT-22). */
+  sha: string
+  shortSha: string
+  /** `(no subject)` when the commit message has none (edge case). */
+  subject: string
+  /** The full message, for the row's tooltip (FCMT-04). */
+  message: string
+  author: string
+  /** Commit date, epoch milliseconds. */
+  at: number
+  /** More than one parent, so the list shows it as a merge (FCMT-05). */
+  isMerge: boolean
+  /** Reachable from the branch's upstream; false marks it not pushed (FCMT-12/13). */
+  pushed: boolean
+}
+
+/**
+ * One page of the branch's own commits (FCMT-02/08/09). Paging is by cursor
+ * rather than by offset: the next page starts at the last row's first parent,
+ * so a commit landing between two pages can neither duplicate nor drop a row.
+ */
+export interface CommitPage {
+  commits: CommitRow[]
+  /** A further page exists — the list shows Load more (FCMT-08). */
+  hasMore: boolean
+  /** Where the next page starts: the last row's sha. Null when there is none. */
+  cursor: string | null
+  /** e.g. 'fork/feature/x'; null when the branch has no upstream (FCMT-13). */
+  upstream: string | null
+  /** Provider of the upstream remote; null hides Open in browser (FCMT-26). */
+  browse: 'github' | 'azure-devops' | null
+  /** Git's first error line when the log could not be read at all. */
+  error?: string
+}
+
+/**
+ * What one commit changed, against its first parent (FCMT-16/17/18). The same
+ * two shapes F2's stack already takes, so a commit tab is F2's All changes tab
+ * with this in its props.
+ */
+export interface CommitDetail {
+  /** The first parent; null for a root commit, whose sides are all empty (FCMT-18). */
+  parent: string | null
+  files: ChangedPath[]
+  stats: FileStat[]
+  /** Git's first error line — a commit an aggressive `gc` removed (edge case). */
+  error?: string
+}
+
+/**
+ * A remote URL the app recognized, reduced to the parts a page URL is built
+ * from (FCMT-27). Userinfo never survives parsing, so a credential in the
+ * remote cannot reach a built URL (edge case). F4 and F5 reuse this.
+ */
+export type RemoteRef =
+  | { provider: 'github'; owner: string; repo: string }
+  | { provider: 'azure-devops'; org: string; project: string; repo: string }

@@ -320,3 +320,37 @@ describe('mountPlan', () => {
     expect(plan.unmount).toEqual(['s3'])
   })
 })
+
+describe('tabKeyOf for commit tabs', () => {
+  const SHA = '0f2b9c1d4e6a8b3c5d7e9f0a1b2c3d4e5f6a7b8c'
+
+  it('gives a commit tab a key no file, diff or All changes tab can produce (FCMT-20)', () => {
+    const commit = tabKeyOf({ kind: 'commit', sha: SHA })
+
+    const others = [
+      tabKeyOf(fileTab(SHA)),
+      tabKeyOf(diffTab('since-base', SHA)),
+      tabKeyOf(diffTab('uncommitted', SHA)),
+      tabKeyOf({ kind: 'all-changes' })
+    ]
+
+    expect(others).not.toContain(commit)
+  })
+
+  it('is one tab per sha (FCMT-20)', () => {
+    const other = '9e8d7c6b5a40312f1e0d9c8b7a6f5e4d3c2b1a09'
+
+    expect(isSameTab({ kind: 'commit', sha: SHA }, { kind: 'commit', sha: SHA })).toBe(true)
+    expect(isSameTab({ kind: 'commit', sha: SHA }, { kind: 'commit', sha: other })).toBe(false)
+  })
+})
+
+describe('tabsWithAllChanges in commits mode', () => {
+  it('offers no All changes tab, because the mode lists commits (FCMT-16)', () => {
+    const open = [fileTab('src/app.ts')]
+
+    const strip = tabsWithAllChanges(open, 'commits')
+
+    expect(strip.map((tab) => tabKeyOf(tab))).toEqual([tabKeyOf(fileTab('src/app.ts'))])
+  })
+})

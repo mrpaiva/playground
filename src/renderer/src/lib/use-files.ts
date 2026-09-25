@@ -4,6 +4,9 @@ import type {
   BaseOptions,
   ChangedListing,
   ChangedPath,
+  CommitDetail,
+  CommitPage,
+  CommitRow,
   DirListing,
   DiffRequest,
   DiffSides,
@@ -11,7 +14,9 @@ import type {
   FileStat,
   FilesMode
 } from '../../../shared/files'
+import type { LaunchResult } from '../../../shared/shortcuts'
 import { api } from './api'
+import { mergePages } from './commit-view'
 import { diffRequestFor, tabKeyOf, tabsWithAllChanges, type DiffMode } from './diff-view'
 import { filesStateFor, launcherTarget, tabsAfterClose, tabsAffected } from './files-view'
 
@@ -42,8 +47,23 @@ export interface DiffTab {
   at: number
 }
 
+/**
+ * One open commit (FCMT-16/20), keyed by its sha. The row it was opened from
+ * travels with it, so the title and the not-pushed marker survive a refresh
+ * that no longer lists that commit — an amend leaves the old tab intact
+ * (spec edge case).
+ */
+export interface CommitTab {
+  kind: 'commit'
+  sha: string
+  row: CommitRow
+  /** What the commit changed; null while the read is in flight. */
+  detail: CommitDetail | null
+  at: number
+}
+
 /** Everything the tab strip can hold: the open tabs, plus the fixed one. */
-export type ViewTab = FileTab | DiffTab
+export type ViewTab = FileTab | DiffTab | CommitTab
 export type StripTab = ViewTab | { kind: 'all-changes' }
 
 /**
@@ -65,6 +85,8 @@ interface WorktreeFiles {
   bases: BaseOptions | null
   /** Added and removed counts for the current mode's list (FDIF-19/20). */
   stats: FileStat[]
+  /** The Commits list as far as it has been paged in (FCMT-02/09); null before it loads. */
+  commits: CommitPage | null
 }
 
 /** A worktree the user has not opened yet. Constant, so it stays referentially stable. */
@@ -77,7 +99,8 @@ const EMPTY: WorktreeFiles = {
   changed: null,
   uncommitted: [],
   bases: null,
-  stats: []
+  stats: [],
+  commits: null
 }
 
 export interface UseFilesOptions {
@@ -89,6 +112,15 @@ export interface UseFilesOptions {
   ui: AppConfig['ui']
   /** Hands a changed slice of `ui` back to App, the one writer of the config (D4). */
   onPersist: (patch: Partial<AppConfig['ui']>) => void
+  /**
+   * Anything whose identity changes when the worktree tree is re-read. The
+   * status bar re-reads it after a push, sync, publish or fetch, and that is
+   * the only in-app signal those operations give: they move
+   * `refs/remotes/<remote>/<branch>`, which F1's watcher does not report, so
+   * without this the not-pushed markers keep lying after the app's own push
+   * (FCMT-32, design D1).
+   */
+  treeRevision?: unknown
 }
 
 export interface UseFiles {
@@ -115,6 +147,10 @@ export interface UseFiles {
   diffLayout: 'side-by-side' | 'inline'
   /** Hide trim-whitespace changes and the line-ending strip with them (FDIF-16). */
   diffIgnoreWhitespace: boolean
+  /** The Commits list, paged in (FCMT-02); null before it loads or with no base. */
+  commits: CommitPage | null
+  /** Changed files in the worktree — the count the uncommitted row shows (FCMT-14). */
+  uncommittedCount: number
   /** Bumped when every open diff must re-read against a new git state (FDIF-31). */
   refreshToken: number
   /** Absolute path the launcher row acts on (FXPL-26); null when nothing is picked. */
@@ -132,6 +168,12 @@ export interface UseFiles {
   openDiff: (changed: ChangedPath, mode: DiffMode) => void
   /** Which two sides a file of the current mode compares, for the stack. */
   requestFor: (changed: ChangedPath) => DiffRequest | null
+  /** Opens, or focuses, the tab holding one commit's stack of diffs (FCMT-16). */
+  openCommit: (row: CommitRow) => void
+  /** Appends the next page of commits below the ones shown (FCMT-09). */
+  loadMoreCommits: () => void
+  /** Asks main to open a pushed commit's page; main builds the URL (FCMT-24/28). */
+  openCommitInBrowser: (sha: string) => Promise<LaunchResult>
   focusTab: (key: string) => void
   closeTab: (key: string) => void
 }
@@ -156,7 +198,16 @@ export interface UseFiles {
  * re-reads *every* open diff and the counts (FDIF-31): the diff-to-origin side
  * of a file only moves when history does.
  */
-export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOptions): UseFiles {
+/** How long a focus refresh of the Commits list waits out another focus (FCMT-32). */
+const FOCUS_REFRESH_MS = 5000
+
+export function useFiles({
+  worktreePath,
+  active,
+  ui,
+  onPersist,
+  treeRevision
+}: UseFilesOptions): UseFiles {
   const [byWorktree, setByWorktree] = useState<Record<string, WorktreeFiles>>({})
   const [refreshToken, setRefreshToken] = useState(0)
   const here = (worktreePath && byWorktree[worktreePath]) || EMPTY
@@ -211,13 +262,49 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
   /** The counts behind the stack's header and every section header (FDIF-19/20). */
   const loadStats = useCallback(
     (wt: string, lens: FilesMode, from: string | undefined): void => {
-      if (lens === 'full' || (lens === 'since-base' && !from)) {
+      // Commits mode has no list of its own to count: each commit's tab brings
+      // its own counts back with `commits:files`.
+      if (lens === 'full' || lens === 'commits' || (lens === 'since-base' && !from)) {
         patchFiles(wt, () => ({ stats: [] }))
         return
       }
       api
         .invoke('files:diff-stats', { worktreePath: wt, mode: lens, base: from })
         .then((stats) => patchFiles(wt, () => ({ stats })))
+        .catch(console.error)
+    },
+    [patchFiles]
+  )
+
+  /** The first page of the Commits list, replacing whatever was paged in before. */
+  const loadCommits = useCallback(
+    (wt: string, from: string | undefined): void => {
+      // FCMT-07: with no base there is no merge base to stop at, and F1's base
+      // prompt takes the list's place rather than the app guessing one.
+      if (!from) {
+        patchFiles(wt, () => ({ commits: null }))
+        return
+      }
+      api
+        .invoke('commits:list', { worktreePath: wt, base: from })
+        .then((commits) => patchFiles(wt, () => ({ commits })))
+        .catch(console.error)
+    },
+    [patchFiles]
+  )
+
+  /** What one open commit tab shows (FCMT-16); read once per tab. */
+  const readCommit = useCallback(
+    (wt: string, sha: string): void => {
+      api
+        .invoke('commits:files', { worktreePath: wt, sha })
+        .then((detail) =>
+          patchFiles(wt, (s) => ({
+            tabs: s.tabs.map((tab) =>
+              tab.kind === 'commit' && tab.sha === sha ? { ...tab, detail } : tab
+            )
+          }))
+        )
         .catch(console.error)
     },
     [patchFiles]
@@ -274,12 +361,21 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
         loadUncommitted(wt)
         return
       }
+      if (lens === 'commits') {
+        loadCommits(wt, from)
+        // The uncommitted row's count is read the way the uncommitted mode
+        // reads its list, not from the tree snapshot the design suggested: the
+        // snapshot only moves when the app re-reads the tree, so a file saved
+        // while the list is open would leave the row's number stale.
+        loadUncommitted(wt)
+        return
+      }
       // FXPL-11: with no base there is nothing to compare, and the picker asks
       // for one rather than the app guessing.
       if (from) loadChanged(wt, from)
       else patchFiles(wt, () => ({ changed: null }))
     },
-    [loadDir, loadUncommitted, loadChanged, loadStats, patchFiles]
+    [loadDir, loadUncommitted, loadChanged, loadCommits, loadStats, patchFiles]
   )
 
   // What the `files:changed` subscription needs to read without resubscribing
@@ -318,6 +414,36 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
       if (tab.kind === 'diff' && tab.mode === 'since-base') readDiff(wt, tab, mergeBase)
     }
   }, [active, worktreePath, mergeBase, readDiff])
+
+  // FCMT-32: the tree was re-read, which is what the status bar does after a
+  // push, sync, publish or fetch succeeds. Re-listing recomputes the markers.
+  // Compared against the last value rather than merely depended on, so the
+  // mount and a mode switch do not fetch the page a second time.
+  const seenTree = useRef(treeRevision)
+  useEffect(() => {
+    if (seenTree.current === treeRevision) return
+    seenTree.current = treeRevision
+    const current = live.current
+    if (!current.active || !current.worktreePath || current.mode !== 'commits') return
+    loadCommits(current.worktreePath, current.effectiveBase)
+  }, [treeRevision, loadCommits])
+
+  // FCMT-32: a push from outside the app moves the same refs and gives no
+  // signal at all, so the window regaining focus stands in — debounced by 5 s,
+  // the way App debounces its own focus refresh, against focus flapping.
+  const lastFocusAt = useRef(0)
+  useEffect(() => {
+    const onFocus = (): void => {
+      const now = Date.now()
+      if (now - lastFocusAt.current < FOCUS_REFRESH_MS) return
+      lastFocusAt.current = now
+      const current = live.current
+      if (!current.active || !current.worktreePath || current.mode !== 'commits') return
+      loadCommits(current.worktreePath, current.effectiveBase)
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [loadCommits])
 
   // FXPL-23: one worktree is watched, and only while the direction is Files.
   useEffect(() => {
@@ -466,9 +592,68 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
     [worktreePath, patchFiles, readDiff]
   )
 
+  const openCommit = useCallback(
+    (row: CommitRow): void => {
+      if (!worktreePath) return
+      const wt = worktreePath
+      const at = Date.now()
+      const key = tabKeyOf({ kind: 'commit', sha: row.sha })
+      // Read from the ref, not from inside the updater: an updater runs at the
+      // next render, so a flag set in there is still false on the line below
+      // and the read never fires (the trap `openFile` documents).
+      const known = live.current.here.tabs.find(
+        (tab): tab is CommitTab => tab.kind === 'commit' && tab.sha === row.sha
+      )
+      const needsRead = !known || known.detail === null
+      patchFiles(wt, (s) => {
+        // FCMT-16: an already-open commit focuses its tab, it does not open a
+        // second one — the sha is the identity (FCMT-20).
+        if (s.tabs.some((open) => tabKeyOf(open) === key)) {
+          return {
+            tabs: s.tabs.map((open) => (tabKeyOf(open) === key ? { ...open, at } : open)),
+            activeTab: key
+          }
+        }
+        const tab: CommitTab = { kind: 'commit', sha: row.sha, row, detail: null, at }
+        return { tabs: [...s.tabs, tab], activeTab: key }
+      })
+      if (needsRead) readCommit(wt, row.sha)
+    },
+    [worktreePath, patchFiles, readCommit]
+  )
+
+  const loadMoreCommits = useCallback((): void => {
+    const wt = worktreePath
+    const page = live.current.here.commits
+    if (!wt || !effectiveBase || !page?.hasMore || page.cursor === null) return
+    api
+      .invoke('commits:list', { worktreePath: wt, base: effectiveBase, cursor: page.cursor })
+      .then((next) =>
+        patchFiles(wt, (s) => ({
+          // The newer page's flags win — `hasMore`, `cursor`, `upstream` — and
+          // its rows are appended below the ones already read (FCMT-09).
+          commits: s.commits
+            ? { ...next, commits: mergePages(s.commits.commits, next.commits) }
+            : next
+        }))
+      )
+      .catch(console.error)
+  }, [worktreePath, effectiveBase, patchFiles])
+
+  const openCommitInBrowser = useCallback(
+    (sha: string): Promise<LaunchResult> => {
+      if (!worktreePath) return Promise.resolve({ ok: false, error: 'No worktree is selected.' })
+      return api.invoke('commits:open', { worktreePath, sha })
+    },
+    [worktreePath]
+  )
+
   const requestFor = useCallback(
+    // Only the two diff modes compare a path against something. Full-folder
+    // mode has no second side, and Commits mode builds its sides from a sha
+    // rather than from the mode (FCMT-17).
     (changed: ChangedPath): DiffRequest | null =>
-      mode === 'full' ? null : diffRequestFor(mode, changed, mergeBase),
+      mode === 'full' || mode === 'commits' ? null : diffRequestFor(mode, changed, mergeBase),
     [mode, mergeBase]
   )
 
@@ -513,8 +698,10 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
   const stillOpen = here.activeTab !== null && keys.includes(here.activeTab)
   const activeTab = stillOpen ? here.activeTab : (keys[0] ?? null)
   const focused = here.tabs.find((tab) => tabKeyOf(tab) === activeTab) ?? null
+  // A commit tab names no path on disk, so it never becomes a launcher target.
+  const focusedPath = focused && focused.kind !== 'commit' ? focused : null
   const target = launcherTarget(
-    focused ? { path: focused.path, at: focused.at } : null,
+    focusedPath ? { path: focusedPath.path, at: focusedPath.at } : null,
     here.lastFolder
   )
 
@@ -529,6 +716,8 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
     uncommitted: here.uncommitted,
     changedFiles: mode === 'uncommitted' ? here.uncommitted : (here.changed?.files ?? []),
     stats: here.stats,
+    commits: here.commits,
+    uncommittedCount: here.uncommitted.length,
     tabs: here.tabs,
     strip,
     activeTab,
@@ -545,6 +734,9 @@ export function useFiles({ worktreePath, active, ui, onPersist }: UseFilesOption
     openFile,
     openDiff,
     requestFor,
+    openCommit,
+    loadMoreCommits,
+    openCommitInBrowser,
     focusTab,
     closeTab
   }
