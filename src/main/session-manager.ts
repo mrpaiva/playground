@@ -24,7 +24,7 @@ export interface ActivityHooks {
 }
 
 /**
- * The session-name poller, as this module needs it (AD-022). The manager says
+ * The session-name poller, as this module needs it (AD-040). The manager says
  * which app sessions hold a Claude `session_id`; the poller reads the listing
  * and hands the names back through `applyNames`.
  */

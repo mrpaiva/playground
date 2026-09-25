@@ -604,7 +604,7 @@ describe('headerCounts', () => {
   })
 })
 
-describe("rail rows with the agent's session name (AD-022)", () => {
+describe("rail rows with the agent's session name (AD-040)", () => {
   const named = (id: string, name: string, overrides: Partial<SessionView> = {}): SessionView =>
     session({ id, status: 'running', name, ...overrides })
 

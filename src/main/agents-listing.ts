@@ -1,6 +1,6 @@
 /**
  * Read `claude agents --json` — the documented listing of live Claude Code
- * sessions — into `sessionId → name` without trusting its shape (AD-022,
+ * sessions — into `sessionId → name` without trusting its shape (AD-040,
  * SNAME-13). The listing carries more per entry (`pid`, `cwd`, `kind`,
  * `status`, …); only these two fields are relied upon, and an entry that lacks
  * either is skipped rather than failing the whole call.

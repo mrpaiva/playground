@@ -1,5 +1,5 @@
 /**
- * The renderer's two decisions about a session's name (AD-022): how a pushed
+ * The renderer's two decisions about a session's name (AD-040): how a pushed
  * change is applied to the list, and what label a row renders. Kept out of the
  * components so they carry unit tests — the components themselves are
  * hand-verified by convention (`TESTING.md`).

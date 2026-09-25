@@ -258,7 +258,7 @@ function toRailGroup(group: PendingGroup): RailGroup {
  * One row per session, fully resolved. A label appearing twice or more in the
  * same group is suffixed with its 1-based position among its namesakes
  * (RAIL-13); a label unique within its group stays bare. The label is the
- * agent's own session name when it reports one, else the agent name (AD-022).
+ * agent's own session name when it reports one, else the agent name (AD-040).
  */
 function resolveRows(group: PendingGroup): RailRow[] {
   const counts = new Map<string, number>()

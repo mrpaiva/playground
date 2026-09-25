@@ -1,4 +1,4 @@
-/* CDP smoke for Session Name (SNAME-01..15, AD-022). Proves what the unit tests
+/* CDP smoke for Session Name (SNAME-01..15, AD-040). Proves what the unit tests
  * structurally cannot: a REAL `claude agents --json`, spawned by main, naming
  * REAL Claude Code sessions on the rail — end to end through the poller, the
  * manager and the renderer.

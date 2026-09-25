@@ -270,7 +270,7 @@ T7 → T8
 
 ### T6: Rail rows label, number and describe by the session name ✅ COMPLETE
 
-**Status**: Done — `resolveRows` keys counts/numbering/label on `rowLabel`, tooltip reads `<agent> · <name>` in place of the title; `RailRow` doc comments updated; RAIL-12/13 amended with an AD-022 note. 9 tests; the 59 existing `rail-groups` tests unmodified (0 deletions). Quick gate 68/68, eslint and typecheck clean.
+**Status**: Done — `resolveRows` keys counts/numbering/label on `rowLabel`, tooltip reads `<agent> · <name>` in place of the title; `RailRow` doc comments updated; RAIL-12/13 amended with an AD-040 note. 9 tests; the 59 existing `rail-groups` tests unmodified (0 deletions). Quick gate 68/68, eslint and typecheck clean.
 
 **What**: `resolveRows` counts, numbers and labels by `rowLabel`, and the tooltip reads `<agent> · <name>` in place of the title when a name is present; RAIL-12/13 are amended to say so.
 **Where**: `src/renderer/src/lib/rail-groups.ts` (`resolveRows`, `RailRow.label`/`tooltip` doc comments), `src/renderer/src/lib/rail-groups.test.ts`, `.specs/features/agents-rail-v2/spec.md` (RAIL-12, RAIL-13 wording)
@@ -287,7 +287,7 @@ T7 → T8
 
 - [ ] `resolveRows` keys `counts`/`seen` and builds `label` from `rowLabel(session)`; the tile still reads `session.agent` (untouched, `SessionRail.tsx:303-304`)
 - [ ] `tooltip` = `` `${session.name ? `${session.agent} · ${session.name}` : session.title} · ${branchOrCwd}${activityDetail(session)}` ``
-- [ ] `.specs/features/agents-rail-v2/spec.md`: RAIL-12 "the agent's display name" → "the row label — the agent's own session name when it reports one (SNAME-01), else the agent's display name"; RAIL-13 "share an agent name" → "share a row label", `<agentName> <n>` → `<label> <n>`. A one-line amendment note citing AD-022, the AD-018 precedent
+- [ ] `.specs/features/agents-rail-v2/spec.md`: RAIL-12 "the agent's display name" → "the row label — the agent's own session name when it reports one (SNAME-01), else the agent's display name"; RAIL-13 "share an agent name" → "share a row label", `<agentName> <n>` → `<label> <n>`. A one-line amendment note citing AD-040, the AD-018 precedent
 - [ ] Tests: a named session's label is the name (SNAME-01); an unnamed running, an ad-hoc and a stopped session keep the agent name (SNAME-03); two rows named `refactor` in one group → `refactor 1`/`refactor 2` (SNAME-06); one named `alpha` beside two unnamed `Claude` → `alpha`, `Claude 1`, `Claude 2`; the same name in two groups stays bare in each; tooltip `Claude · alpha · <branch>` when named and `<title> · <branch>` when not (SNAME-05); activity detail still appended after the name; group header counts and `ariaLabel` unchanged by a name (SNAME-07); the existing RAIL-13/RAIL-15 tests pass unmodified
 - [ ] Gate check passes: `npx vitest run src/renderer/src/lib/rail-groups.test.ts`
 - [ ] Test count: ~966 → ~975 (+9; no silent deletions)

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { SessionView } from '../../../shared/config'
 import { api } from './api'
+import { failureToast } from './failure-toast'
 import { applyActivity } from './session-activity'
 import { applyName } from './session-name'
 
@@ -74,7 +75,7 @@ export function useSessions({ onToast, onSwitchToAgents }: UseSessionsOptions): 
       })
       .catch((err) => {
         console.error(err)
-        onToast("Couldn't start session")
+        onToast(failureToast("Couldn't start session", err))
       })
   }
 
@@ -94,7 +95,7 @@ export function useSessions({ onToast, onSwitchToAgents }: UseSessionsOptions): 
       })
       .catch((err) => {
         console.error(err)
-        onToast("Couldn't duplicate session")
+        onToast(failureToast("Couldn't duplicate session", err))
       })
   }
 

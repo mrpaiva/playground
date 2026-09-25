@@ -675,7 +675,7 @@ describe('SessionManager activity hooks', () => {
   })
 })
 
-describe('SessionManager — session names (AD-022)', () => {
+describe('SessionManager — session names (AD-040)', () => {
   const CLAUDE_ID = 'claude-side-id'
 
   it('records the session_id of the first hook event and watches it (SNAME-08, SNAME-09)', () => {

@@ -23,7 +23,7 @@ export interface SessionNamePollerDeps {
 
 /**
  * Decides *when* `claude agents --json` is called and reports each successful
- * listing as `sessionId → name` (AD-022). It never touches a session: the
+ * listing as `sessionId → name` (AD-040). It never touches a session: the
  * `SessionManager` tells it which app sessions hold a Claude `session_id`
  * (`watch`/`unwatch`), pokes it when one is still unnamed (`nudge`), and does
  * the matching itself in `applyNames`.

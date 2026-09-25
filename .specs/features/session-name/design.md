@@ -225,6 +225,6 @@ export interface SessionNames {
 | `env` for the child | `scrubAuthEnv(process.env)` | Same posture as the headless runner; the listing needs no auth vars |
 | Where numbering applies | To the rendered label (`name ?? agent`) | RAIL-13's purpose is unique labels within a group; the label is what the user reads |
 | No `session:name` on stop | Rely on the existing `session:status` refetch | `#toView` omits `name` for stopped sessions, so the refetch already clears it; one fewer event to reason about |
-| Decision number | **AD-022** in `STATE.md` | `AD-021` is claimed by two open branches (`time-tracking` #93, `terminal-links`); a third claimant would only add to the renumbering |
+| Decision number | **AD-040** in `STATE.md` | `AD-021` is claimed by two open branches (`time-tracking` #93, `terminal-links`); a third claimant would only add to the renumbering |
 
-> **Project-level decision recorded:** AD-022 — *A session's name comes from `claude agents --json`, matched by the hook-reported `session_id`; the terminal title and the transcript are not sources* — appended to `.specs/STATE.md`.
+> **Project-level decision recorded:** AD-040 — *A session's name comes from `claude agents --json`, matched by the hook-reported `session_id`; the terminal title and the transcript are not sources* — appended to `.specs/STATE.md`.

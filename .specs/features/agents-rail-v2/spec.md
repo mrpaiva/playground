@@ -130,7 +130,7 @@ are one visual change — half of it is not demo-able.
     SHALL label each of them `<label> <n>` with `n` 1-based in group order,
     and SHALL leave a label that is unique within its group unsuffixed. <!-- RAIL-13, event-driven -->
 
-    > Amended 2026-09-19 for `session-name` (AD-022, the AD-018 precedent):
+    > Amended 2026-09-19 for `session-name` (AD-040, the AD-018 precedent):
     > RAIL-12 and RAIL-13 said "the agent's display name" / "an agent name";
     > the label may now be the session's own name. Everything else in the row
     > is unchanged.
