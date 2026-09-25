@@ -253,7 +253,7 @@ export type LinkHit =
 | `TerminalPane.tsx` is the single wiring file for every terminal feature (326 lines; upstream PR #95 adds ~215 more) | `src/renderer/src/components/TerminalPane.tsx:79-323` | Merge conflicts; the hand-verified surface keeps growing | Keep the pane additions to listener registration + `activate()`; all logic in the four libs. Rebase on `main` if #95 lands first |
 | xterm opens OSC 8 `http` links on a plain click today (default handler → `window.open`) | `src/main/index.ts:132` `setWindowOpenHandler` | Plain click on an OSC 8 link already leaves the app — undiscovered because no agent emits OSC 8 | The no-op `linkHandler.activate` closes it (LINK-16) |
 | `shell.openPath` silently no-ops for unassociated files on Windows 11 | electron#36605 (closed, not planned) | The "Open with" chooser would never appear if we relied on it | Explicit `assoc` pre-check + `rundll32 shell32.dll,OpenAs_RunDLL`. **Verify on this machine at implementation** (the chooser command is well-known but not measured here yet) |
-| Owner-accepted: executables open through their OS association | `LinkOpener.openPath` | A Ctrl+click on a `.ps1`/`.cmd` the agent printed runs it | Recorded as AD-021 (below) so the posture is explicit and revisitable; a block list is a one-line follow-up in `openPath` |
+| Owner-accepted: executables open through their OS association | `LinkOpener.openPath` | A Ctrl+click on a `.ps1`/`.cmd` the agent printed runs it | Recorded as AD-041 (below) so the posture is explicit and revisitable; a block list is a one-line follow-up in `openPath` |
 | Hit-test geometry assumes uniform cell size | `bufferPositionForMouseEvent` | Off-by-one column at fractional DPI scales | Same assumption Orca ships; xterm sizes `.xterm-screen` to `cols × cellWidth`, so the division is exact at integer device pixels |
 | Existence probes on busy TUI rows (a `git status` listing has dozens of paths) | provider `provideLinks` | IPC payload and stat storm on every hover | One batched probe per row, `MAX_CANDIDATES_PER_LINE = 32`, per-pane cache; probes only on hover, never on output |
 | `cmd.exe /c assoc` spawn on every file click | `LinkOpener.openPath` | ~50 ms before the app opens | Accepted; no cache (associations change) |
@@ -278,12 +278,12 @@ export type LinkHit =
 | Chooser via `rundll32 shell32.dll,OpenAs_RunDLL` after an `assoc` check | explicit, not `shell.openPath` | electron#36605 |
 | Unprobed candidate at Ctrl+mousedown is intercepted | swallow-once | First-click reliability (LINK-19) beats one lost Ctrl+click on prose |
 
-> **Project-level decision to append on approval — AD-021:** *Terminal file links open through the
+> **Project-level decision to append on approval — AD-041:** *Terminal file links open through the
 > Windows file association with no executable block list.* Owner decision 2026-09-18 with the risk
 > stated; Orca behaves the same. A block list, if ever wanted, is a single guard in
 > `LinkOpener.openPath`.
 
-> **Project-level decisions appended with the 2026-09-19 amendment — AD-022, AD-023:** every
+> **Project-level decisions appended with the 2026-09-19 amendment — AD-042, AD-043:** every
 > agent session runs with `FORCE_HYPERLINK=1` (the app claims hyperlink support for the whole
 > PTY, not per agent), and OSC 8 `file://` targets open through the same file rules as a
 > printed path, with every other non-http scheme left to the agent. See `.specs/STATE.md`.

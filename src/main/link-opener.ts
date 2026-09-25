@@ -71,7 +71,7 @@ export class LinkOpener {
    * Directory → Explorer; file → the Windows default app, or the native "Open
    * with" chooser when there is no association (LINK-09..11, LINK-13). The
    * chooser is launched explicitly: on Windows 11 `shell.openPath` no-ops on an
-   * unassociated file (electron#36605). Executables take the same route (AD-021).
+   * unassociated file (electron#36605). Executables take the same route (AD-041).
    */
   async openPath(cwd: string, pathText: string): Promise<LaunchResult> {
     const absolutePath = this.resolveCandidate(cwd, pathText)

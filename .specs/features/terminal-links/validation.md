@@ -19,7 +19,7 @@ Explorer COM, process list) and from the app DOM. The nightly install was left r
 six lines; a directory with a space (`%TEMP%\lnk test\probe.zzqx`) created for the run and removed after.
 
 Machine facts that shaped the run: `assoc .md` → no association; `assoc .ts` → `WMP11.AssocFile.TTS`
-(Windows Media Player). Both are real consequences of the "default app" decision (AD-021): on this machine a
+(Windows Media Player). Both are real consequences of the "default app" decision (AD-041): on this machine a
 Ctrl+click on `src\main\index.ts` would launch Media Player, so that link was hover-checked but not opened.
 
 | # | Check | Requirement | Method | Observed | Result |
@@ -51,7 +51,7 @@ stopped Claude sessions), dev Electron processes ended, `%TEMP%\lnk test` remove
 left, nightly install untouched.
 
 **Finding for the owner (not a defect of the feature):** with `.ts` associated to Windows Media Player on this
-machine, Ctrl+click on any `.ts` path opens Media Player. This is AD-021 working as decided; the follow-ups
+machine, Ctrl+click on any `.ts` path opens Media Player. This is AD-041 working as decided; the follow-ups
 recorded in `context.md` (VS Code at line via `code -g`, or a Shift+Ctrl alternate) are the way out if it
 annoys in practice.
 
@@ -236,7 +236,7 @@ hand-verification of the renderer wiring. Rows 16-17 are declared "unit + inspec
 | --------- | ------ | ----- |
 | Minimum code | ✅ | 105-line `LinkOpener`; 45-line gesture classifier; 168/166/192-line libs where the ported addon code is attributed. `inFlight` dedupe in the provider is the minimum that keeps hover and `hitTest` from double-probing (LINK-19 + LINK-26) |
 | Surgical changes | ✅ | `shortcut-launcher.ts`: `export` only. `index.ts`: one block next to `shortcuts:launch`, reuses the existing `execFileAsync`. No adjacent code reformatted; the `useEffect` gains `cwd` in its deps (static per session — no practical remount) |
-| No scope creep | ✅ | Nothing beyond the 30 ACs: no tooltip, no `code -g`, no block list (AD-021), `allowNonHttpProtocols` untouched |
+| No scope creep | ✅ | Nothing beyond the 30 ACs: no tooltip, no `code -g`, no block list (AD-041), `allowNonHttpProtocols` untouched |
 | Matches patterns | ✅ | Capture-listener pattern of TCU (`onRightMouseDown`), pure classifier shape of `terminal-keys.ts`, DI-with-fakes of `session-manager.test.ts`, typed `handle()` channels. Nit: `hit: unknown \| null` in `linkGestureOnMouseDown` collapses to `unknown` — harmless |
 | Spec-anchored outcome check | ✅ | Every asserted value above matches the spec outcome; one ⚠️ (LINK-23 balanced parens) where the spec is silent |
 | Per-layer Coverage Expectation met | ⚠️ | Libs and `LinkOpener`: 1:1 with the ACs they own, every design Error-Handling row has a test. Renderer components: the smoke covers every Success Criterion + LINK-14/15/16/19 as the matrix asked — but LINK-20/22 (OSC 8) were left out of both the matrix's smoke list and T11 |
