@@ -1,0 +1,131 @@
+/*
+ * The Files direction's right column (FXPL-16/18/19/25): tab strip, launcher
+ * row, then the viewer. Three stacked bands in one flex column, so Monaco's
+ * `automaticLayout` gets a sized box for the remaining height.
+ */
+
+.file-tabs {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.file-tabs-strip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-height: 34px;
+  padding: 4px 6px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-tab {
+  display: flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  color: var(--text-muted);
+}
+
+.file-tab:hover {
+  background: var(--panel);
+}
+
+.file-tab.active {
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.file-tab-label {
+  max-width: 200px;
+  padding: 5px 4px 5px 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-tab.active .file-tab-label {
+  color: var(--text);
+}
+
+.file-tab-close {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px 5px 4px;
+  color: var(--text-faint);
+}
+
+.file-tab-close:hover {
+  color: var(--text);
+}
+
+/* FXPL-25: under the tabs, above whatever the tab shows. */
+.file-tabs-launchers {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-tabs-launcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 11.5px;
+  transition: border-color 0.12s;
+}
+
+.file-tabs-launcher:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.file-tabs-launcher:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.file-tabs-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-tabs-empty {
+  margin: auto;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+.file-tabs-note {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.file-tabs-error {
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--red);
+  word-break: break-word;
+}
